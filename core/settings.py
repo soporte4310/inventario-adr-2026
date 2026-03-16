@@ -112,7 +112,7 @@ DATABASES = {
         'HOST': config('DB_HOST').strip(),
         'PORT': config('DB_PORT', default='3306').strip(),
         'OPTIONS': {
-            'ssl': {'ssl': {}}  # o especificar CA si Clever-Cloud te lo da
+            'connect_timeout': 10,
         }
     }
 }

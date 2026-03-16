@@ -43,7 +43,7 @@ class AllInOneUpdateView(ActivoUpdateView):
 
 class AllInOneDetailView(ActivoDetailView):
     model = AllInOne
-    template_name = 'modulos/all_in_one_detail.html'
+    template_name = 'modulos/detalle_all_in_one.html'
     context_object_name = 'all_in_one'
 
 
@@ -92,7 +92,7 @@ class NotebookUpdateView(ActivoUpdateView):
 
 class NotebookDetailView(ActivoDetailView):
     model = Notebook
-    template_name = 'modulos/notebooks_detail.html'
+    template_name = 'modulos/detalle_notebook.html'
     context_object_name = 'notebook'
 
 
@@ -119,7 +119,7 @@ class MiniPCUpdateView(ActivoUpdateView):
 
 class MiniPCDetailView(ActivoDetailView):
     model = MiniPC
-    template_name = 'modulos/mini_pc_detail.html'
+    template_name = 'modulos/detalle_mini_pc.html'
     context_object_name = 'mini_pc'
 
 
@@ -146,7 +146,7 @@ class ProyectorUpdateView(ActivoUpdateView):
 
 class ProyectorDetailView(ActivoDetailView):
     model = Proyectores
-    template_name = 'modulos/proyector_detail.html'
+    template_name = 'modulos/detalle_proyector.html'
     context_object_name = 'proyector'
 
 
@@ -173,7 +173,7 @@ class BodegaADRUpdateView(ActivoUpdateView):
 
 class BodegaADRDetailView(ActivoDetailView):
     model = BodegaADR
-    template_name = 'modulos/bodega_adr_detail.html'
+    template_name = 'modulos/detalle_bodegaadr.html'
     context_object_name = 'bodega_item'
 
 
@@ -200,7 +200,7 @@ class AzoteaUpdateView(ActivoUpdateView):
 
 class AzoteaDetailView(ActivoDetailView):
     model = Azotea
-    template_name = 'modulos/azotea_detail.html'
+    template_name = 'modulos/detalle_azotea.html'
     context_object_name = 'azotea'
 
 
@@ -227,7 +227,7 @@ class MonitorUpdateView(ActivoUpdateView):
 
 class MonitorDetailView(ActivoDetailView):
     model = Monitor
-    template_name = 'modulos/monitor_detail.html'
+    template_name = 'modulos/detalle_monitor.html'
     context_object_name = 'monitor'
 
 
@@ -254,7 +254,7 @@ class AudioUpdateView(ActivoUpdateView):
 
 class AudioDetailView(ActivoDetailView):
     model = Audio
-    template_name = 'modulos/audio_detail.html'
+    template_name = 'modulos/detalle_audio.html'
     context_object_name = 'audio'
 
 
@@ -281,7 +281,7 @@ class TabletUpdateView(ActivoUpdateView):
 
 class TabletDetailView(ActivoDetailView):
     model = Tablet
-    template_name = 'modulos/tablet_detail.html'
+    template_name = 'modulos/detalle_tablet.html'
     context_object_name = 'tablet'
 
 
@@ -308,7 +308,7 @@ class EquiposIslaUpdateView(ActivoUpdateView):
 
 class EquiposIslaDetailView(ActivoDetailView):
     model = EquiposIsla
-    template_name = 'modulos/equipos_isla_detail.html'
+    template_name = 'modulos/detalle_equipos_isla.html'
     context_object_name = 'equipo_isla'
 
 
@@ -335,7 +335,7 @@ class SwitchDeRedUpdateView(ActivoUpdateView):
 
 class SwitchDeRedDetailView(ActivoDetailView):
     model = SwitchDeRed
-    template_name = 'modulos/switch_de_red_detail.html'
+    template_name = 'modulos/detalle_switch_de_red.html'
     context_object_name = 'switch_de_red'
 
 
@@ -362,5 +362,5 @@ class TelevisorUpdateView(ActivoUpdateView):
 
 class TelevisorDetailView(ActivoDetailView):
     model = Televisor
-    template_name = 'modulos/televisor_detail.html'
+    template_name = 'modulos/detalle_televisor.html'
     context_object_name = 'televisor'
