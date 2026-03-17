@@ -604,7 +604,8 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        profile = self.get_object()
+        self.object = self.get_object()
+        profile = self.object
         user = profile.user
 
         # --- NUEVO: eliminar solo la foto de perfil (sin tocar otros datos) ---
