@@ -41,7 +41,7 @@ jobs:
         EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
         EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
         # Lista de destinatarios del reporte (separados por coma)
-        EMAIL_RECIPIENTS: 'wtapia@inacap.cl,hleris@inacap.cl'
+        EMAIL_RECIPIENTS: 'wtapia@inacap.cl,hleris@inacap.cl,mvergarao@inacap.cl,jhonorato@inacap.cl,algonzalezv@inacap.cl,envarrom@inacap.cl,farnaldi@inacap.cl,pcasanga@inacap.cl'
         CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
         CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
         CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
