@@ -255,7 +255,7 @@ else:
         'mvergarao@inacap.cl',
         'jhonorato@inacap.cl',
         'algonzalezv@inacap.cl',
-        'envarrom@inacap.cl',
+        'enavarrom@inacap.cl',
         'farnaldi@inacap.cl',
         'pcasanga@inacap.cl',
     ]
