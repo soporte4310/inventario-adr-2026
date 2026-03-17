@@ -150,7 +150,7 @@
                 <input type="password" name="new_password1" id="new_password1"
                        class="ui-input" placeholder="Nueva Contraseña" autocomplete="new-password" />
                 <span id="password1-error" class="text-yellow-700 text-xs mt-1 hidden">
-                  La contraseña debe tener al menos 12 caracteres
+                  La contraseña debe tener al menos 8 caracteres
                 </span>
               </div>
               <div>
@@ -271,7 +271,7 @@ function validateEditForm() {
   let ok = true;
   const p1 = document.getElementById('new_password1');
   const p2 = document.getElementById('new_password2');
-  if (p1.value && p1.value.length < 12) {
+  if (p1.value && p1.value.length < 8) {
     document.getElementById('password1-error').classList.remove('hidden'); ok = false;
   } else { document.getElementById('password1-error').classList.add('hidden'); }
   if (p1.value || p2.value) {

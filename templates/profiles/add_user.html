@@ -113,7 +113,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-3">
         <div>
           <label for="password1" class="urp-label">Contraseña <span class="text-red-500">*</span></label>
-          <input type="password" name="password1" id="password1" required minlength="12"
+          <input type="password" name="password1" id="password1" required minlength="8"
                  placeholder="Contraseña" autocomplete="new-password"
                  class="urp-input w-full" />
           {% if form.password1.errors %}
@@ -124,7 +124,7 @@
         </div>
         <div>
           <label for="password2" class="urp-label">Confirmar Contraseña <span class="text-red-500">*</span></label>
-          <input type="password" name="password2" id="password2" required minlength="12"
+          <input type="password" name="password2" id="password2" required minlength="8"
                  placeholder="Confirmar Contraseña" autocomplete="new-password"
                  class="urp-input w-full" />
           {% if form.password2.errors %}
@@ -137,7 +137,7 @@
 
       {# Requisitos contraseña #}
       <ul class="list-disc ml-5 space-y-1 text-xs sm:text-sm text-gray-500 mb-5" id="password-requirements">
-        <li id="req-length">Mínimo <strong>12</strong> caracteres</li>
+        <li id="req-length">Mínimo <strong>8</strong> caracteres</li>
         <li id="req-uppercase">Una letra mayúscula</li>
         <li id="req-lowercase">Una letra minúscula</li>
         <li id="req-number">Al menos un número</li>
@@ -204,7 +204,7 @@
 
     function refresh() {
       const v1 = pwd1.value, v2 = pwd2.value;
-      toggle(reqs.length,    v1.length >= 12);
+      toggle(reqs.length,    v1.length >= 8);
       toggle(reqs.uppercase, /[A-Z]/.test(v1));
       toggle(reqs.lowercase, /[a-z]/.test(v1));
       toggle(reqs.number,    /\d/.test(v1));
@@ -223,7 +223,7 @@
       const groupError = root.querySelector('#group-error');
       if (groupError) groupError.classList.toggle('hidden', cargoOk);
 
-      const ok = v1.length >= 12 && /[A-Z]/.test(v1) && /[a-z]/.test(v1) &&
+      const ok = v1.length >= 8 && /[A-Z]/.test(v1) && /[a-z]/.test(v1) &&
                  /\d/.test(v1) && /[@#$%^&*!]/.test(v1) && v1 === v2 && cargoOk;
       if (!ok) refresh();
       return ok;
