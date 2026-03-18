@@ -7,7 +7,7 @@ correos HTML formales con el branding de Inventario ADR.
 from django.utils import timezone
 
 # URL pública del logo ADR (alojado en Cloudinary)
-LOGO_URL = "https://adr-inventario-tw1l.onrender.com/static/imagenes/adr_logo_email.png"
+LOGO_URL = "https://res.cloudinary.com/dq25coekf/image/upload/v1773866581/inventario_adr/adr_logo_email_v2.png"
 
 
 def _base_html(contenido_body: str) -> str:
