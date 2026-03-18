@@ -49,19 +49,20 @@ class SendGridHTTPBackend(BaseEmailBackend):
                 # Construir lista de destinatarios
                 to_emails = [To(email) for email in message.to]
 
+                html_content = None
+                if message.alternatives:
+                    for content, mimetype in message.alternatives:
+                        if mimetype == 'text/html':
+                            html_content = content
+
                 # Crear el mensaje de SendGrid
                 sg_mail = Mail(
                     from_email=from_email,
                     to_emails=to_emails,
                     subject=message.subject,
                     plain_text_content=message.body,
+                    html_content=html_content,
                 )
-
-                # Si hay contenido HTML, agregarlo
-                if message.alternatives:
-                    for content, mimetype in message.alternatives:
-                        if mimetype == 'text/html':
-                            sg_mail.html_content = content
 
                 # Enviar
                 response = sg.send(sg_mail)
