@@ -217,24 +217,20 @@ if DEBUG:
     # En desarrollo, imprime el correo en la terminal y evita timeouts SMTP
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    # Producción: detectar automáticamente SendGrid o Gmail
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_USE_SSL = False
-    EMAIL_TIMEOUT = 30
-
     _sendgrid_key = config('SENDGRID_API_KEY', default='')
     if _sendgrid_key:
-        # Render: Usar SendGrid para notificaciones de cambios
-        EMAIL_HOST = 'smtp.sendgrid.net'
-        EMAIL_HOST_USER = 'apikey'
-        EMAIL_HOST_PASSWORD = _sendgrid_key
-        DEFAULT_FROM_EMAIL = config('EMAIL_FROM', default='iquiquepracticantes@gmail.com')
+        # Render: Usar SendGrid HTTP API (Render bloquea SMTP puerto 587)
+        EMAIL_BACKEND = 'core.sendgrid_backend.SendGridHTTPBackend'
+        DEFAULT_FROM_EMAIL = config('EMAIL_FROM', default='soporte4310@gmail.com')
     else:
         # GitHub Actions: Usar Gmail SMTP para reporte semanal
+        EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
         EMAIL_HOST = 'smtp.gmail.com'
-        EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='iquiquepracticantes@gmail.com')
+        EMAIL_PORT = 587
+        EMAIL_USE_TLS = True
+        EMAIL_USE_SSL = False
+        EMAIL_TIMEOUT = 30
+        EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='soporte4310@gmail.com')
         EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
         DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
