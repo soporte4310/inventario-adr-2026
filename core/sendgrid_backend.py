@@ -64,6 +64,25 @@ class SendGridHTTPBackend(BaseEmailBackend):
                     html_content=html_content,
                 )
 
+                # Si hay HTML, adjuntar el logo INLINE para evitar bloqueos de Outlook
+                if html_content and 'cid:adr_logo_email' in html_content:
+                    import os
+                    import base64
+                    from sendgrid.helpers.mail import Attachment, FileContent, FileName, FileType, Disposition, ContentId
+                    
+                    logo_path = os.path.join(settings.BASE_DIR, 'static', 'imagenes', 'adr_logo_email.png')
+                    if os.path.exists(logo_path):
+                        with open(logo_path, 'rb') as f:
+                            encoded_logo = base64.b64encode(f.read()).decode()
+                        
+                        attachment = Attachment()
+                        attachment.file_content = FileContent(encoded_logo)
+                        attachment.file_type = FileType('image/png')
+                        attachment.file_name = FileName('adr_logo_email.png')
+                        attachment.disposition = Disposition('inline')
+                        attachment.content_id = ContentId('adr_logo_email')
+                        sg_mail.add_attachment(attachment)
+
                 # Enviar
                 response = sg.send(sg_mail)
 
