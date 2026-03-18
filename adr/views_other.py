@@ -134,11 +134,6 @@ class UserPasswordChangeView(LoginRequiredMixin, SuccessMessageMixin, PasswordCh
     success_url = reverse_lazy("my_profile")
     success_message = "Tu contraseña se cambió correctamente."
 
-class CustomPasswordResetView(PasswordResetView):
-    email_template_name = 'registration/password_reset_email.txt'
-    def dispatch(self, request, *args, **kwargs):
-        messages.success(request, "Tu contraseña fue cambiada correctamente.")
-        return redirect(reverse_lazy('inicio'))  # Cambia 'inicio' por el nombre de tu URL de inicio
 @add_group_name_to_context
 class DescargarExcelView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Vista para descargar datos en formato Excel"""
