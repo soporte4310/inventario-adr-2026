@@ -32,7 +32,7 @@ def _base_html(contenido_body: str) -> str:
 
           <!-- Banner rojo -->
           <tr>
-            <td style="background: linear-gradient(135deg, #dc2626, #991b1b); padding:20px 32px; text-align:center;">
+            <td bgcolor="#dc2626" style="padding:20px 32px; text-align:center;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="text-align:center;">
