@@ -17,11 +17,11 @@ class Migration(migrations.Migration):
             name='equiposisla',
             options={'ordering': ['ubicacion', '-fecha_creacion'], 'verbose_name': 'Equipo Isla', 'verbose_name_plural': 'Equipos Islas'},
         ),
-        migrations.AddField(
-            model_name='eliminados',
-            name='etiqueta',
-            field=models.CharField(blank=True, max_length=100, null=True, verbose_name='Etiqueta'),
-        ),
+        #migrations.AddField(
+        #    model_name='eliminados',
+        #    name='etiqueta',
+        #    field=models.CharField(blank=True, max_length=100, null=True, verbose_name='Etiqueta'),
+        #),
         migrations.AlterField(
             model_name='equiposisla',
             name='activo',
