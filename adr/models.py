@@ -302,3 +302,188 @@ class Televisor(ActivoBase):
 
     def get_absolute_url(self):
         return reverse('detalle_televisor', kwargs={'pk': self.pk})
+
+
+#--------------------------------------------------------------
+# NUEVOS MODELOS
+#--------------------------------------------------------------
+class AreaAdministrativa(models.Model):
+    """Modelo para registrar áreas administrativas o departamentos dentro de la sede"""
+    nombre = models.CharField(verbose_name="Nombre", max_length=100)
+
+    class Meta:
+        verbose_name = "Departamento"
+        verbose_name_plural = "Departamentos"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Cargo(models.Model):
+    """Modelo para registrar los cargos de los funcionarios"""
+    nombre = models.CharField(verbose_name="Nombre", max_length=100)
+    es_adr = models.BooleanField(verbose_name="Es cargo de ADR", default=False, help_text="Seleccione si el cargo es exclusivo de ADR")
+
+    class Meta:
+        verbose_name = "Cargo"
+        verbose_name_plural = "Cargos"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Funcionario(models.Model):
+    """Modelo para registrar a las personas a las que se les asigna equipos (Administrativos, Docentes, etc.)."""
+    nombre = models.CharField(verbose_name="Nombre", max_length=100)
+    telefono = models.CharField(verbose_name="Teléfono", max_length=20, blank=True, null=True)
+    email = models.EmailField(verbose_name="Email", max_length=100, blank=True, null=True)
+    cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, verbose_name="Cargo", null=True, blank=True)
+    area = models.ForeignKey(AreaAdministrativa, on_delete=models.PROTECT, verbose_name="Área administrativa", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Funcionario"
+        verbose_name_plural = "Funcionarios"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Edificio(models.Model):
+    """Modelo para registrar los edificios disponibles en la sede"""
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del Edificio")
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Edificio"
+        verbose_name_plural = "Edificios"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Piso(models.Model):
+    """Modelo para registrar los niveles/pisos disponibles en los edificios"""
+    nombre = models.CharField(verbose_name="Piso", max_length=20, help_text="Ingrese el nombre del Piso/Nivel")
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    edificio = models.ForeignKey(Edificio, on_delete=models.PROTECT, verbose_name="Edificio", help_text="Seleccione el edificio correspondiente")
+
+    class Meta:
+        verbose_name = "Piso"
+        verbose_name_plural = "Pisos"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Ubicacion(models.Model):
+    """Modelo para registrar la ubicación final de los equipos. Estas pueden ser, salas, pasillos, bodegas, etc."""
+    nombre = models.CharField(verbose_name="Ubicación", max_length=20, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)")
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    imagen = models.ImageField(verbose_name="Imagen de la ubicación", null=True, blank=True, upload_to="ubicaciones/imagen/main")
+    imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="ubicaciones/imagen/medium/", blank=True, null=True,editable=False)
+    imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)",upload_to="ubicaciones/imagen/small/", blank=True, null=True,editable=False)
+    piso = models.ForeignKey(Piso, on_delete=models.PROTECT, verbose_name="Piso", help_text="Seleccione el piso/nivel correspondiente")
+
+    class Meta:
+        verbose_name = "Ubicación"
+        verbose_name_plural = "Ubicaciones"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Marca(models.Model):
+    """Modelo para registrar marcas de productos"""
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre de la marca")
+
+    class Meta:
+        verbose_name = "Marca"
+        verbose_name_plural = "Marcas"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Categoria(models.Model):
+    """Modelo para registrar las diferentes categorías o tipos de producto"""
+    nombre = models.CharField(verbose_name="Nombre", max_length=100, help_text="Ingrese el nombre de la categoría (tipo). Ej: Televisor, All in One, Monitor, Laptop, etc.")
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Categoría"
+        verbose_name_plural = "Categorías"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Catalogo(models.Model):
+    """Modelo para crear productos. Los productos creados aquí servirán para registrar activos o equipos reales en el modelo para activos"""
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, verbose_name="Categoría (tipo)", help_text="Seleccione la categoría correspondiente")
+    marca = models.ForeignKey(Marca, on_delete=models.PROTECT, verbose_name="Marca", help_text="Seleccione la marca correspondiente")
+    modelo = models.CharField(max_length=50, blank=True, null=True)
+    descripcion = models.TextField(verbose_name="Detalle (opcional)", null=True, blank=True)
+    imagen = models.ImageField(verbose_name="Imagen (opcional)", upload_to="productos/imagen/main/", blank=True, null=True)
+    imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="productos/imagen/medium/", blank=True, null=True,editable=False)
+    imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)",upload_to="productos/imagen/small/", blank=True, null=True,editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Producto"
+        verbose_name_plural = "Productos"
+
+    def __str__(self):
+        return f"{self.categoria} {self.marca.nombre} {self.modelo}"
+
+
+class Estado(models.Model):
+    '''Modelo para registrar los diferentes estados que pueden tener los equipos'''
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del estado")
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Estado"
+        verbose_name_plural = "Estados"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Activo(models.Model):
+    """Modelo para registrar equipos reales"""
+
+    class TipoUso(models.TextChoices):
+        PERSONAL = 'PER', 'Personal/Oficina'
+        LABORATORIO = 'LAB', 'Laboratorio/Sala'
+        EVENTOS = 'EVE', 'Eventos'
+        OTRO = 'OTR', 'Otro'
+
+    catalogo = models.ForeignKey(Catalogo, on_delete=models.PROTECT, verbose_name="Catálogo", help_text="Seleccione el producto correspondiente")
+    numero_serie = models.CharField(verbose_name="N° de serie", max_length=50, help_text="Ingrese el número de serie del equipo", null=True, blank=True)
+    etiqueta = models.CharField(verbose_name="Etiqueta", max_length=50, help_text="Ingrese el código de la etiqueta del equipo", null=True, blank=True)
+    bdo = models.CharField(verbose_name="Número BDO", max_length=50, help_text="Ingrese el número BDO del equipo", null=True, blank=True)
+    netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True)
+    estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
+    tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Compartimento", help_text="Seleccionar ubicación donde se encuentra el equipo")
+    asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Activo"
+        verbose_name_plural = "Activos"
+
+        default_permissions = []
+
+        permissions = [
+            ("view_activo", "Ver activos del sistema"),
+            ("add_activo", "Agregar nuevos activos"),
+            ("change_activo", "Modificar información de los activos"),
+            ("deactivate_activo", "Dar de baja activos (Cambiar estado)"),
+            ("delete_activo", "Eliminar activos"),
+        ]
+
+    def __str__(self):
+        return f'{self.catalogo} - {self.numero_serie or self.etiqueta}'
