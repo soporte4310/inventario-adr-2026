@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.conf import settings
 from accounts.models import Profile
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .opciones import (
     opciones_sala_All_In_One, opciones_estado, opciones_marca_all_in_one,
     opciones_ubicacion_all_in_one_admin, opciones_marca_notebook,
@@ -448,6 +449,16 @@ class Estado(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+
+class ActivoManager(models.Manager):
+    """Manager personalizado creado para el Modelo Activo, el cual filtra los equipos eliminados en el queryset por defecto, permitiendo así la implementación de un soft delete.
+
+    La columna 'is_deleted' en el modelo 'Activo' busca reemplazar la complejidad del modelo 'Eliminados'.
+    """
+    def get_queryset(self):
+        # Por defecto, este manager SIEMPRE filtra y oculta los eliminados
+        return super().get_queryset().filter(is_deleted=False)
 
 
 class Activo(models.Model):
@@ -459,6 +470,12 @@ class Activo(models.Model):
         EVENTOS = 'EVE', 'Eventos'
         OTRO = 'OTR', 'Otro'
 
+    class TipoRed(models.TextChoices):
+        DOMINIO = 'DOM', 'Red Institucional (Dominio)'
+        ISLA = 'ISLA', 'Equipo Isla'
+        LAB = 'LAB', 'Laboratorio Aislado'
+        OTRO = 'OTRO', 'Otro / Sin Red'
+
     catalogo = models.ForeignKey(Catalogo, on_delete=models.PROTECT, verbose_name="Catálogo", help_text="Seleccione el producto correspondiente")
     numero_serie = models.CharField(verbose_name="N° de serie", max_length=50, help_text="Ingrese el número de serie del equipo", null=True, blank=True)
     etiqueta = models.CharField(verbose_name="Etiqueta", max_length=50, help_text="Ingrese el código de la etiqueta del equipo", null=True, blank=True)
@@ -466,14 +483,34 @@ class Activo(models.Model):
     netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True)
     estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
     tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
+    tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
     ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Compartimento", help_text="Seleccionar ubicación donde se encuentra el equipo")
     asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
+    is_deleted = models.BooleanField(default=False, verbose_name="Eliminado")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ActivoManager() # El manager principal ahora oculta los eliminados
+    all_objects = models.Manager() # Manager secundario para ver TODO (ej: panel de admin)
 
     class Meta:
         verbose_name = "Activo"
         verbose_name_plural = "Activos"
+
+        # Los códigos deben ser únicos, 
+        # pero solo entre los equipos que no están eliminados".
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bdo'], 
+                condition=Q(is_deleted=False, bdo__isnull=False), 
+                name='unique_bdo_activos'
+            ),
+            models.UniqueConstraint(
+                fields=['etiqueta'], 
+                condition=Q(is_deleted=False, etiqueta__isnull=False), 
+                name='unique_etiqueta_activos'
+            ),
+        ]
 
         default_permissions = []
 
@@ -487,3 +524,40 @@ class Activo(models.Model):
 
     def __str__(self):
         return f'{self.catalogo} - {self.numero_serie or self.etiqueta}'
+    
+    def clean(self):
+        super().clean()
+        
+        # Si envían un campo vacío, un espacio en blanco o el viejo '0', 
+        # se transforma en un verdadero valor Nulo para la base de datos.
+        if self.bdo in [None, '', '0', ' ']:
+            self.bdo = None
+        else:
+            self.bdo = str(self.bdo).strip()
+
+        if self.etiqueta in [None, '', '0', ' ']:
+            self.etiqueta = None
+        else:
+            self.etiqueta = str(self.etiqueta).strip()
+
+        # 2. VALIDACIÓN PARA FORMULARIOS AMIGABLES:
+        # En lugar de dejar que la base de datos lance un error 500, 
+        # revisamos si el código ya existe en un equipo ACTIVO y mostramos un mensaje amigable.
+        qs_activos = Activo.objects.filter(is_deleted=False).exclude(pk=self.pk)
+
+        if self.bdo and qs_activos.filter(bdo=self.bdo).exists():
+            raise ValidationError({'bdo': f"El BDO {self.bdo} ya está en uso por un equipo activo."})
+
+        if self.etiqueta and qs_activos.filter(etiqueta=self.etiqueta).exists():
+            raise ValidationError({'etiqueta': f"La etiqueta {self.etiqueta} ya está registrada en un equipo activo."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean() # Ejecuta el clean() automáticamente antes de guardar
+        super().save(*args, **kwargs)
+    
+    def delete(self, user=None, *args, **kwargs):
+        """
+        En lugar de borrar el registro de la BD, lo marca como eliminado.
+        """
+        self.is_deleted = True
+        self.save()
