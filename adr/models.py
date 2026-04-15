@@ -409,6 +409,8 @@ class Categoria(models.Model):
     """Modelo para registrar las diferentes categorías o tipos de producto"""
     nombre = models.CharField(verbose_name="Nombre", max_length=100, help_text="Ingrese el nombre de la categoría (tipo). Ej: Televisor, All in One, Monitor, Laptop, etc.")
     descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    usa_netbios = models.BooleanField(default=False, verbose_name="¿Requiere NetBIOS?", help_text="Marque si los equipos de esta categoría se unen al dominio.")
+    usa_bdo = models.BooleanField(default=True, verbose_name="¿Requiere BDO?", help_text="Marque si a estos equipos se les pega placa de inventario.")
 
     class Meta:
         verbose_name = "Categoría"
@@ -416,6 +418,29 @@ class Categoria(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+    def clean(self):
+        super().clean()
+        
+        # Solo verificamos si la categoría ya existía (es una edición, no una creación)
+        if self.pk:
+            categoria_antigua = Categoria.objects.get(pk=self.pk)
+            
+            cambio_netbios = self.usa_netbios != categoria_antigua.usa_netbios
+            cambio_bdo = self.usa_bdo != categoria_antigua.usa_bdo
+
+            # Si intentan cambiar los checks, verificamos si hay activos
+            if cambio_netbios or cambio_bdo:
+                # Importamos Activo aquí adentro para evitar un error de "importación circular" en Django
+                from adr.models import Activo 
+                
+                # Buscamos si hay activos que pertenezcan a algún catálogo de esta categoría
+                tiene_activos = Activo.objects.filter(catalogo__categoria=self).exists()
+                
+                if tiene_activos:
+                    raise ValidationError(
+                        "No puedes modificar las reglas de NetBIOS o BDO porque ya existen equipos físicos registrados bajo esta categoría."
+                    )
 
 
 class Catalogo(models.Model):
@@ -550,6 +575,28 @@ class Activo(models.Model):
 
         if self.etiqueta and qs_activos.filter(etiqueta=self.etiqueta).exists():
             raise ValidationError({'etiqueta': f"La etiqueta {self.etiqueta} ya está registrada en un equipo activo."})
+        
+
+        # Validación dinámica guiada por la categoría
+        if self.catalogo and self.catalogo.categoria:
+            categoria = self.catalogo.categoria
+
+            # 1. Validación de NetBIOS
+            if categoria.usa_netbios:
+                if self.tipo_red == self.TipoRed.DOMINIO and not self.netbios:
+                    raise ValidationError({'netbios': f"Los equipos de la categoría '{categoria.nombre}' conectados al dominio deben tener un código NetBIOS."})
+            else:
+                # Si la categoría no usa NetBIOS, forzamos la limpieza por si el usuario lo llenó por error
+                self.netbios = None
+
+            # 2. Validación de BDO
+            if categoria.usa_bdo and not self.bdo:
+                # Opcional: Lanzar error si es obligatorio el primer día, 
+                # Dejar pasar si permiten guardar sin BDO temporalmente.
+                pass
+            elif not categoria.usa_bdo:
+                # Si es un cable o algo menor que no usa BDO, lo limpiamos
+                self.bdo = None
 
     def save(self, *args, **kwargs):
         self.full_clean() # Ejecuta el clean() automáticamente antes de guardar
