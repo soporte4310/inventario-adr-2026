@@ -378,7 +378,7 @@ class Piso(models.Model):
 
 class Ubicacion(models.Model):
     """Modelo para registrar la ubicación final de los equipos. Estas pueden ser, salas, pasillos, bodegas, etc."""
-    nombre = models.CharField(verbose_name="Ubicación", max_length=20, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)")
+    nombre = models.CharField(verbose_name="Ubicación", max_length=100, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)")
     descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
     imagen = models.ImageField(verbose_name="Imagen de la ubicación", null=True, blank=True, upload_to="ubicaciones/imagen/main")
     imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="ubicaciones/imagen/medium/", blank=True, null=True,editable=False)
