@@ -373,7 +373,7 @@ class Piso(models.Model):
         verbose_name_plural = "Pisos"
 
     def __str__(self):
-        return self.nombre
+        return f'{self.edificio}, {self.nombre}'
 
 
 class Ubicacion(models.Model):
@@ -390,7 +390,7 @@ class Ubicacion(models.Model):
         verbose_name_plural = "Ubicaciones"
 
     def __str__(self):
-        return self.nombre
+        return f'{self.piso}, {self.nombre}'
 
 
 class Marca(models.Model):
@@ -509,7 +509,7 @@ class Activo(models.Model):
     estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
     tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
     tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
-    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Compartimento", help_text="Seleccionar ubicación donde se encuentra el equipo")
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Ubicación", help_text="Seleccionar ubicación donde se encuentra el equipo")
     asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
     is_deleted = models.BooleanField(default=False, verbose_name="Eliminado")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -608,3 +608,35 @@ class Activo(models.Model):
         """
         self.is_deleted = True
         self.save()
+
+
+class MapeoUbicacion(models.Model):
+    """
+    Tabla intermedia para limpiar ubicaciones durante el proceso ETL.
+    Conecta el string sucio de las tablas viejas con el modelo Ubicacion nuevo.
+    """
+    nombre_original = models.CharField(
+        max_length=255, 
+        unique=True, 
+        verbose_name="Ubicación Original (Texto Sucio)"
+    )
+    ubicacion_nueva = models.ForeignKey(
+        'Ubicacion', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name="Ubicación Estandarizada",
+        help_text="Seleccione la ubicación real a la que corresponde el texto original."
+    )
+    revisado = models.BooleanField(
+        default=False, 
+        verbose_name="Validado por humano"
+    )
+
+    class Meta:
+        verbose_name = "Mapeo de Ubicación"
+        verbose_name_plural = "Mapeos de Ubicaciones"
+
+    def __str__(self):
+        estado = "✅" if self.revisado else "❌"
+        return f"{estado} {self.nombre_original} -> {self.ubicacion_nueva or 'Pendiente'}"

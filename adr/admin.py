@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import AllInOne, AllInOneAdmins, EquiposIsla, Notebook, MiniPC, Proyectores, Azotea, BodegaADR, Monitor, Audio, Tablet, SwitchDeRed, AreaAdministrativa, Cargo, Funcionario, Edificio, Piso, Ubicacion, Marca, Categoria, Catalogo, Estado, Activo
+from .models import AllInOne, AllInOneAdmins, EquiposIsla, Notebook, MiniPC, Proyectores, Azotea, BodegaADR, Monitor, Audio, Tablet, SwitchDeRed, AreaAdministrativa, Cargo, Funcionario, Edificio, Piso, Ubicacion, Marca, Categoria, Catalogo, Estado, Activo, MapeoUbicacion
 
 @admin.register(AllInOne)
 class AllInOneAdmin(admin.ModelAdmin):
@@ -177,3 +177,4 @@ admin.site.register(Cargo)
 admin.site.register(Marca)
 admin.site.register(Categoria)
 admin.site.register(Estado)
+admin.site.register(MapeoUbicacion)
