@@ -419,28 +419,28 @@ class Categoria(models.Model):
     def __str__(self):
         return self.nombre
     
-    def clean(self):
-        super().clean()
-        
-        # Solo verificamos si la categoría ya existía (es una edición, no una creación)
-        if self.pk:
-            categoria_antigua = Categoria.objects.get(pk=self.pk)
-            
-            cambio_netbios = self.usa_netbios != categoria_antigua.usa_netbios
-            cambio_bdo = self.usa_bdo != categoria_antigua.usa_bdo
-
-            # Si intentan cambiar los checks, verificamos si hay activos
-            if cambio_netbios or cambio_bdo:
-                # Importamos Activo aquí adentro para evitar un error de "importación circular" en Django
-                from adr.models import Activo 
-                
-                # Buscamos si hay activos que pertenezcan a algún catálogo de esta categoría
-                tiene_activos = Activo.objects.filter(catalogo__categoria=self).exists()
-                
-                if tiene_activos:
-                    raise ValidationError(
-                        "No puedes modificar las reglas de NetBIOS o BDO porque ya existen equipos físicos registrados bajo esta categoría."
-                    )
+#    def clean(self):
+#        super().clean()
+#        
+#        # Solo verificamos si la categoría ya existía (es una edición, no una creación)
+#        if self.pk:
+#            categoria_antigua = Categoria.objects.get(pk=self.pk)
+#            
+#            cambio_netbios = self.usa_netbios != categoria_antigua.usa_netbios
+#            cambio_bdo = self.usa_bdo != categoria_antigua.usa_bdo
+#
+#            # Si intentan cambiar los checks, verificamos si hay activos
+#            if cambio_netbios or cambio_bdo:
+#                # Importamos Activo aquí adentro para evitar un error de "importación circular" en Django
+#                from adr.models import Activo 
+#                
+#                # Buscamos si hay activos que pertenezcan a algún catálogo de esta categoría
+#                tiene_activos = Activo.objects.filter(catalogo__categoria=self).exists()
+#                
+#                if tiene_activos:
+#                    raise ValidationError(
+#                        "No puedes modificar las reglas de NetBIOS o BDO porque ya existen equipos físicos registrados bajo esta categoría."
+#                    )
 
 
 class Catalogo(models.Model):
@@ -456,8 +456,8 @@ class Catalogo(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Producto"
-        verbose_name_plural = "Productos"
+        verbose_name = "Catálogo de producto"
+        verbose_name_plural = "Catálogo de productos"
 
     def __str__(self):
         return f"{self.categoria} {self.marca.nombre} {self.modelo}"
@@ -552,22 +552,36 @@ class Activo(models.Model):
     
     def clean(self):
         super().clean()
-        
-        # Si envían un campo vacío, un espacio en blanco o el viejo '0', 
-        # se transforma en un verdadero valor Nulo para la base de datos.
+
+        # 1. NORMALIZACIÓN INTELIGENTE DEL BDO
         if self.bdo in [None, '', '0', ' ']:
             self.bdo = None
         else:
-            self.bdo = str(self.bdo).strip()
+            # Quitamos espacios en blanco
+            bdo_limpio = str(self.bdo).strip()
+            
+            # Validamos que solo contenga números
+            if not bdo_limpio.isdigit():
+                raise ValidationError({'bdo': 'El código BDO debe contener únicamente números.'})
 
+            # Si el código NO tiene 12 dígitos, o NO empieza con '26', 
+            # asumimos que el técnico lo escribió a mano en su versión corta.
+            if len(bdo_limpio) != 12 or not bdo_limpio.startswith('26'):
+                # bdo_limpio.zfill(10) convierte "11180" en "0000011180"
+                # Luego le pegamos el "26" al inicio.
+                self.bdo = f"26{bdo_limpio.zfill(10)}"
+            else:
+                # Si ya tiene 12 dígitos y empieza con 26 (ej: escaneado con pistola láser)
+                self.bdo = bdo_limpio
+
+        # 2. NORMALIZACIÓN DE ETIQUETA
         if self.etiqueta in [None, '', '0', ' ']:
             self.etiqueta = None
         else:
             self.etiqueta = str(self.etiqueta).strip()
 
-        # 2. VALIDACIÓN PARA FORMULARIOS AMIGABLES:
-        # En lugar de dejar que la base de datos lance un error 500, 
-        # revisamos si el código ya existe en un equipo ACTIVO y mostramos un mensaje amigable.
+        # 3. VALIDACIÓN DE COLISIONES (FORMULARIOS AMIGABLES)
+        # Revisamos si el código ya existe en un equipo ACTIVO para no lanzar error 500
         qs_activos = Activo.objects.filter(is_deleted=False).exclude(pk=self.pk)
 
         if self.bdo and qs_activos.filter(bdo=self.bdo).exists():
@@ -577,25 +591,24 @@ class Activo(models.Model):
             raise ValidationError({'etiqueta': f"La etiqueta {self.etiqueta} ya está registrada en un equipo activo."})
         
 
-        # Validación dinámica guiada por la categoría
+        # 4. VALIDACIÓN DINÁMICA GUIADA POR LA CATEGORÍA
         if self.catalogo and self.catalogo.categoria:
             categoria = self.catalogo.categoria
 
-            # 1. Validación de NetBIOS
+            # Validación de NetBIOS
             if categoria.usa_netbios:
                 if self.tipo_red == self.TipoRed.DOMINIO and not self.netbios:
                     raise ValidationError({'netbios': f"Los equipos de la categoría '{categoria.nombre}' conectados al dominio deben tener un código NetBIOS."})
             else:
-                # Si la categoría no usa NetBIOS, forzamos la limpieza por si el usuario lo llenó por error
+                # Si la categoría no usa NetBIOS, forzamos la limpieza
                 self.netbios = None
 
-            # 2. Validación de BDO
+            # Validación de BDO
             if categoria.usa_bdo and not self.bdo:
-                # Opcional: Lanzar error si es obligatorio el primer día, 
-                # Dejar pasar si permiten guardar sin BDO temporalmente.
+                # Se permite guardar sin BDO temporalmente
                 pass
             elif not categoria.usa_bdo:
-                # Si es un cable o algo menor que no usa BDO, lo limpiamos
+                # Si la categoría (ej. un cable) no usa BDO, lo limpiamos
                 self.bdo = None
 
     def save(self, *args, **kwargs):

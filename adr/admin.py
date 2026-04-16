@@ -170,6 +170,24 @@ class ActivoAdmin(admin.ModelAdmin):
         queryset.update(is_deleted=False)
         self.message_user(request, "Los activos seleccionados han sido restaurados.")
 
+
+@admin.register(MapeoUbicacion)
+class MapeoUbicacionAdmin(admin.ModelAdmin):
+    # Solo texto plano y relaciones simples, sin widgets pesados
+    list_display = ('nombre_original', 'ubicacion_nueva', 'revisado')
+    
+    # Filtro optimizado
+    list_filter = ('revisado',)
+    
+    # Buscador simple
+    search_fields = ('nombre_original',)
+    
+    # Evitamos que cargue miles de selects en los formularios de edición
+    raw_id_fields = ('ubicacion_nueva',)
+    
+    # Desactivamos el conteo total de registros si la tabla es gigante (opcional)
+    show_full_result_count = False
+
 # --- Registros Simples ---
 
 admin.site.register(AreaAdministrativa)
@@ -177,4 +195,3 @@ admin.site.register(Cargo)
 admin.site.register(Marca)
 admin.site.register(Categoria)
 admin.site.register(Estado)
-admin.site.register(MapeoUbicacion)
