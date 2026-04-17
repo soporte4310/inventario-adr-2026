@@ -182,8 +182,8 @@ class MapeoUbicacionAdmin(admin.ModelAdmin):
     # Buscador simple
     search_fields = ('nombre_original',)
     
-    # Evitamos que cargue miles de selects en los formularios de edición
-    raw_id_fields = ('ubicacion_nueva',)
+    ## Evitamos que cargue miles de selects en los formularios de edición
+    #raw_id_fields = ('ubicacion_nueva',)
     
     # Desactivamos el conteo total de registros si la tabla es gigante (opcional)
     show_full_result_count = False

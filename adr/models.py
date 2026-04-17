@@ -493,6 +493,8 @@ class Activo(models.Model):
         PERSONAL = 'PER', 'Personal/Oficina'
         LABORATORIO = 'LAB', 'Laboratorio/Sala'
         EVENTOS = 'EVE', 'Eventos'
+        ACADEMICO = 'ACA', 'Académico'
+        ADMINISTRATIVO = 'ADM', 'Administrativo'
         OTRO = 'OTR', 'Otro'
 
     class TipoRed(models.TextChoices):
@@ -509,7 +511,7 @@ class Activo(models.Model):
     estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
     tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
     tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
-    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Ubicación", help_text="Seleccionar ubicación donde se encuentra el equipo")
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Ubicación", help_text="Seleccionar ubicación donde se encuentra el equipo", null=True, blank=True)
     asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
     is_deleted = models.BooleanField(default=False, verbose_name="Eliminado")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -534,6 +536,11 @@ class Activo(models.Model):
                 fields=['etiqueta'], 
                 condition=Q(is_deleted=False, etiqueta__isnull=False), 
                 name='unique_etiqueta_activos'
+            ),
+            models.UniqueConstraint(
+                fields=['numero_serie'], 
+                condition=Q(is_deleted=False, numero_serie__isnull=False), 
+                name='unique_nserie_activos'
             ),
         ]
 
@@ -580,7 +587,14 @@ class Activo(models.Model):
         else:
             self.etiqueta = str(self.etiqueta).strip()
 
-        # 3. VALIDACIÓN DE COLISIONES (FORMULARIOS AMIGABLES)
+        # 3. NORMALIZACIÓN DE NÚMERO DE SERIE
+        # Si envían vacío, ceros, o textos genéricos de "No Aplica", lo hacemos NULL
+        if str(self.numero_serie).strip().upper() in ['NONE', '', '0', 'N/A', 'S/N', 'NO TIENE']:
+            self.numero_serie = None
+        else:
+            self.numero_serie = str(self.numero_serie).strip()
+
+        # 4. VALIDACIÓN DE COLISIONES (FORMULARIOS AMIGABLES)
         # Revisamos si el código ya existe en un equipo ACTIVO para no lanzar error 500
         qs_activos = Activo.objects.filter(is_deleted=False).exclude(pk=self.pk)
 
@@ -590,8 +604,10 @@ class Activo(models.Model):
         if self.etiqueta and qs_activos.filter(etiqueta=self.etiqueta).exists():
             raise ValidationError({'etiqueta': f"La etiqueta {self.etiqueta} ya está registrada en un equipo activo."})
         
-
-        # 4. VALIDACIÓN DINÁMICA GUIADA POR LA CATEGORÍA
+        if self.numero_serie and qs_activos.filter(numero_serie=self.numero_serie).exists():
+            raise ValidationError({'numero_serie': f"El Número de Serie '{self.numero_serie}' ya está registrado en otro equipo del inventario."})
+        
+        # 5. VALIDACIÓN DINÁMICA GUIADA POR LA CATEGORÍA
         if self.catalogo and self.catalogo.categoria:
             categoria = self.catalogo.categoria
 
