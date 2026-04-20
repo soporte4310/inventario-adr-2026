@@ -194,7 +194,40 @@ class AgregarActivoView(LoginRequiredMixin, CreateView):
     """
     Vista para registrar un nuevo activo.
     """
-    pass
+    model = Activo
+    form_class = ActivoForm
+    template_name = 'agregar_activo.html'
+
+    def get_form_kwargs(self):
+        # Pasamos el parámetro de categoría al formulario, al igual que en la vista original
+        kwargs = super().get_form_kwargs()
+        kwargs['categoria_nombre'] = self.request.GET.get('categoria_nombre', '')
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        categoria_nombre = self.request.GET.get('categoria_nombre', '')
+        
+        context['titulo_form'] = f"Nuevo Activo: {categoria_nombre}" if categoria_nombre else "Registrar Nuevo Activo"
+        context['categoria_nombre'] = categoria_nombre
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'Activo registrado exitosamente: {self.object}')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo guardar el activo. Por favor, corrige los errores del formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        # Redirigir de vuelta a la lista con el mismo filtro de la categoría
+        redirect_url = reverse('lista_activos')
+        categoria_nombre = self.request.GET.get('categoria_nombre', '')
+        if categoria_nombre:
+            redirect_url += f"?categoria_nombre={categoria_nombre}"
+        return redirect_url
 
 
 class EliminarActivoView(LoginRequiredMixin, DeleteView):
