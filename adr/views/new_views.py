@@ -234,7 +234,24 @@ class EliminarActivoView(LoginRequiredMixin, DeleteView):
     """
     Vista para procesar la eliminación (soft-delete) de un activo.
     """
-    pass
+    model = Activo
+    template_name = 'eliminar_activo.html'
+    context_object_name = 'activo'
+    success_url = reverse_lazy('lista_activos')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = 'Confirmar Eliminación'
+        return context
+
+    def form_valid(self, form):
+        # En Django moderno (4.0+), form_valid maneja la lógica de DeleteView
+        activo = self.get_object()
+        # Llamar a delete() invoca override en adr/models.py (soft-delete)
+        activo.delete()
+        messages.success(self.request, f'El equipo {activo} ha sido enviado a la papelera (Eliminado).')
+        return redirect(self.success_url)
+
 
 
 class SubirExcelActivosView(LoginRequiredMixin, View):
