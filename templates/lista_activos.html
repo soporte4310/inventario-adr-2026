@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_lista }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1 font-weight-bold text-dark">{{ titulo_lista }}</h2>
+                    <p class="text-muted small">Gestión centralizada de activos de la sede</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary btn-sm shadow-sm" title="Limpiar Filtros">
+                        <i class="fas fa-sync-alt"></i> Limpiar
+                    </a>
+                    <a href="{% url 'descargar_excel_activos' %}" class="btn btn-success btn-sm px-3 shadow-sm" title="Descargar reporte general en Excel">
+                        <i class="fas fa-file-excel"></i> Descargar
+                    </a>
+                    <a href="{% url 'subir_excel_activos' %}" class="btn btn-info btn-sm px-3 shadow-sm text-white" title="Importar activos desde Excel">
+                        <i class="fas fa-file-import"></i> Subir Excel
+                    </a>
+                    <a href="{% url 'agregar_activo' %}{% if request.GET.categoria_nombre %}?categoria_nombre={{ request.GET.categoria_nombre }}{% endif %}" class="btn btn-danger btn-sm px-4 shadow-sm">
+                        <i class="fas fa-plus"></i> Nuevo Activo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Panel de Filtros Avanzados -->
+            <form method="GET" class="mb-4 bg-light p-3 rounded border">
+                <!-- Búsqueda Principal -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-10">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" name="search" class="form-control border-start-0" 
+                                   placeholder="Buscar por serie, etiqueta, BDO, NetBIOS, modelo o asignatario..." 
+                                   value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-dark w-100 font-weight-bold shadow-sm">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selectores Adicionales -->
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <select name="categoria" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                            <option value="">-- Todas las Categorías --</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_seleccionada == cat.id|stringformat:"i" %}selected{% endif %}>
+                                {{ cat.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="marca" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                            <option value="">-- Todas las Marcas --</option>
+                            {% for m in marcas %}
+                            <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"i" %}selected{% endif %}>
+                                {{ m.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="estado" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                            <option value="">-- Todos los Estados --</option>
+                            {% for est in estados %}
+                            <option value="{{ est.id }}" {% if estado_seleccionado == est.id|stringformat:"i" %}selected{% endif %}>
+                                {{ est.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="edificio" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                            <option value="">-- Todos los Edificios --</option>
+                            {% for edi in edificios %}
+                            <option value="{{ edi.id }}" {% if edificio_seleccionado == edi.id|stringformat:"i" %}selected{% endif %}>
+                                {{ edi.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="tipo_uso" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                            <option value="">-- Uso Principal --</option>
+                            {% for valor, etiqueta_uso in tipos_uso %}
+                            <option value="{{ valor }}" {% if tipo_uso_seleccionado == valor %}selected{% endif %}>
+                                {{ etiqueta_uso }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Tabla de Activos -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
+                    <thead class="bg-light text-secondary text-uppercase small">
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Marca y Modelo</th>
+                            <th>N° Serie / Etiqueta</th>
+                            <th>NetBIOS / Red</th>
+                            <th>BDO</th>
+                            <th>Ubicación</th>
+                            <th>Asignatario</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activo in page_obj %}
+                        <tr>
+                            <td class="font-weight-bold text-primary">
+                                {{ activo.catalogo.categoria.nombre }}
+                            </td>
+                            <td>
+                                <div class="font-weight-bold mb-0 text-dark">{{ activo.catalogo.marca }}</div>
+                                <div class="text-muted small">{{ activo.catalogo.modelo }}</div>
+                            </td>
+                            <td>
+                                <div class="small"><b>S:</b> <span class="text-secondary">{{ activo.numero_serie|default:"---" }}</span></div>
+                                <div class="small"><b>E:</b> <span class="text-danger">{{ activo.etiqueta|default:"---" }}</span></div>
+                            </td>
+                            <td>
+                                <code class="text-dark font-weight-bold d-block">{{ activo.netbios|default:"---" }}</code>
+                                <div class="mt-1">
+                                    {% if activo.tipo_red == 'DOM' %}
+                                        <span class="badge border border-primary text-primary" style="font-size: 0.65rem; background-color: transparent;" title="Red Institucional (Dominio)"><i class="fas fa-globe"></i> DOMINIO</span>
+                                    {% elif activo.tipo_red == 'ISLA' %}
+                                        <span class="badge border border-warning" style="font-size: 0.65rem; background-color: transparent; color: #c08b00 !important;" title="Equipo Isla"><i class="fas fa-shield-alt"></i> ISLA</span>
+                                    {% elif activo.tipo_red == 'LAB' %}
+                                        <span class="badge border border-info text-info" style="font-size: 0.65rem; background-color: transparent;" title="Laboratorio Aislado"><i class="fas fa-flask"></i> LAB</span>
+                                    {% else %}
+                                        <span class="badge border border-secondary text-secondary" style="font-size: 0.65rem; background-color: transparent;" title="Otro / Sin Red"><i class="fas fa-unlink"></i> OTRO</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if activo.bdo %}
+                                <span class="badge bg-dark text-white px-2 py-1 shadow-sm" style="font-family: monospace; letter-spacing: 1px; min-width: 100px; display: inline-block; background-color: #212529 !important;">
+                                    {{ activo.bdo }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted small">---</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 140px;" title="{{ activo.ubicacion.nombre }}">
+                                    {{ activo.ubicacion.nombre }}
+                                </div>
+                                <small class="text-muted d-block">{{ activo.ubicacion.piso }}</small>
+                            </td>
+                            <td>
+                                <div class="font-weight-bold text-dark">{{ activo.asignado_a.nombre|default:"SIN ASIGNAR" }}</div>
+                                <small class="text-muted text-truncate d-block" style="max-width: 150px;">{{ activo.asignado_a.cargo|default:"" }}</small>
+                            </td>
+                            <td>
+                                {% with est=activo.estado.nombre %}
+                                <span class="badge p-2 w-100 text-uppercase shadow-sm 
+                                    {% if est == 'OPERATIVO' %}bg-success text-white
+                                    {% elif est == 'EN MANTENIMIENTO' %}bg-info text-white
+                                    {% elif est == 'DAÑADO' %}bg-danger text-white
+                                    {% elif est == 'DE BAJA' %}bg-secondary text-white
+                                    {% elif est == 'PRESTADO' %}bg-warning text-dark
+                                    {% else %}bg-light text-dark border{% endif %}" 
+                                    style="min-width: 90px; display: inline-block; font-size: 0.75rem; 
+                                    {% if est == 'OPERATIVO' %}background-color: #28a745 !important;
+                                    {% elif est == 'EN MANTENIMIENTO' %}background-color: #17a2b8 !important;
+                                    {% elif est == 'DAÑADO' %}background-color: #dc3545 !important;
+                                    {% elif est == 'DE BAJA' %}background-color: #6c757d !important;
+                                    {% elif est == 'PRESTADO' %}background-color: #ffc107 !important;
+                                    {% endif %}">
+                                    {{ est }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group shadow-sm">
+                                    <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
+                                        <i class="fas fa-eye text-dark"></i>
+                                    </a>
+                                    <a href="{% url 'editar_activo' activo.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                        <i class="fas fa-edit text-primary"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_activo' activo.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="fas fa-box-open fa-3x mb-3"></i>
+                                    <p class="h5">No se encontraron activos</p>
+                                    <p class="small">Intenta ajustar los filtros o la búsqueda</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación Consciente de Filtros -->
+            {% if page_obj.has_other_pages %}
+            <div class="mt-4 d-flex justify-content-center">
+                <nav aria-label="Navegación de páginas">
+                    <ul class="pagination pagination-sm shadow-sm">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link text-dark" href="?page=1{{ query_string }}">&laquo; Primero</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{{ query_string }}">Anterior</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo; Primero</span></li>
+                        <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link bg-dark border-dark">
+                                Pág. {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{{ query_string }}">Siguiente</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link text-dark" href="?page={{ page_obj.paginator.num_pages }}{{ query_string }}">Último &raquo;</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                        <li class="page-item disabled"><span class="page-link">Último &raquo;</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
