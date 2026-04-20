@@ -42,7 +42,7 @@ from .views import UserPasswordChangeView
 from .forms import LoginForm
 
 # Nuevas vistas (UBICACIÓN TEMPORAL) !!!
-from .views.new_views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarPlantillaExcelView
+from .views.new_views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarPlantillaExcelView, InicioNuevoView
 
 
 urlpatterns = [
@@ -218,7 +218,7 @@ urlpatterns = [
     # ---------------------------------------    
     # NUEVAS RUTAS
     # ---------------------------------------
-    #path('inicio_nuevo/', inicio_nuevo, name="inicio_nuevo"),
+    path('inicio_nuevo/', InicioNuevoView, name="inicio_nuevo"),
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
     path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
