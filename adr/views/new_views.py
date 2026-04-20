@@ -138,7 +138,30 @@ class EditarActivoView(LoginRequiredMixin, UpdateView):
     """
     Vista unificada para editar cualquier tipo de activo.
     """
-    pass
+    model = Activo
+    form_class = ActivoForm
+    template_name = 'editar_activo.html'
+    context_object_name = 'activo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # self.object es la instancia del activo que estamos editando
+        context['titulo_form'] = f"Editar {self.object.catalogo.categoria.nombre}"
+        return context
+
+    def form_valid(self, form):
+        # Dispara el guardado y emite el mensaje de éxito
+        response = super().form_valid(form)
+        messages.success(self.request, f'El activo {self.object} ha sido actualizado correctamente.')
+        return response
+
+    def form_invalid(self, form):
+        # Emite el mensaje de error si la validación falla
+        messages.error(self.request, 'No se pudo guardar. Por favor, corrige los errores en el formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('lista_activos')
 
 
 
