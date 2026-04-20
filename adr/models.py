@@ -347,6 +347,12 @@ class Funcionario(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+    def clean(self):
+        super().clean()
+        # Normalización: quita espacios y convierte a mayúsculas
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
 
 
 class Edificio(models.Model):
@@ -403,6 +409,12 @@ class Marca(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+    def clean(self):
+        super().clean()
+        # Normalización: quita espacios y convierte a mayúsculas
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
 
 
 class Categoria(models.Model):
@@ -418,6 +430,12 @@ class Categoria(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+    def clean(self):
+        super().clean()
+        # Normalización: quita espacios y convierte a mayúsculas
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
     
 #    def clean(self):
 #        super().clean()
@@ -461,6 +479,22 @@ class Catalogo(models.Model):
 
     def __str__(self):
         return f"{self.categoria} {self.marca.nombre} {self.modelo}"
+    
+    def clean(self):
+        super().clean()
+        # Normalización: quita espacios, convierte a mayúsculas y limpia variantes de modelos génericos
+        if self.modelo:
+            modelo_limpio = self.modelo.strip().upper()
+
+            textos_genericos = [
+                'GENÉRICO', 'GENERICO', 'MOD. GENÉRICO', 'MOD. GENERICO',
+                'MOD GENÉRICO', 'MOD GENERICO', 'SIN MODELO', 'S/M', 'NO APLICA', 'N/A'
+            ]
+            
+            if modelo_limpio in textos_genericos:
+                self.modelo = "GENÉRICO"
+            else:
+                self.modelo = modelo_limpio
 
 
 class Estado(models.Model):
@@ -477,7 +511,7 @@ class Estado(models.Model):
     
 
 class ActivoManager(models.Manager):
-    """Manager personalizado creado para el Modelo Activo, el cual filtra los equipos eliminados en el queryset por defecto, permitiendo así la implementación de un soft delete.
+    """Manager personalizado creado para el Modelo Activo, el cual filtra los equipos eliminados en el queryset por defecto, facilitando así la implementación de un soft delete.
 
     La columna 'is_deleted' en el modelo 'Activo' busca reemplazar la complejidad del modelo 'Eliminados'.
     """
@@ -616,16 +650,13 @@ class Activo(models.Model):
                 if self.tipo_red == self.TipoRed.DOMINIO and not self.netbios:
                     raise ValidationError({'netbios': f"Los equipos de la categoría '{categoria.nombre}' conectados al dominio deben tener un código NetBIOS."})
             else:
-                # Si la categoría no usa NetBIOS, forzamos la limpieza
-                self.netbios = None
+                if self.netbios:
+                    raise ValidationError({'netbios': f"La categoría '{categoria.nombre}' no requiere NetBIOS. Deje este campo en blanco."})
 
             # Validación de BDO
-            if categoria.usa_bdo and not self.bdo:
-                # Se permite guardar sin BDO temporalmente
-                pass
-            elif not categoria.usa_bdo:
-                # Si la categoría (ej. un cable) no usa BDO, lo limpiamos
-                self.bdo = None
+            if not categoria.usa_bdo:
+                if self.bdo:
+                    raise ValidationError({'bdo': f"La categoría '{categoria.nombre}' no requiere placa BDO. Deje este campo en blanco."})
 
     def save(self, *args, **kwargs):
         self.full_clean() # Ejecuta el clean() automáticamente antes de guardar
