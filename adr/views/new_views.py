@@ -3,11 +3,17 @@ from django.urls import reverse, reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
-from django.views import View
-from django.views.generic import TemplateView, ListView, UpdateView, DetailView, CreateView, DeleteView
+from django.views.generic import TemplateView, ListView, UpdateView, DetailView, CreateView, DeleteView, View
+from django.http import HttpResponse
+from django.db import transaction
+import pandas as pd
+import openpyxl
+from openpyxl.styles import PatternFill, Font
+from openpyxl.worksheet.datavalidation import DataValidation
 
-from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado
+from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario
 from ..forms import ActivoForm
+from ..utils import _get_excel_val
 
 
 # ---------------------------------------    
@@ -259,14 +265,249 @@ class SubirExcelActivosView(LoginRequiredMixin, View):
     Vista para importar activos masivamente mediante Excel.
     Aplica reglas estrictas y mapea etiquetas legibles de vuelta a sus códigos internos.
     """
-    pass
+    template_name = 'subir_excel_activos.html'
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
+
+    def post(self, request, *args, **kwargs):
+        if 'archivo_excel' not in request.FILES:
+            messages.error(request, 'Por favor, selecciona un archivo Excel válido.')
+            return redirect('upload_excel_activos')
+            
+        archivo = request.FILES['archivo_excel']
+        
+        if not archivo.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'El formato del archivo no es válido. Debe ser .xlsx o .xls')
+            return redirect('upload_excel_activos')
+            
+        try:
+            # sheet_name=0 asegura que siempre lea la primera hoja ("Equipos")
+            df = pd.read_excel(archivo, sheet_name=0)
+            
+            # Limpiamos nombres de columnas (quitar espacios y poner a mayúsculas)
+            df.columns = df.columns.str.strip().str.upper()
+            
+            # Reemplazar valores NaN por None
+            df = df.where(pd.notnull(df), None)
+
+            # MAPEO INVERSO: Diccionarios para traducir etiqueta legible (ej: "Red Institucional (Dominio)") -> Código (ej: "DOM")
+            red_map = {str(label).strip().upper(): key for key, label in Activo.TipoRed.choices}
+            uso_map = {str(label).strip().upper(): key for key, label in Activo.TipoUso.choices}
+            
+            registros_exitosos = 0
+            errores = []
+
+            with transaction.atomic():
+                for index, row in df.iterrows():
+                    try:
+                        # 1. Validar Categoría
+                        cat_nombre = _get_excel_val(row, 'CATEGORIA', default='', to_upper=True)
+                        if not cat_nombre:
+                            errores.append(f"Fila {index + 2}: La categoría es obligatoria.")
+                            continue
+                            
+                        try:
+                            categoria = Categoria.objects.get(nombre__iexact=cat_nombre)
+                        except Categoria.DoesNotExist:
+                            errores.append(f"Fila {index + 2}: La categoría '{cat_nombre}' no existe en el sistema. Registro denegado.")
+                            continue
+
+                        # 2. Validar Ubicación
+                        ubicacion_nombre = _get_excel_val(row, 'UBICACION', default='')
+                        ubicacion_obj = None
+                        if ubicacion_nombre:
+                            nombre_edi = _get_excel_val(row, 'EDIFICIO', default='')
+                            nombre_piso = _get_excel_val(row, 'PISO', default='')
+
+                            if not nombre_edi or not nombre_piso:
+                                errores.append(f"Fila {index + 2}: Para asignar la ubicación '{ubicacion_nombre}', debe especificar EDIFICIO y PISO.")
+                                continue
+
+                            ubicacion_obj = Ubicacion.objects.filter(
+                                nombre__iexact=ubicacion_nombre,
+                                piso__nombre__iexact=nombre_piso,
+                                piso__edificio__nombre__iexact=nombre_edi
+                            ).first()
+                            
+                            if not ubicacion_obj:
+                                errores.append(f"Fila {index + 2}: La ubicación '{ubicacion_nombre}' (Piso: {nombre_piso}, Edificio: {nombre_edi}) no existe en el sistema. Registro denegado.")
+                                continue
+
+                        # 3. Procesar Marca y Modelo
+                        marca_nombre = _get_excel_val(row, 'MARCA', default='', to_upper=True)
+                        if not marca_nombre:
+                            errores.append(f"Fila {index + 2}: La marca es obligatoria.")
+                            continue
+                            
+                        modelo_nombre = _get_excel_val(row, 'MODELO', default='GENÉRICO', to_upper=True)
+                        
+                        marca, _ = Marca.objects.get_or_create(nombre=marca_nombre)
+                        catalogo, _ = Catalogo.objects.get_or_create(
+                            categoria=categoria, 
+                            marca=marca, 
+                            modelo=modelo_nombre
+                        )
+
+                        # 4. Procesar Estado y Asignatario
+                        estado_nombre = _get_excel_val(row, 'ESTADO', default='OPERATIVO', to_upper=True)
+                        estado, _ = Estado.objects.get_or_create(nombre=estado_nombre)
+
+                        funcionario_nombre = _get_excel_val(row, 'ASIGNATARIO', default='', to_upper=True)
+                        funcionario_obj = None
+                        if funcionario_nombre:
+                            funcionario_obj, _ = Funcionario.objects.get_or_create(nombre=funcionario_nombre)
+
+                        # 5. Mapeo de Red y Uso desde Etiquetas Legibles
+                        tipo_red_label = _get_excel_val(row, 'TIPO_RED', default='', to_upper=True)
+                        tipo_uso_label = _get_excel_val(row, 'TIPO_USO', default='', to_upper=True)
+
+                        # Buscamos la etiqueta en nuestro mapa. Si no existe/es inválida, usa defaults ('DOM' y 'PER')
+                        tipo_red = red_map.get(tipo_red_label, 'DOM')
+                        tipo_uso = uso_map.get(tipo_uso_label, 'PER')
+
+                        # 6. Creación/Actualización del Activo
+                        numero_serie = _get_excel_val(row, 'NUMERO_SERIE', default=None)
+                        etiqueta = _get_excel_val(row, 'ETIQUETA', default=None)
+                        bdo = _get_excel_val(row, 'BDO', default=None)
+                        netbios = _get_excel_val(row, 'NETBIOS', default=None)
+
+                        activo = None
+                        if bdo:
+                            activo = Activo.objects.filter(bdo=bdo).first()
+                        if not activo and numero_serie:
+                            activo = Activo.objects.filter(numero_serie=numero_serie).first()
+
+                        if activo:
+                            activo.catalogo = catalogo
+                            activo.estado = estado
+                            activo.ubicacion = ubicacion_obj
+                            activo.asignado_a = funcionario_obj
+                            activo.tipo_red = tipo_red
+                            activo.tipo_uso = tipo_uso
+                            if netbios: activo.netbios = netbios
+                            activo.save()
+                        else:
+                            nuevo_activo = Activo(
+                                catalogo=catalogo,
+                                estado=estado,
+                                numero_serie=numero_serie,
+                                etiqueta=etiqueta,
+                                bdo=bdo,
+                                netbios=netbios,
+                                tipo_red=tipo_red,
+                                tipo_uso=tipo_uso,
+                                ubicacion=ubicacion_obj,
+                                asignado_a=funcionario_obj
+                            )
+                            nuevo_activo.save()
+                            
+                        registros_exitosos += 1
+
+                    except Exception as e:
+                        errores.append(f"Fila {index + 2}: Error interno al procesar ({str(e)})")
+
+            if errores:
+                for error in errores[:10]:
+                    messages.warning(request, error)
+                if len(errores) > 10:
+                    messages.warning(request, f"...y {len(errores) - 10} errores más omitidos.")
+
+            if registros_exitosos > 0:
+                messages.success(request, f'Proceso completado. Se importaron/actualizaron {registros_exitosos} activos.')
+            else:
+                messages.info(request, 'El proceso finalizó, pero no se importó ningún registro nuevo.')
+                
+            return redirect('lista_activos')
+
+        except Exception as e:
+            messages.error(request, f'Error al leer el archivo Excel: {str(e)}')
+            return redirect('subir_excel_activos')
+
 
 class DescargarPlantillaExcelView(LoginRequiredMixin, View):
     """
     Genera un archivo Excel (.xlsx) con las cabeceras correctas y listas desplegables
     basadas en los datos actuales del sistema (incluyendo etiquetas legibles para choices).
     """
-    pass
+    def get(self, request, *args, **kwargs):
+        wb = openpyxl.Workbook()
+        
+        # --- HOJA 1: EQUIPOS ---
+        ws_equipos = wb.active
+        ws_equipos.title = "Equipos"
+        
+        cabeceras = [
+            'CATEGORIA', 'MARCA', 'MODELO', 'NUMERO_SERIE', 'ETIQUETA', 
+            'BDO', 'NETBIOS', 'TIPO_RED', 'TIPO_USO', 'ESTADO', 
+            'EDIFICIO', 'PISO', 'UBICACION', 'ASIGNATARIO'
+        ]
+        
+        header_fill = PatternFill(start_color="17A2B8", end_color="17A2B8", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        
+        for col_num, header_title in enumerate(cabeceras, 1):
+            cell = ws_equipos.cell(row=1, column=col_num, value=header_title)
+            cell.fill = header_fill
+            cell.font = header_font
+            ws_equipos.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = 20
+
+        # --- HOJA 2: DATOS ---
+        ws_datos = wb.create_sheet(title="Datos")
+        
+        # 1. Obtener datos de la BD
+        categorias = list(Categoria.objects.values_list('nombre', flat=True).order_by('nombre'))
+        estados = list(Estado.objects.values_list('nombre', flat=True).order_by('nombre'))
+        edificios = list(Edificio.objects.values_list('nombre', flat=True).order_by('nombre'))
+        pisos = list(Piso.objects.values_list('nombre', flat=True).order_by('nombre'))
+        ubicaciones = list(Ubicacion.objects.values_list('nombre', flat=True).order_by('nombre'))
+        marcas = list(Marca.objects.values_list('nombre', flat=True).order_by('nombre'))
+        
+        # IMPORTANTE: Ahora extraemos index 1 (Label humano) en lugar de index 0 (Código de BD)
+        tipos_red_labels = [choice[1] for choice in Activo.TipoRed.choices]
+        tipos_uso_labels = [choice[1] for choice in Activo.TipoUso.choices]
+
+        # 2. Escribir datos
+        datos_diccionario = {
+            1: categorias,        # Columna A
+            2: estados,           # Columna B
+            3: tipos_red_labels,  # Columna C (Humanos)
+            4: tipos_uso_labels,  # Columna D (Humanos)
+            5: edificios,         # Columna E
+            6: pisos,             # Columna F
+            7: ubicaciones,       # Columna G
+            8: marcas             # Columna H (NUEVO: Marcas)
+        }
+
+        for col_index, valores in datos_diccionario.items():
+            for row_index, valor in enumerate(valores, 1):
+                ws_datos.cell(row=row_index, column=col_index, value=valor)
+
+        ws_datos.sheet_state = 'hidden'
+
+        # --- APLICAR VALIDACIÓN DE DATOS (Desplegables) ---
+        def crear_dropdown(col_letra_datos, total_filas, col_letra_equipos, allow_blank=True):
+            if total_filas > 0:
+                formula = f"Datos!${col_letra_datos}$1:${col_letra_datos}${total_filas}"
+                # Para marcas, permitimos espacios en blanco/escribir advertencias
+                dv = DataValidation(type="list", formula1=formula, allow_blank=allow_blank, showErrorMessage=False)
+                dv.add(f"{col_letra_equipos}2:{col_letra_equipos}1000")
+                ws_equipos.add_data_validation(dv)
+
+        crear_dropdown('A', len(categorias), 'A')        # A = CATEGORIA
+        crear_dropdown('B', len(estados), 'J')            # J = ESTADO
+        crear_dropdown('C', len(tipos_red_labels), 'H')   # H = TIPO_RED
+        crear_dropdown('D', len(tipos_uso_labels), 'I')   # I = TIPO_USO
+        crear_dropdown('E', len(edificios), 'K')          # K = EDIFICIO
+        crear_dropdown('F', len(pisos), 'L')              # L = PISO
+        crear_dropdown('G', len(ubicaciones), 'M')        # M = UBICACION
+        crear_dropdown('H', len(marcas), 'B')             # B = MARCA (NUEVO)
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="Plantilla_Ingreso_Activos.xlsx"'
+        
+        wb.save(response)
+        return response
 
 
 class DescargarExcelActivosView(LoginRequiredMixin, View):
