@@ -218,7 +218,7 @@ urlpatterns = [
     # ---------------------------------------    
     # NUEVAS RUTAS
     # ---------------------------------------
-    path('inicio_nuevo/', InicioNuevoView, name="inicio_nuevo"),
+    path('inicio_nuevo/', InicioNuevoView.as_view(), name="inicio_nuevo"),
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
     path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
