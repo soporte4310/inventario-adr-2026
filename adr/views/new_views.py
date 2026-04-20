@@ -170,7 +170,22 @@ class DetalleActivoView(LoginRequiredMixin, DetailView):
     """
     Vista para mostrar el detalle completo de un activo.
     """
-    pass
+    model = Activo
+    template_name = 'ver_activo.html'
+    context_object_name = 'activo'
+
+    def get_queryset(self):
+        # Pre-cargamos todas las relaciones para que la vista sea rápida y eficiente
+        return Activo.objects.select_related(
+            'catalogo__categoria', 'catalogo__marca', 
+            'estado', 'ubicacion__piso__edificio', 
+            'asignado_a__cargo', 'asignado_a__area'
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_detalle'] = f"Detalle del Equipo: {self.object.catalogo.marca} {self.object.catalogo.modelo or ''}".strip()
+        return context
 
 
 
