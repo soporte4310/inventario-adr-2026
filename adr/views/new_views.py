@@ -514,4 +514,56 @@ class DescargarExcelActivosView(LoginRequiredMixin, View):
     """
     Vista para exportar todos los activos registrados en el sistema a un archivo Excel.
     """
-    pass
+    def get(self, request, *args, **kwargs):
+        # 1. Obtenemos todos los activos optimizando las relaciones
+        activos = Activo.objects.select_related(
+            'catalogo__categoria', 'catalogo__marca', 'estado',
+            'ubicacion__piso__edificio', 'asignado_a__cargo'
+        ).all().order_by('-updated_at')
+
+        # 2. Preparamos los datos en una lista de diccionarios
+        data = []
+        for activo in activos:
+            data.append({
+                'CATEGORIA': activo.catalogo.categoria.nombre if activo.catalogo and activo.catalogo.categoria else '',
+                'MARCA': activo.catalogo.marca.nombre if activo.catalogo and activo.catalogo.marca else '',
+                'MODELO': activo.catalogo.modelo if activo.catalogo else '',
+                'NUMERO_SERIE': activo.numero_serie or '',
+                'ETIQUETA': activo.etiqueta or '',
+                'BDO': activo.bdo or '',
+                'NETBIOS': activo.netbios or '',
+                'TIPO_RED': activo.get_tipo_red_display(),
+                'TIPO_USO': activo.get_tipo_uso_display(),
+                'ESTADO': activo.estado.nombre if activo.estado else '',
+                'EDIFICIO': activo.ubicacion.piso.edificio.nombre if activo.ubicacion and activo.ubicacion.piso else '',
+                'PISO': activo.ubicacion.piso.nombre if activo.ubicacion else '',
+                'UBICACION': activo.ubicacion.nombre if activo.ubicacion else '',
+                'ASIGNATARIO': activo.asignado_a.nombre if activo.asignado_a else '',
+                'CARGO_ASIGNATARIO': activo.asignado_a.cargo.nombre if activo.asignado_a and activo.asignado_a.cargo else '',
+                'FECHA_REGISTRO': activo.created_at.strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
+                'ULTIMA_MODIFICACION': activo.updated_at.strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
+            })
+
+        # 3. Convertimos a un DataFrame de Pandas
+        df = pd.DataFrame(data)
+
+        # 4. Preparamos la respuesta HTTP como un archivo Excel
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="Reporte_General_Activos.xlsx"'
+
+        # 5. Usamos el motor de openpyxl de Pandas para escribir el archivo directamente en la respuesta
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            # Escribimos los datos
+            df.to_excel(writer, index=False, sheet_name='Inventario')
+            
+            # Opcional: Damos un poco de formato a la cabecera
+            worksheet = writer.sheets['Inventario']
+            for cell in worksheet[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+                
+            # Ajustamos el ancho de las columnas automáticamente basado en la cabecera
+            for idx, col in enumerate(df.columns):
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 2, 15)
+
+        return response
