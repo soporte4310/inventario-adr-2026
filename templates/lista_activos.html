@@ -16,7 +16,7 @@
                     <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary btn-sm shadow-sm" title="Limpiar Filtros">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
-                    <a href="{% url 'descargar_excel_activos' %}" class="btn btn-success btn-sm px-3 shadow-sm" title="Descargar reporte general en Excel">
+                    <a href="{% url 'descargar_excel_activos' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm px-3 shadow-sm" title="Descargar reporte en Excel">
                         <i class="fas fa-file-excel"></i> Descargar
                     </a>
                     <a href="{% url 'subir_excel_activos' %}" class="btn btn-info btn-sm px-3 shadow-sm text-white" title="Importar activos desde Excel">

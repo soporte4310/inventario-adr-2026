@@ -260,6 +260,7 @@ class EliminarActivoView(LoginRequiredMixin, DeleteView):
 
 
 
+
 class SubirExcelActivosView(LoginRequiredMixin, View):
     """
     Vista para importar activos masivamente mediante Excel.
@@ -425,6 +426,8 @@ class SubirExcelActivosView(LoginRequiredMixin, View):
             return redirect('subir_excel_activos')
 
 
+
+
 class DescargarPlantillaExcelView(LoginRequiredMixin, View):
     """
     Genera un archivo Excel (.xlsx) con las cabeceras correctas y listas desplegables
@@ -510,9 +513,12 @@ class DescargarPlantillaExcelView(LoginRequiredMixin, View):
         return response
 
 
+
+
 class DescargarExcelActivosView(LoginRequiredMixin, View):
     """
-    Vista para exportar todos los activos registrados en el sistema a un archivo Excel.
+    Vista para exportar los activos registrados en el sistema a un archivo Excel.
+    Aplica de manera dinámica los mismos filtros que la vista de listado.
     """
     def get(self, request, *args, **kwargs):
         # 1. Obtenemos todos los activos optimizando las relaciones
@@ -520,6 +526,46 @@ class DescargarExcelActivosView(LoginRequiredMixin, View):
             'catalogo__categoria', 'catalogo__marca', 'estado',
             'ubicacion__piso__edificio', 'asignado_a__cargo'
         ).all().order_by('-updated_at')
+
+        # Capturamos los mismos Query Params que usa la lista de activos
+        search_query = request.GET.get('search', '')
+        categoria_id = request.GET.get('categoria', '')
+        categoria_nombre = request.GET.get('categoria_nombre', '')
+        marca_id = request.GET.get('marca', '')
+        estado_id = request.GET.get('estado', '')
+        edificio_id = request.GET.get('edificio', '')
+        ubicacion_nombre = request.GET.get('ubicacion_nombre', '')
+        tipo_uso = request.GET.get('tipo_uso', '')
+        tipo_red = request.GET.get('tipo_red', '')
+
+        # Aplicamos los filtros dinámicamente si existen en la URL
+        if categoria_id:
+            activos = activos.filter(catalogo__categoria_id=categoria_id)
+        if categoria_nombre:
+            activos = activos.filter(catalogo__categoria__nombre__icontains=categoria_nombre)
+        if marca_id:
+            activos = activos.filter(catalogo__marca_id=marca_id)
+        if estado_id:
+            activos = activos.filter(estado_id=estado_id)
+        if edificio_id:
+            activos = activos.filter(ubicacion__piso__edificio_id=edificio_id)
+        if ubicacion_nombre:
+            activos = activos.filter(ubicacion__nombre__icontains=ubicacion_nombre)
+        if tipo_uso:
+            activos = activos.filter(tipo_uso=tipo_uso)
+        if tipo_red:
+            activos = activos.filter(tipo_red=tipo_red)
+        if search_query:
+            activos = activos.filter(
+                Q(numero_serie__icontains=search_query) |
+                Q(etiqueta__icontains=search_query) |
+                Q(bdo__icontains=search_query) |
+                Q(netbios__icontains=search_query) |
+                Q(asignado_a__nombre__icontains=search_query) |
+                Q(catalogo__modelo__icontains=search_query) |
+                Q(catalogo__marca__nombre__icontains=search_query) |
+                Q(catalogo__categoria__nombre__icontains=search_query)
+            )
 
         # 2. Preparamos los datos en una lista de diccionarios
         data = []
@@ -549,7 +595,54 @@ class DescargarExcelActivosView(LoginRequiredMixin, View):
 
         # 4. Preparamos la respuesta HTTP como un archivo Excel
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="Reporte_General_Activos.xlsx"'
+        
+        # --- GENERACIÓN DINÁMICA DEL NOMBRE DEL ARCHIVO ---
+        elementos_nombre = []
+        
+        # Identificar la categoría principal
+        if categoria_nombre:
+            elementos_nombre.append(categoria_nombre)
+        elif categoria_id:
+            try:
+                elementos_nombre.append(Categoria.objects.get(id=categoria_id).nombre)
+            except Categoria.DoesNotExist:
+                pass
+                
+        # Si no hay categoría, indicar que es un reporte general
+        if not elementos_nombre:
+            elementos_nombre.append("General")
+            
+        # Añadir contexto espacial o lógico
+        if ubicacion_nombre:
+            elementos_nombre.append(ubicacion_nombre)
+            
+        if tipo_red == 'ISLA':
+            elementos_nombre.append("Islas")
+            
+        if tipo_uso == 'EVE':
+            elementos_nombre.append("Eventos")
+            
+        # Añadir estado si se está filtrando por él
+        if estado_id:
+            try:
+                elementos_nombre.append(Estado.objects.get(id=estado_id).nombre)
+            except Estado.DoesNotExist:
+                pass
+                
+        # Indicar si hubo texto de búsqueda
+        if search_query:
+            elementos_nombre.append("Buscados")
+
+        # Unir todos los elementos, reemplazar espacios por guiones bajos y limpiar
+        nombre_crudo = "_".join(elementos_nombre).replace(" ", "_").replace("/", "_")
+        
+        # Evitar guiones bajos dobles (ej. "General__Operativo")
+        while "__" in nombre_crudo:
+            nombre_crudo = nombre_crudo.replace("__", "_")
+            
+        nombre_archivo = f"Inventario_{nombre_crudo}.xlsx"
+        
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
 
         # 5. Usamos el motor de openpyxl de Pandas para escribir el archivo directamente en la respuesta
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
