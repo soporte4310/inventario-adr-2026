@@ -36,7 +36,7 @@ class ListaActivosView(LoginRequiredMixin, ListView):
     model = Activo
     template_name = 'lista_activos.html'
     paginate_by = 20
-    context_object_name = 'page_obj'  # ListView utiliza 'page_obj' por defecto cuando hay paginación
+    context_object_name = 'activos'  # ListView utiliza 'page_obj' por defecto cuando hay paginación
     
     def get_queryset(self):
         # 1. Optimización de la consulta con select_related
