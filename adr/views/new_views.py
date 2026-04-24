@@ -16,21 +16,23 @@ from django.contrib.auth.models import User
 from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
 from ..forms import ActivoForm
 from ..utils import _get_excel_val
+from ..mixins import GroupRequiredMixin
 
 
 # ---------------------------------------    
 # NUEVAS VISTAS
 # ---------------------------------------
-class InicioNuevoView(LoginRequiredMixin, TemplateView):
+class InicioNuevoView(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
     """
     Vista de inicio (Requiere Login)
     """
     template_name = 'home_nuevo.html'
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
 
 
 
-class ListaActivosView(LoginRequiredMixin, ListView):
+class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     """
     Vista unificada para listar activos con filtros avanzados por Query Params.
     Reemplaza a activo_list.
@@ -39,6 +41,7 @@ class ListaActivosView(LoginRequiredMixin, ListView):
     template_name = 'lista_activos.html'
     paginate_by = 20
     context_object_name = 'activos'  # ListView utiliza 'page_obj' por defecto cuando hay paginación
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
     
     def get_queryset(self):
         # 1. Optimización de la consulta con select_related
@@ -142,7 +145,7 @@ class ListaActivosView(LoginRequiredMixin, ListView):
 
 
 
-class EditarActivoView(LoginRequiredMixin, UpdateView):
+class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     """
     Vista unificada para editar cualquier tipo de activo.
     """
@@ -150,6 +153,7 @@ class EditarActivoView(LoginRequiredMixin, UpdateView):
     form_class = ActivoForm
     template_name = 'editar_activo.html'
     context_object_name = 'activo'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -174,13 +178,14 @@ class EditarActivoView(LoginRequiredMixin, UpdateView):
 
 
 
-class DetalleActivoView(LoginRequiredMixin, DetailView):
+class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
     """
     Vista para mostrar el detalle completo de un activo.
     """
     model = Activo
     template_name = 'ver_activo.html'
     context_object_name = 'activo'
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         # Pre-cargamos todas las relaciones para que la vista sea rápida y eficiente
@@ -198,13 +203,14 @@ class DetalleActivoView(LoginRequiredMixin, DetailView):
 
 
 
-class AgregarActivoView(LoginRequiredMixin, CreateView):
+class AgregarActivoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     """
     Vista para registrar un nuevo activo.
     """
     model = Activo
     form_class = ActivoForm
     template_name = 'agregar_activo.html'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_form_kwargs(self):
         # Pasamos el parámetro de categoría al formulario, al igual que en la vista original
@@ -238,7 +244,7 @@ class AgregarActivoView(LoginRequiredMixin, CreateView):
         return redirect_url
 
 
-class EliminarActivoView(LoginRequiredMixin, DeleteView):
+class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     """
     Vista para procesar la eliminación (soft-delete) de un activo.
     """
@@ -246,6 +252,7 @@ class EliminarActivoView(LoginRequiredMixin, DeleteView):
     template_name = 'eliminar_activo.html'
     context_object_name = 'activo'
     success_url = reverse_lazy('lista_activos')
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -263,12 +270,13 @@ class EliminarActivoView(LoginRequiredMixin, DeleteView):
 
 
 
-class SubirExcelActivosView(LoginRequiredMixin, View):
+class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
     Vista para importar activos masivamente mediante Excel.
     Aplica reglas estrictas y mapea etiquetas legibles de vuelta a sus códigos internos.
     """
     template_name = 'subir_excel_activos.html'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template_name)
@@ -430,11 +438,13 @@ class SubirExcelActivosView(LoginRequiredMixin, View):
 
 
 
-class DescargarPlantillaExcelView(LoginRequiredMixin, View):
+class DescargarPlantillaExcelView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
     Genera un archivo Excel (.xlsx) con las cabeceras correctas y listas desplegables
     basadas en los datos actuales del sistema (incluyendo etiquetas legibles para choices).
     """
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
     def get(self, request, *args, **kwargs):
         wb = openpyxl.Workbook()
         
@@ -517,11 +527,13 @@ class DescargarPlantillaExcelView(LoginRequiredMixin, View):
 
 
 
-class DescargarExcelActivosView(LoginRequiredMixin, View):
+class DescargarExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
     Vista para exportar los activos registrados en el sistema a un archivo Excel.
     Aplica de manera dinámica los mismos filtros que la vista de listado.
     """
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
     def get(self, request, *args, **kwargs):
         # 1. Obtenemos todos los activos optimizando las relaciones
         activos = Activo.objects.select_related(
@@ -666,11 +678,12 @@ class DescargarExcelActivosView(LoginRequiredMixin, View):
 
 
 
-class AuditoriaListView(LoginRequiredMixin, ListView):
+class AuditoriaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = AuditoriaActivo
     template_name = 'auditoria_lista.html'
     context_object_name = 'registros'
     paginate_by = 30
+    group_required = ['ADR', 'Operador ADR']
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related('usuario', 'content_type')
@@ -695,11 +708,12 @@ class AuditoriaListView(LoginRequiredMixin, ListView):
 
 
 
-class ActivosEliminadosListView(LoginRequiredMixin, ListView):
+class ActivosEliminadosListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Activo
     template_name = 'lista_eliminados.html'
     context_object_name = 'activos'
     paginate_by = 15
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         # Filtramos solo los que tienen el soft-delete activo
@@ -725,11 +739,14 @@ class ActivosEliminadosListView(LoginRequiredMixin, ListView):
 
 
 
-class RestaurarActivoView(LoginRequiredMixin, View):
+class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
     Vista para restaurar un activo eliminado (Soft Delete).
     Cambia el estado de is_deleted a False.
     """
+
+    group_required = ['ADR', 'Operador ADR']
+
     def post(self, request, pk):
         # Buscamos en all_objects porque el manager principal filtra los eliminados
         activo = get_object_or_404(Activo.all_objects, pk=pk)
