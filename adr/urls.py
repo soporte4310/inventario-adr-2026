@@ -60,9 +60,9 @@ urlpatterns = [
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
     # Páginas Principales
     path('', IndexView.as_view(), name="index"),
-        # Nueva ruta
-    path('inicio/', login_required(HomeView.as_view()), name='inicio'),
-     path(
+    # Esta ruta para el home será sustituida
+    # path('inicio/', login_required(HomeView.as_view()), name='inicio'),
+    path(
         "login/",
         LoginView.as_view(
             authentication_form= LoginForm,
@@ -218,7 +218,7 @@ urlpatterns = [
     # ---------------------------------------    
     # NUEVAS RUTAS
     # ---------------------------------------
-    path('inicio_nuevo/', InicioNuevoView.as_view(), name="inicio_nuevo"),
+    path('inicio/', InicioNuevoView.as_view(), name="inicio"),
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
     path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
