@@ -210,7 +210,13 @@
         </button>
         <ul x-show="open" x-cloak class="pl-8 mt-2 space-y-1">
           <li>
-            <a href="{% url 'eliminados' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+            <a href="{% url 'lista_auditoria' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent">
+              <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+              <span class="ml-2">Auditoría</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'lista_eliminados' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
                           {% if current == 'eliminados' %}active{% endif %}">
               <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Equipos Eliminados</span>

@@ -10,8 +10,10 @@ import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.datavalidation import DataValidation
+from django.contrib.auth.models import User
 
-from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario
+
+from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
 from ..forms import ActivoForm
 from ..utils import _get_excel_val
 
@@ -42,7 +44,7 @@ class ListaActivosView(LoginRequiredMixin, ListView):
         # 1. Optimización de la consulta con select_related
         queryset = Activo.objects.select_related(
             'catalogo__categoria', 'catalogo__marca', 
-            'ubicacion__piso__edificio', 'asignado_a', 'estado'
+            'ubicacion__piso__edificio', 'asignado_a', 'estado', 'creado_por'
         ).all().order_by('-updated_at')
         
         # 2. Captura de parámetros GET y guardado en la instancia para usar en contexto
@@ -660,3 +662,83 @@ class DescargarExcelActivosView(LoginRequiredMixin, View):
                 worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 2, 15)
 
         return response
+
+
+
+
+class AuditoriaListView(LoginRequiredMixin, ListView):
+    model = AuditoriaActivo
+    template_name = 'auditoria_lista.html'
+    context_object_name = 'registros'
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('usuario', 'content_type')
+        
+        # Filtros básicos
+        usuario = self.request.GET.get('usuario')
+        if usuario and usuario != 'todos':
+            queryset = queryset.filter(usuario__username=usuario)
+            
+        accion = self.request.GET.get('accion')
+        if accion and accion != 'todas':
+            queryset = queryset.filter(accion=accion)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['usuarios'] = User.objects.filter(is_active=True)
+        context['acciones'] = AuditoriaActivo.TipoAccion.choices
+        return context
+
+
+
+
+class ActivosEliminadosListView(LoginRequiredMixin, ListView):
+    model = Activo
+    template_name = 'lista_eliminados.html'
+    context_object_name = 'activos'
+    paginate_by = 15
+
+    def get_queryset(self):
+        # Filtramos solo los que tienen el soft-delete activo
+        queryset = Activo.all_objects.filter(is_deleted=True).select_related(
+            'catalogo__categoria', 'catalogo__marca', 'ubicacion'
+        )
+        
+        # Mantenemos la lógica de búsqueda que ya tienes en lista_activos.html
+        q = self.request.GET.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(bdo__icontains=q) | 
+                Q(numero_serie__icontains=q) | 
+                Q(etiqueta__icontains=q)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_lista'] = "Papelera de Activos (Eliminados)"
+        return context
+
+
+
+
+class RestaurarActivoView(LoginRequiredMixin, View):
+    """
+    Vista para restaurar un activo eliminado (Soft Delete).
+    Cambia el estado de is_deleted a False.
+    """
+    def post(self, request, pk):
+        # Buscamos en all_objects porque el manager principal filtra los eliminados
+        activo = get_object_or_404(Activo.all_objects, pk=pk)
+        
+        activo.is_deleted = False
+        activo.save() # Esto dispara automáticamente las señales de auditoría
+        
+        messages.success(
+            request, 
+            f"El equipo {activo.catalogo} ({activo.numero_serie or activo.etiqueta}) ha sido restaurado."
+        )
+        return redirect('lista_eliminados')
