@@ -28,11 +28,10 @@
 
       {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
       <!-- Gestión de Usuarios -->
-      <li x-data="{ open: false }" class="relative">
+      <li x-data="{ open: {% if current == 'profile_list' %}true{% else %}false{% endif %} }" class="relative">
         <button @click="open=!open" :class="open ? 'active' : ''"
           class="nav-item w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-left rounded-md border-l-4 border-transparent">
           <span class="flex items-center gap-2">
-
             GESTIÓN DE USUARIOS
           </span>
           <i data-lucide="chevron-down" :class="{ 'rotate-180': open }"
@@ -51,7 +50,7 @@
       {% endif %}
 
       <!-- Gestión Recursos TI -->
-      <li x-data="{ open: false }" class="relative">
+      <li x-data="{ open: {% if current == 'lista_activos' and not request.GET.ubicacion_nombre %}true{% else %}false{% endif %} }" class="relative">
         <button @click="open=!open" :class="open ? 'active' : ''"
           class="nav-item w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-left rounded-md border-l-4 border-transparent">
           <span class="flex items-center gap-2">
@@ -64,7 +63,7 @@
         <ul x-show="open" x-cloak class="pl-8 mt-2 space-y-1">
 
           <!-- All in One (Académico + Administrativos) -->
-          <li x-data="{ a1:false }">
+          <li x-data="{ a1: {% if request.GET.categoria_nombre == 'All In One' %}true{% else %}false{% endif %} }">
             <button @click="a1=!a1" :class="a1 ? 'active' : ''"
               class="nav-item w-full flex items-center justify-between p-2 rounded-md border-l-4 border-transparent">
               <span class="flex items-center gap-2">
@@ -76,34 +75,36 @@
             </button>
             <ul x-show="a1" x-cloak class="pl-6 mt-1 space-y-1">
               <li>
-                <a href="{% url 'all_in_one' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                              {% if current == 'all_in_one' %}active{% endif %}">
+                <!-- ACA para Académicos -->
+                <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ACA" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                              {% if request.GET.categoria_nombre == 'All In One' and request.GET.tipo_uso == 'ACA' %}active{% endif %}">
                   <i data-lucide="graduation-cap" class="w-4 h-4 mr-2"></i>
                   <span>Académico</span>
                 </a>
               </li>
               <li>
-                <a href="{% url 'all_in_one_adm' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                              {% if current == 'all_in_one_adm' %}active{% endif %}">
+                <!-- ADM para Administrativos (Como lo configuramos en la migración) -->
+                <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ADM" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                              {% if request.GET.categoria_nombre == 'All In One' and request.GET.tipo_uso == 'ADM' %}active{% endif %}">
                   <i data-lucide="building-2" class="w-4 h-4 mr-2"></i>
                   <span>Administrativos</span>
                 </a>
               </li>
             </ul>
           </li>
-          <!-----Equipos isla---->
-
+          
+          <!-- Equipos isla -->
           <li>
-            <a href="{% url 'equipos_isla' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'equipos_isla' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?tipo_red=ISLA" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.tipo_red == 'ISLA' %}active{% endif %}">
               <i data-lucide="panel-left" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Equipos Isla</span>
             </a>
           </li>
 
            <li>
-            <a href="{% url 'switch_de_red' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'switch_de_red' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Switch de red" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Switch de red' %}active{% endif %}">
               <i data-lucide="network" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Switch de Red</span>
             </a>
@@ -111,56 +112,56 @@
 
           <!-- Resto de recursos -->
           <li>
-            <a href="{% url 'notebooks' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'notebooks' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Notebook" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Notebook' %}active{% endif %}">
               <i data-lucide="laptop" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Notebooks</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'mini_pc' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'mini_pc' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Mini PC" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Mini PC' %}active{% endif %}">
               <i data-lucide="cpu" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Mini PC</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'proyectores' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'proyectores' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Proyector" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Proyector' %}active{% endif %}">
               <i data-lucide="presentation" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Proyectores</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'monitor_list' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'monitor_list' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Monitor" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Monitor' %}active{% endif %}">
               <i data-lucide="monitor" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Monitores</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'televisor' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'televisor' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Televisor" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Televisor' %}active{% endif %}">
               <i data-lucide="tv" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Televisores</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'audio_list' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'audio_list' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?tipo_uso=EVE" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.tipo_uso == 'EVE' %}active{% endif %}">
               <i data-lucide="calendar-days" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Eventos</span>
             </a>
           </li>
 
           <li>
-            <a href="{% url 'tablet_list' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'tablet_list' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?categoria_nombre=Tablet" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.categoria_nombre == 'Tablet' %}active{% endif %}">
               <i data-lucide="tablet" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Tablets</span>
             </a>
@@ -169,11 +170,10 @@
       </li>
 
       <!-- Gestión de Inventario ADR -->
-      <li x-data="{ open: false }" class="relative">
+      <li x-data="{ open: {% if request.GET.ubicacion_nombre %}true{% else %}false{% endif %} }" class="relative">
         <button @click="open=!open" :class="open ? 'active' : ''"
           class="nav-item w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-left rounded-md border-l-4 border-transparent">
           <span class="flex items-center gap-2">
-
             GESTIÓN DE INVENTARIO ADR
           </span>
           <i data-lucide="chevron-down" :class="{ 'rotate-180': open }"
@@ -181,15 +181,15 @@
         </button>
         <ul x-show="open" x-cloak class="pl-8 mt-2 space-y-1">
           <li>
-            <a href="{% url 'bodega_adr' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'bodega_adr' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.ubicacion_nombre == 'Bodega ADR' %}active{% endif %}">
               <i data-lucide="boxes" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Bodega ADR</span>
             </a>
           </li>
           <li>
-            <a href="{% url 'azotea_adr' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'azotea_adr' %}active{% endif %}">
+            <a href="{% url 'lista_activos' %}?ubicacion_nombre=Azotea" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if request.GET.ubicacion_nombre == 'Azotea' %}active{% endif %}">
               <i data-lucide="cloud-sun" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Azotea</span>
             </a>
@@ -198,11 +198,10 @@
       </li>
 
       <!-- Historial -->
-      <li x-data="{ open: false }" class="relative">
+      <li x-data="{ open: {% if current in 'lista_auditoria,lista_eliminados,historial' %}true{% else %}false{% endif %} }" class="relative">
         <button @click="open=!open" :class="open ? 'active' : ''"
           class="nav-item w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-left rounded-md border-l-4 border-transparent">
           <span class="flex items-center gap-2">
-
             HISTORIAL
           </span>
           <i data-lucide="chevron-down" :class="{ 'rotate-180': open }"
@@ -210,8 +209,15 @@
         </button>
         <ul x-show="open" x-cloak class="pl-8 mt-2 space-y-1">
           <li>
-            <a href="{% url 'eliminados' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
-                          {% if current == 'eliminados' %}active{% endif %}">
+            <a href="{% url 'lista_auditoria' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if current == 'lista_auditoria' %}active{% endif %}">
+              <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+              <span class="ml-2">Auditoría</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'lista_eliminados' %}" class="nav-item flex items-center p-2 rounded-md border-l-4 border-transparent
+                          {% if current == 'lista_eliminados' %}active{% endif %}">
               <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
               <span class="ml-2">Equipos Eliminados</span>
             </a>
@@ -231,7 +237,7 @@
         <form method="POST" action="{% url 'logout' %}">
           {% csrf_token %}
           <button type="submit"
-            class="nav-item flex flex-row items-center h-10 px-4 rounded-md border-l-4 border-transparent">
+            class="nav-item w-full flex flex-row items-center h-10 px-4 rounded-md border-l-4 border-transparent">
             <span class="inline-flex justify-center items-center">
               <i data-lucide="log-out" class="w-5 h-5"></i>
             </span>

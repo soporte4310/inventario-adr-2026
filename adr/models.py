@@ -14,6 +14,9 @@ from .opciones import (
     opciones_marca_audio, opciones_ubicacion_audio 
 )
 
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+
 class ActivoBase(models.Model):
     """Modelo base para todos los activos. No incluye unique en n_serie para permitir duplicados históricos"""
     activo = models.CharField(max_length=150, verbose_name='Activo')
@@ -477,6 +480,14 @@ class Catalogo(models.Model):
         verbose_name = "Catálogo de producto"
         verbose_name_plural = "Catálogo de productos"
 
+        # Combinación de categoría, marca y modelo debe ser única para evitar duplicados
+        constraints = [
+            models.UniqueConstraint(
+                fields=['categoria', 'marca', 'modelo'], 
+                name='unique_catalogo_producto'
+            )
+        ]
+
     def __str__(self):
         return f"{self.categoria} {self.marca.nombre} {self.modelo}"
     
@@ -547,6 +558,7 @@ class Activo(models.Model):
     tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
     ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, verbose_name="Ubicación", help_text="Seleccionar ubicación donde se encuentra el equipo", null=True, blank=True)
     asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, verbose_name="Registrado por", null=True, blank=True)
     is_deleted = models.BooleanField(default=False, verbose_name="Eliminado")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -700,3 +712,39 @@ class MapeoUbicacion(models.Model):
     def __str__(self):
         estado = "✅" if self.revisado else "❌"
         return f"{estado} {self.nombre_original} -> {self.ubicacion_nueva or 'Pendiente'}"
+
+
+
+
+class AuditoriaActivo(models.Model):
+    class TipoAccion(models.TextChoices):
+        CREACION = 'CRE', 'Creación'
+        MODIFICACION = 'MOD', 'Modificación'
+        ELIMINACION = 'ELI', 'Eliminación'
+        RESTAURACION = 'RES', 'Restauración'
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        verbose_name="Técnico Responsable"
+    )
+    accion = models.CharField(max_length=3, choices=TipoAccion.choices, verbose_name="Acción Realizada")
+    
+    # Enlace genérico para auditar Activos, Ubicaciones o Funcionarios
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    # Detalles del cambio
+    campo = models.CharField(max_length=100, verbose_name="Campo Editado", null=True, blank=True)
+    valor_anterior = models.TextField(verbose_name="Valor Anterior", null=True, blank=True)
+    valor_nuevo = models.TextField(verbose_name="Valor Nuevo", null=True, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y Hora")
+
+    class Meta:
+        verbose_name = "Auditoría de Inventario"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_accion_display()} por {self.usuario} - {self.fecha.strftime('%d/%m/%Y')}"

@@ -42,7 +42,7 @@ from .views import UserPasswordChangeView
 from .forms import LoginForm
 
 # Nuevas vistas (UBICACIÓN TEMPORAL) !!!
-from .views.new_views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarPlantillaExcelView, InicioNuevoView
+from .views.new_views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarPlantillaExcelView, InicioNuevoView, AuditoriaListView, ActivosEliminadosListView, RestaurarActivoView
 
 
 urlpatterns = [
@@ -60,9 +60,9 @@ urlpatterns = [
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
     # Páginas Principales
     path('', IndexView.as_view(), name="index"),
-        # Nueva ruta
-    path('inicio/', login_required(HomeView.as_view()), name='inicio'),
-     path(
+    # Esta ruta para el home será sustituida
+    # path('inicio/', login_required(HomeView.as_view()), name='inicio'),
+    path(
         "login/",
         LoginView.as_view(
             authentication_form= LoginForm,
@@ -218,17 +218,22 @@ urlpatterns = [
     # ---------------------------------------    
     # NUEVAS RUTAS
     # ---------------------------------------
-    path('inicio_nuevo/', InicioNuevoView.as_view(), name="inicio_nuevo"),
+    path('inicio/', InicioNuevoView.as_view(), name="inicio"),
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
     path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
     path('activos/<int:pk>/', DetalleActivoView.as_view(), name='ver_activo'),
     path('activos/<int:pk>/eliminar/', EliminarActivoView.as_view(), name='eliminar_activo'),
+    path('activos/eliminados/', ActivosEliminadosListView.as_view(), name='lista_eliminados'),
+    path('activos/restaurar/<int:pk>/', RestaurarActivoView.as_view(), name='restaurar_activo'),
 
     # Excel
     path('activos/importar/', SubirExcelActivosView.as_view(), name='subir_excel_activos'),
     path('activos/descargar-plantilla/', DescargarPlantillaExcelView.as_view(), name='descargar_plantilla_excel'),
     path('activos/exportar/', DescargarExcelActivosView.as_view(), name='descargar_excel_activos'),
+
+    # Historial
+    path('auditoria/', AuditoriaListView.as_view(), name='lista_auditoria'),
 ]
 
 

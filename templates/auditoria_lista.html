@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-history"></i> Log de Auditoría</h2>
+        
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <select name="usuario" class="form-select form-select-sm">
+                    <option value="todos">Todos los Técnicos</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.username }}">{{ u.get_full_name|default:u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="accion" class="form-select form-select-sm">
+                    <option value="todas">Todas las Acciones</option>
+                    {% for val, label in acciones %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Técnico</th>
+                        <th>Acción</th>
+                        <th>Elemento</th>
+                        <th>Cambio Detallado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reg in registros %}
+                    <tr>
+                        <td><small>{{ reg.fecha|date:"d/m/Y H:i" }}</small></td>
+                        <td>
+                            {% if reg.usuario %}
+                                <strong>{{ reg.usuario.username }}</strong>
+                            {% else %}
+                                <span class="text-muted fw-bold"><i class="fas fa-robot me-1"></i>SISTEMA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if reg.accion == 'CRE' %}bg-success{% elif reg.accion == 'ELI' %}bg-danger{% else %}bg-info text-dark{% endif %}">
+                                {{ reg.get_accion_display }}
+                            </span>
+                        </td>
+                        <td><small class="text-muted">{{ reg.content_object }}</small></td>
+                        <td>
+                            {% if reg.campo %}
+                                <span class="text-primary">{{ reg.campo }}:</span> 
+                                <del class="text-muted">{{ reg.valor_anterior|truncatechars:30 }}</del> 
+                                <i class="fas fa-arrow-right mx-1 small"></i> 
+                                <span class="fw-bold">{{ reg.valor_nuevo|truncatechars:30 }}</span>
+                            {% else %}
+                                <span class="fst-italic text-muted">{{ reg.valor_nuevo }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">No se han registrado acciones aún.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% include "componentes/pagination.html" %}
+</div>
+{% endblock %}
