@@ -29,12 +29,10 @@ from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages.views import SuccessMessageMixin
-from django.core.files.base import ContentFile
 from django.core.mail import send_mail, EmailMessage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db import transaction, IntegrityError, models
+from django.db import transaction, IntegrityError
 from django.db.models import F, Value, CharField, Q, Case, When
-from django.db.models.functions import Concat
 from django.forms.models import model_to_dict
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import get_object_or_404, render, redirect
@@ -58,7 +56,7 @@ from .forms import (
 from .funciones import plural_singular, filtrar_y_paginar
 from .models import (
     AllInOne, AllInOneAdmins, Notebook, MiniPC,
-    Proyectores, BodegaADR, Azotea, Profile, Eliminados, HistorialCambios,
+    Proyectores, BodegaADR, Azotea, Eliminados, HistorialCambios,
     Monitor, Audio, Tablet, EquiposIsla as EquiposIslaModel,
     SwitchDeRed as SwitchDeRedModel, Televisor,
 )

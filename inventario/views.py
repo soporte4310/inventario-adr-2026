@@ -13,15 +13,12 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from django.contrib.auth.models import User
 
 
-from ..models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
-from ..forms import ActivoForm
-from ..utils import _get_excel_val
-from ..mixins import GroupRequiredMixin
+from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
+from .forms import ActivoForm
+from .utils import _get_excel_val
+from accounts.mixins import GroupRequiredMixin
 
 
-# ---------------------------------------    
-# NUEVAS VISTAS
-# ---------------------------------------
 class InicioNuevoView(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
     """
     Vista de inicio (Requiere Login)

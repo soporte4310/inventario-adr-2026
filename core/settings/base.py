@@ -27,6 +27,7 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     'adr',
+    'inventario',
     'accounts.apps.AccountsConfig',
     'core',
 ]
@@ -96,7 +97,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
 CRISPY_TEMPLATE_PACK = "tailwind"
 
 # Seguridad y Login
-LOGIN_REDIRECT_URL = '/inicio'
+LOGIN_REDIRECT_URL = '/inventario'
 LOGOUT_REDIRECT_URL = '/'
 X_FRAME_OPTIONS = "SAMEORIGIN"
 LOGIN_FAILED_THRESHOLD = 3

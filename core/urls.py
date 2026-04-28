@@ -10,8 +10,11 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")), # RUTAS DE AUTENTICACIÓN (login personalizado)
     # Para otras funcionalidades de auth (logout, password reset, etc.) que no estén en accounts.urls:
     # path("accounts/", include("django.contrib.auth.urls")), # Asegúrate de que no haya conflictos de nombres
-    path('', include('adr.urls')),
     # path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
+    path('', include('adr.urls')),
+    
+    # Rutas nuevas para el inventario
+    path('inventario/', include('inventario.urls')),
 ]
 
 
