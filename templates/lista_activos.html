@@ -17,7 +17,10 @@
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
                     <a href="{% url 'descargar_excel_activos' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm px-3 shadow-sm" title="Descargar reporte en Excel">
-                        <i class="fas fa-file-excel"></i> Descargar
+                        <i class="fas fa-file-excel"></i> Descargar categoría
+                    </a>
+                    <a href="{% url 'descargar_excel_filtrado' %}?{{ request.GET.urlencode }}" class="btn btn-warning btn-sm px-3 shadow-sm text-dark font-weight-bold" title="Descargar reporte con los filtros exactos de esta tabla">
+                        <i class="fas fa-file-download"></i> Excel Filtrado
                     </a>
                     <a href="{% url 'subir_excel_activos' %}" class="btn btn-info btn-sm px-3 shadow-sm text-white" title="Importar activos desde Excel">
                         <i class="fas fa-file-import"></i> Subir Excel
@@ -28,78 +31,128 @@
                 </div>
             </div>
 
-            <!-- Panel de Filtros Avanzados -->
-            <form method="GET" class="mb-4 bg-light p-3 rounded border">
-                <!-- Búsqueda Principal -->
+            <!-- Panel de Filtros Avanzados Rediseñado -->
+            <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
+                <!-- Búsqueda Principal y Ordenación -->
                 <div class="row g-2 mb-3">
-                    <div class="col-md-10">
+                    <div class="col-md-7">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0 text-muted">
                                 <i class="fas fa-search"></i>
                             </span>
                             <input type="text" name="search" class="form-control border-start-0" 
-                                   placeholder="Buscar por serie, etiqueta, BDO, NetBIOS, modelo o asignatario..." 
+                                   placeholder="Buscar serie, etiqueta, BDO, NetBIOS, modelo, marca o asignatario..." 
                                    value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted" title="Ordenar lista">
+                                <i class="fas fa-sort-amount-down"></i>
+                            </span>
+                            <select name="orden" class="form-select">
+                                <option value="-updated_at" {% if orden_seleccionado == '-updated_at' %}selected{% endif %}>Actualización (Más reciente)</option>
+                                <option value="updated_at" {% if orden_seleccionado == 'updated_at' %}selected{% endif %}>Actualización (Más antigua)</option>
+                                <option value="-created_at" {% if orden_seleccionado == '-created_at' %}selected{% endif %}>Registro (Más reciente)</option>
+                                <option value="created_at" {% if orden_seleccionado == 'created_at' %}selected{% endif %}>Registro (Más antiguo)</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-dark w-100 font-weight-bold shadow-sm">
-                            <i class="fas fa-filter"></i> Filtrar
+                            <i class="fas fa-filter"></i> Aplicar
                         </button>
                     </div>
                 </div>
 
-                <!-- Selectores Adicionales -->
-                <div class="row g-2">
+                <!-- Selectores Adicionales Organizados en Columnas -->
+                <div class="row g-3">
+                    <!-- Columna 1: Equipo -->
                     <div class="col-md-3">
-                        <select name="categoria" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                        <label class="form-label small text-muted fw-bold mb-1"><i class="fas fa-laptop me-1"></i> Detalles del Equipo</label>
+                        <select name="categoria" class="form-select form-select-sm mb-2 text-secondary">
                             <option value="">-- Todas las Categorías --</option>
                             {% for cat in categorias %}
-                            <option value="{{ cat.id }}" {% if categoria_seleccionada == cat.id|stringformat:"i" %}selected{% endif %}>
-                                {{ cat.nombre }}
-                            </option>
+                            <option value="{{ cat.id }}" {% if categoria_seleccionada == cat.id|stringformat:"i" %}selected{% endif %}>{{ cat.nombre }}</option>
                             {% endfor %}
                         </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select name="marca" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                        <select name="marca" class="form-select form-select-sm mb-2 text-secondary">
                             <option value="">-- Todas las Marcas --</option>
                             {% for m in marcas %}
-                            <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"i" %}selected{% endif %}>
-                                {{ m.nombre }}
-                            </option>
+                            <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"i" %}selected{% endif %}>{{ m.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="modelo" class="form-select form-select-sm text-secondary">
+                            <option value="">-- Todos los Modelos --</option>
+                            {% for mod in modelos %}
+                            <option value="{{ mod }}" {% if modelo_seleccionado == mod %}selected{% endif %}>{{ mod }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <select name="estado" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                    
+                    <!-- Columna 2: Estado y Red -->
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted fw-bold mb-1"><i class="fas fa-heartbeat me-1"></i> Estado y Propósito</label>
+                        <select name="estado" class="form-select form-select-sm mb-2 text-secondary">
                             <option value="">-- Todos los Estados --</option>
                             {% for est in estados %}
-                            <option value="{{ est.id }}" {% if estado_seleccionado == est.id|stringformat:"i" %}selected{% endif %}>
-                                {{ est.nombre }}
-                            </option>
+                            <option value="{{ est.id }}" {% if estado_seleccionado == est.id|stringformat:"i" %}selected{% endif %}>{{ est.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="tipo_red" class="form-select form-select-sm mb-2 text-secondary">
+                            <option value="">-- Todos los Tipos de Red --</option>
+                            {% for valor, etiqueta_red in tipos_red %}
+                            <option value="{{ valor }}" {% if tipo_red_seleccionado == valor %}selected{% endif %}>{{ etiqueta_red }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="tipo_uso" class="form-select form-select-sm text-secondary">
+                            <option value="">-- Todos los Propósitos --</option>
+                            {% for valor, etiqueta_uso in tipos_uso %}
+                            <option value="{{ valor }}" {% if tipo_uso_seleccionado == valor %}selected{% endif %}>{{ etiqueta_uso }}</option>
                             {% endfor %}
                         </select>
                     </div>
+
+                    <!-- Columna 3: Ubicación (Dinámica) -->
                     <div class="col-md-3">
-                        <select name="edificio" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
+                        <label class="form-label small text-muted fw-bold mb-1"><i class="fas fa-map-marker-alt me-1"></i> Localización</label>
+                        <select name="edificio" id="id_edificio" class="form-select form-select-sm mb-2 text-secondary">
                             <option value="">-- Todos los Edificios --</option>
                             {% for edi in edificios %}
-                            <option value="{{ edi.id }}" {% if edificio_seleccionado == edi.id|stringformat:"i" %}selected{% endif %}>
-                                {{ edi.nombre }}
-                            </option>
+                            <option value="{{ edi.id }}" {% if edificio_seleccionado == edi.id|stringformat:"i" %}selected{% endif %}>{{ edi.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="piso" id="id_piso" class="form-select form-select-sm mb-2 text-secondary">
+                            <option value="">-- Todos los Pisos --</option>
+                            {% for p in pisos %}
+                            <option value="{{ p.id }}" data-edificio="{{ p.edificio_id }}" {% if piso_seleccionado == p.id|stringformat:"i" %}selected{% endif %}>{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="ubicacion" id="id_ubicacion" class="form-select form-select-sm text-secondary">
+                            <option value="">-- Todas las Salas / Espacios --</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.id }}" data-piso="{{ u.piso_id }}" data-edificio="{{ u.piso.edificio_id }}" {% if ubicacion_seleccionada == u.id|stringformat:"i" %}selected{% endif %}>{{ u.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <select name="tipo_uso" class="form-control form-control-sm text-secondary" onchange="this.form.submit()">
-                            <option value="">-- Uso Principal --</option>
-                            {% for valor, etiqueta_uso in tipos_uso %}
-                            <option value="{{ valor }}" {% if tipo_uso_seleccionado == valor %}selected{% endif %}>
-                                {{ etiqueta_uso }}
-                            </option>
+
+                    <!-- Columna 4: Asignación y Fechas -->
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted fw-bold mb-1"><i class="fas fa-user-tag me-1"></i> Asignación y Fecha</label>
+                        <select name="asignatario" class="form-select form-select-sm mb-2 text-secondary">
+                            <option value="">-- Todos los Asignatarios --</option>
+                            {% for asi in asignatarios %}
+                            <option value="{{ asi.id }}" {% if asignatario_seleccionado == asi.id|stringformat:"i" %}selected{% endif %}>{{ asi.nombre }}</option>
                             {% endfor %}
                         </select>
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-white text-secondary">Desde</span>
+                            <input type="date" name="fecha_desde" class="form-control text-secondary" value="{{ fecha_desde }}" title="Registrado desde">
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white text-secondary">Hasta</span>
+                            <input type="date" name="fecha_hasta" class="form-control text-secondary" value="{{ fecha_hasta }}" title="Registrado hasta">
+                        </div>
                     </div>
                 </div>
             </form>
@@ -124,8 +177,12 @@
                     <tbody>
                         {% for activo in activos %}
                         <tr>
-                            <td class="font-weight-bold text-primary">
-                                {{ activo.catalogo.categoria.nombre }}
+                            <td class="align-top">
+                                <div class="font-weight-bold text-primary">{{ activo.catalogo.categoria.nombre }}</div>
+                                <!-- Mostrar el propósito sutilmente aquí -->
+                                <span class="d-inline-block mt-1 text-muted fw-normal" style="font-size: 0.75rem; background-color: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #e9ecef;">
+                                    <i class="fas fa-briefcase text-secondary me-1"></i>{{ activo.get_tipo_uso_display }}
+                                </span>
                             </td>
                             <td>
                                 <div class="font-weight-bold mb-0 text-dark">{{ activo.catalogo.marca }}</div>
@@ -159,10 +216,10 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="text-truncate" style="max-width: 140px;" title="{{ activo.ubicacion.nombre }}">
+                                <div class="text-truncate font-weight-bold" style="max-width: 140px;" title="{{ activo.ubicacion.nombre }}">
                                     {{ activo.ubicacion.nombre }}
                                 </div>
-                                <small class="text-muted d-block">{{ activo.ubicacion.piso }}</small>
+                                <small class="text-muted d-block">{{ activo.ubicacion.piso.nombre }} | {{ activo.ubicacion.piso.edificio.nombre }}</small>
                             </td>
                             <td>
                                 <div class="font-weight-bold text-dark">{{ activo.asignado_a.nombre|default:"SIN ASIGNAR" }}</div>
@@ -216,9 +273,9 @@
                         <tr>
                             <td colspan="10" class="text-center py-5">
                                 <div class="text-muted">
-                                    <i class="fas fa-box-open fa-3x mb-3"></i>
+                                    <i class="fas fa-filter fa-3x mb-3"></i>
                                     <p class="h5">No se encontraron activos</p>
-                                    <p class="small">Intenta ajustar los filtros o la búsqueda</p>
+                                    <p class="small">Intenta ajustar o limpiar los filtros avanzados</p>
                                 </div>
                             </td>
                         </tr>
@@ -268,4 +325,69 @@
         </div>
     </div>
 </div>
+
+<!-- Lógica JavaScript para hacer inteligente el filtro de ubicaciones -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const edificioSelect = document.getElementById('id_edificio');
+        const pisoSelect = document.getElementById('id_piso');
+        const ubicacionSelect = document.getElementById('id_ubicacion');
+
+        function actualizarFiltrosUbicacion() {
+            const edId = edificioSelect.value;
+            const piId = pisoSelect.value;
+
+            // 1. Filtrar Pisos dependientes del Edificio
+            Array.from(pisoSelect.options).forEach(opt => {
+                if (opt.value === "") return; // Ignorar la opción "-- Todos los Pisos --"
+                
+                if (!edId || opt.dataset.edificio === edId) {
+                    opt.hidden = false;
+                } else {
+                    opt.hidden = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            });
+
+            // 2. Filtrar Ubicaciones dependientes de Piso y/o Edificio
+            Array.from(ubicacionSelect.options).forEach(opt => {
+                if (opt.value === "") return;
+                
+                let mostrar = true;
+                
+                // Si hay un piso seleccionado, la ubicación debe pertenecer a él
+                if (piId && opt.dataset.piso !== piId) {
+                    mostrar = false;
+                }
+                
+                // Si no hay piso pero sí edificio, la ubicación debe pertenecer al edificio
+                if (!piId && edId && opt.dataset.edificio !== edId) {
+                    mostrar = false;
+                }
+
+                if (mostrar) {
+                    opt.hidden = false;
+                } else {
+                    opt.hidden = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            });
+        }
+
+        // Limpiar selecciones hijas si el padre cambia
+        edificioSelect.addEventListener('change', function() {
+            pisoSelect.value = "";
+            ubicacionSelect.value = "";
+            actualizarFiltrosUbicacion();
+        });
+
+        pisoSelect.addEventListener('change', function() {
+            ubicacionSelect.value = "";
+            actualizarFiltrosUbicacion();
+        });
+
+        // Ejecutar inmediatamente para configurar el estado inicial si la URL tiene parámetros activos
+        actualizarFiltrosUbicacion();
+    });
+</script>
 {% endblock %}

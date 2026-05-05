@@ -2,7 +2,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarPlantillaExcelView, InicioNuevoView, AuditoriaListView, ActivosEliminadosListView, RestaurarActivoView
+from .views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarExcelFiltradoView, DescargarPlantillaExcelView, InicioNuevoView, AuditoriaListView, ActivosEliminadosListView, RestaurarActivoView
 
 
 urlpatterns = [
@@ -19,6 +19,7 @@ urlpatterns = [
     path('activos/importar/', SubirExcelActivosView.as_view(), name='subir_excel_activos'),
     path('activos/descargar-plantilla/', DescargarPlantillaExcelView.as_view(), name='descargar_plantilla_excel'),
     path('activos/exportar/', DescargarExcelActivosView.as_view(), name='descargar_excel_activos'),
+    path('activos/exportar-excel-filtrado/', DescargarExcelFiltradoView.as_view(), name='descargar_excel_filtrado'),
 
     # Historial
     path('auditoria/', AuditoriaListView.as_view(), name='lista_auditoria'),

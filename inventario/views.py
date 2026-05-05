@@ -37,26 +37,33 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Activo
     template_name = 'lista_activos.html'
     paginate_by = 20
-    context_object_name = 'activos'  # ListView utiliza 'page_obj' por defecto cuando hay paginación
+    context_object_name = 'activos'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
     
     def get_queryset(self):
         # 1. Optimización de la consulta con select_related
         queryset = Activo.objects.select_related(
             'catalogo__categoria', 'catalogo__marca', 
-            'ubicacion__piso__edificio', 'asignado_a', 'estado', 'creado_por'
-        ).all().order_by('-updated_at')
+            'ubicacion__piso__edificio', 'asignado_a', 'estado', 'creado_por',
+            'asignado_a__cargo', 'asignado_a__area'
+        ).all()
         
-        # 2. Captura de parámetros GET y guardado en la instancia para usar en contexto
-        self.search_query = self.request.GET.get('search', '')
+        # 2. Captura de parámetros GET (con strip para limpiar espacios en blanco fantasma)
+        self.search_query = self.request.GET.get('search', '').strip()
         self.categoria_id = self.request.GET.get('categoria', '')
         self.categoria_nombre = self.request.GET.get('categoria_nombre', '')
         self.marca_id = self.request.GET.get('marca', '')
+        self.modelo_str = self.request.GET.get('modelo', '')
         self.estado_id = self.request.GET.get('estado', '')
         self.edificio_id = self.request.GET.get('edificio', '')
-        self.ubicacion_nombre = self.request.GET.get('ubicacion_nombre', '')
+        self.piso_id = self.request.GET.get('piso', '')
+        self.ubicacion_id = self.request.GET.get('ubicacion', '')
         self.tipo_uso = self.request.GET.get('tipo_uso', '')
         self.tipo_red = self.request.GET.get('tipo_red', '')
+        self.asignatario_id = self.request.GET.get('asignatario', '')
+        self.fecha_desde = self.request.GET.get('fecha_desde', '')
+        self.fecha_hasta = self.request.GET.get('fecha_hasta', '')
+        self.orden = self.request.GET.get('orden', '-updated_at') # Orden por defecto
 
         self.titulo_lista = "Listado General de Activos"
 
@@ -76,16 +83,21 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         if self.marca_id:
             queryset = queryset.filter(catalogo__marca_id=self.marca_id)
             
+        if self.modelo_str:
+            queryset = queryset.filter(catalogo__modelo=self.modelo_str)
+
         if self.estado_id:
             queryset = queryset.filter(estado_id=self.estado_id)
             
         if self.edificio_id:
             queryset = queryset.filter(ubicacion__piso__edificio_id=self.edificio_id)
-
-        if self.ubicacion_nombre:
-            queryset = queryset.filter(ubicacion__nombre__icontains=self.ubicacion_nombre)
-            self.titulo_lista = f"Equipos en {self.ubicacion_nombre}"
             
+        if self.piso_id:
+            queryset = queryset.filter(ubicacion__piso_id=self.piso_id)
+            
+        if self.ubicacion_id:
+            queryset = queryset.filter(ubicacion_id=self.ubicacion_id)
+
         if self.tipo_uso:
             queryset = queryset.filter(tipo_uso=self.tipo_uso)
             if self.tipo_uso == Activo.TipoUso.EVENTOS:
@@ -95,8 +107,17 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
             queryset = queryset.filter(tipo_red=self.tipo_red)
             if self.tipo_red == Activo.TipoRed.ISLA:
                 self.titulo_lista = "Equipos Isla"
+                
+        if self.asignatario_id:
+            queryset = queryset.filter(asignado_a_id=self.asignatario_id)
+            
+        if self.fecha_desde:
+            queryset = queryset.filter(created_at__date__gte=self.fecha_desde)
+            
+        if self.fecha_hasta:
+            queryset = queryset.filter(created_at__date__lte=self.fecha_hasta)
 
-        # 4. Búsqueda de texto global
+        # 4. Búsqueda de texto global (Ampliando la capacidad del buscador)
         if self.search_query:
             queryset = queryset.filter(
                 Q(numero_serie__icontains=self.search_query) |
@@ -104,8 +125,17 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
                 Q(bdo__icontains=self.search_query) |
                 Q(netbios__icontains=self.search_query) |
                 Q(asignado_a__nombre__icontains=self.search_query) |
-                Q(catalogo__modelo__icontains=self.search_query)
+                Q(catalogo__modelo__icontains=self.search_query) |
+                Q(catalogo__marca__nombre__icontains=self.search_query) |
+                Q(catalogo__categoria__nombre__icontains=self.search_query)
             )
+
+        # 5. Aplicar ordenamiento
+        valid_orders = ['created_at', '-created_at', 'updated_at', '-updated_at']
+        if self.orden in valid_orders:
+            queryset = queryset.order_by(self.orden)
+        else:
+            queryset = queryset.order_by('-updated_at')
 
         return queryset
 
@@ -125,17 +155,30 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
             # Listas para rellenar los select del HTML
             'categorias': Categoria.objects.all().order_by('nombre'),
             'marcas': Marca.objects.all().order_by('nombre'),
+            'modelos': Catalogo.objects.values_list('modelo', flat=True).distinct().order_by('modelo'),
             'estados': Estado.objects.all().order_by('nombre'),
             'edificios': Edificio.objects.all().order_by('nombre'),
+            'pisos': Piso.objects.all().order_by('nombre'),
+            'ubicaciones': Ubicacion.objects.all().order_by('nombre'),
+            'asignatarios': Funcionario.objects.all().order_by('nombre'),
             'tipos_uso': Activo.TipoUso.choices,
+            'tipos_red': Activo.TipoRed.choices,
             
             # Variables para mantener seleccionada la opción correcta en la vista
             'search_query': getattr(self, 'search_query', ''),
             'categoria_seleccionada': getattr(self, 'categoria_id', ''),
             'marca_seleccionada': getattr(self, 'marca_id', ''),
+            'modelo_seleccionado': getattr(self, 'modelo_str', ''),
             'estado_seleccionado': getattr(self, 'estado_id', ''),
             'edificio_seleccionado': getattr(self, 'edificio_id', ''),
+            'piso_seleccionado': getattr(self, 'piso_id', ''),
+            'ubicacion_seleccionada': getattr(self, 'ubicacion_id', ''),
             'tipo_uso_seleccionado': getattr(self, 'tipo_uso', ''),
+            'tipo_red_seleccionado': getattr(self, 'tipo_red', ''),
+            'asignatario_seleccionado': getattr(self, 'asignatario_id', ''),
+            'fecha_desde': getattr(self, 'fecha_desde', ''),
+            'fecha_hasta': getattr(self, 'fecha_hasta', ''),
+            'orden_seleccionado': getattr(self, 'orden', '-updated_at'),
         })
         return context
 
@@ -667,6 +710,115 @@ class DescargarExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                 cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
                 
             # Ajustamos el ancho de las columnas automáticamente basado en la cabecera
+            for idx, col in enumerate(df.columns):
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 2, 15)
+
+        return response
+
+
+
+
+class DescargarExcelFiltradoView(LoginRequiredMixin, GroupRequiredMixin, View):
+    """
+    Vista inteligente para exportar a Excel aplicando EXACTAMENTE los mismos 
+    filtros y orden que el usuario tiene activos en la vista de lista.
+    """
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get(self, request, *args, **kwargs):
+        # 1. Obtenemos todos los activos optimizando las relaciones
+        activos = Activo.objects.select_related(
+            'catalogo__categoria', 'catalogo__marca', 'estado',
+            'ubicacion__piso__edificio', 'asignado_a__cargo'
+        ).all()
+
+        # Capturamos todos los Query Params de la URL
+        search_query = request.GET.get('search', '').strip()
+        categoria_id = request.GET.get('categoria', '')
+        marca_id = request.GET.get('marca', '')
+        modelo_str = request.GET.get('modelo', '')
+        estado_id = request.GET.get('estado', '')
+        edificio_id = request.GET.get('edificio', '')
+        piso_id = request.GET.get('piso', '')
+        ubicacion_id = request.GET.get('ubicacion', '')
+        tipo_uso = request.GET.get('tipo_uso', '')
+        tipo_red = request.GET.get('tipo_red', '')
+        asignatario_id = request.GET.get('asignatario', '')
+        fecha_desde = request.GET.get('fecha_desde', '')
+        fecha_hasta = request.GET.get('fecha_hasta', '')
+        orden = request.GET.get('orden', '-updated_at')
+
+        # Aplicamos los filtros idénticos a los de la lista
+        if categoria_id: activos = activos.filter(catalogo__categoria_id=categoria_id)
+        if marca_id: activos = activos.filter(catalogo__marca_id=marca_id)
+        if modelo_str: activos = activos.filter(catalogo__modelo=modelo_str)
+        if estado_id: activos = activos.filter(estado_id=estado_id)
+        if edificio_id: activos = activos.filter(ubicacion__piso__edificio_id=edificio_id)
+        if piso_id: activos = activos.filter(ubicacion__piso_id=piso_id)
+        if ubicacion_id: activos = activos.filter(ubicacion_id=ubicacion_id)
+        if tipo_uso: activos = activos.filter(tipo_uso=tipo_uso)
+        if tipo_red: activos = activos.filter(tipo_red=tipo_red)
+        if asignatario_id: activos = activos.filter(asignado_a_id=asignatario_id)
+        if fecha_desde: activos = activos.filter(created_at__date__gte=fecha_desde)
+        if fecha_hasta: activos = activos.filter(created_at__date__lte=fecha_hasta)
+
+        if search_query:
+            activos = activos.filter(
+                Q(numero_serie__icontains=search_query) |
+                Q(etiqueta__icontains=search_query) |
+                Q(bdo__icontains=search_query) |
+                Q(netbios__icontains=search_query) |
+                Q(asignado_a__nombre__icontains=search_query) |
+                Q(catalogo__modelo__icontains=search_query) |
+                Q(catalogo__marca__nombre__icontains=search_query) |
+                Q(catalogo__categoria__nombre__icontains=search_query)
+            )
+
+        # Aplicamos el ordenamiento
+        valid_orders = ['created_at', '-created_at', 'updated_at', '-updated_at']
+        if orden in valid_orders:
+            activos = activos.order_by(orden)
+        else:
+            activos = activos.order_by('-updated_at')
+
+        # 2. Preparamos los datos
+        data = []
+        for activo in activos:
+            data.append({
+                'CATEGORIA': activo.catalogo.categoria.nombre if activo.catalogo and activo.catalogo.categoria else '',
+                'MARCA': activo.catalogo.marca.nombre if activo.catalogo and activo.catalogo.marca else '',
+                'MODELO': activo.catalogo.modelo if activo.catalogo else '',
+                'NUMERO_SERIE': activo.numero_serie or '',
+                'ETIQUETA': activo.etiqueta or '',
+                'BDO': activo.bdo or '',
+                'NETBIOS': activo.netbios or '',
+                'TIPO_RED': activo.get_tipo_red_display(),
+                'TIPO_USO': activo.get_tipo_uso_display(),
+                'ESTADO': activo.estado.nombre if activo.estado else '',
+                'EDIFICIO': activo.ubicacion.piso.edificio.nombre if activo.ubicacion and activo.ubicacion.piso else '',
+                'PISO': activo.ubicacion.piso.nombre if activo.ubicacion else '',
+                'UBICACION': activo.ubicacion.nombre if activo.ubicacion else '',
+                'ASIGNATARIO': activo.asignado_a.nombre if activo.asignado_a else '',
+                'CARGO_ASIGNATARIO': activo.asignado_a.cargo.nombre if activo.asignado_a and activo.asignado_a.cargo else '',
+                'FECHA_REGISTRO': activo.created_at.strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
+                'ULTIMA_MODIFICACION': activo.updated_at.strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
+            })
+
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # Nombre de archivo indicando que es un reporte a medida
+        response['Content-Disposition'] = 'attachment; filename="Inventario_Filtrado_A_Medida.xlsx"'
+
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Inventario')
+            worksheet = writer.sheets['Inventario']
+            
+            # Cabecera de un color distinto (Amarillo/Dorado o Verde Claro) para diferenciarlo
+            for cell in worksheet[1]:
+                cell.font = Font(bold=True, color="000000")
+                cell.fill = PatternFill(start_color="FFC107", end_color="FFC107", fill_type="solid")
+                
             for idx, col in enumerate(df.columns):
                 worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 2, 15)
 
