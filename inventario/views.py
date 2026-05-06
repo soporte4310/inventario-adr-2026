@@ -11,6 +11,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.datavalidation import DataValidation
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 
 
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
@@ -313,7 +314,7 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
 class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
     Vista para importar activos masivamente mediante Excel.
-    Aplica reglas estrictas y mapea etiquetas legibles de vuelta a sus códigos internos.
+    Aplica reglas estrictas, mapea etiquetas legibles y registra al usuario en auditoría.
     """
     template_name = 'subir_excel_activos.html'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
@@ -324,13 +325,13 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         if 'archivo_excel' not in request.FILES:
             messages.error(request, 'Por favor, selecciona un archivo Excel válido.')
-            return redirect('upload_excel_activos')
+            return redirect('subir_excel_activos')
             
         archivo = request.FILES['archivo_excel']
         
         if not archivo.name.endswith(('.xlsx', '.xls')):
             messages.error(request, 'El formato del archivo no es válido. Debe ser .xlsx o .xls')
-            return redirect('upload_excel_activos')
+            return redirect('subir_excel_activos')
             
         try:
             # sheet_name=0 asegura que siempre lea la primera hoja ("Equipos")
@@ -342,7 +343,7 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
             # Reemplazar valores NaN por None
             df = df.where(pd.notnull(df), None)
 
-            # MAPEO INVERSO: Diccionarios para traducir etiqueta legible (ej: "Red Institucional (Dominio)") -> Código (ej: "DOM")
+            # MAPEO INVERSO
             red_map = {str(label).strip().upper(): key for key, label in Activo.TipoRed.choices}
             uso_map = {str(label).strip().upper(): key for key, label in Activo.TipoUso.choices}
             
@@ -409,11 +410,10 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                         if funcionario_nombre:
                             funcionario_obj, _ = Funcionario.objects.get_or_create(nombre=funcionario_nombre)
 
-                        # 5. Mapeo de Red y Uso desde Etiquetas Legibles
+                        # 5. Mapeo de Red y Uso
                         tipo_red_label = _get_excel_val(row, 'TIPO_RED', default='', to_upper=True)
                         tipo_uso_label = _get_excel_val(row, 'TIPO_USO', default='', to_upper=True)
 
-                        # Buscamos la etiqueta en nuestro mapa. Si no existe/es inválida, usa defaults ('DOM' y 'PER')
                         tipo_red = red_map.get(tipo_red_label, 'DOM')
                         tipo_uso = uso_map.get(tipo_uso_label, 'PER')
 
@@ -429,7 +429,11 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                         if not activo and numero_serie:
                             activo = Activo.objects.filter(numero_serie=numero_serie).first()
 
+                        # Obtenemos el ContentType del modelo Activo para la Auditoría
+                        activo_ct = ContentType.objects.get_for_model(Activo)
+
                         if activo:
+                            # --- MODO EDICIÓN ---
                             activo.catalogo = catalogo
                             activo.estado = estado
                             activo.ubicacion = ubicacion_obj
@@ -437,8 +441,20 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                             activo.tipo_red = tipo_red
                             activo.tipo_uso = tipo_uso
                             if netbios: activo.netbios = netbios
+                            
                             activo.save()
+
+                            # REGISTRO EN TU MODELO DE AUDITORÍA (MODIFICACIÓN)
+                            AuditoriaActivo.objects.create(
+                                usuario=request.user,
+                                accion=AuditoriaActivo.TipoAccion.MODIFICACION,
+                                content_type=activo_ct,
+                                object_id=activo.id,
+                                campo="Múltiples (Importación Excel)",
+                                valor_nuevo="Actualizado vía Excel"
+                            )
                         else:
+                            # --- MODO CREACIÓN ---
                             nuevo_activo = Activo(
                                 catalogo=catalogo,
                                 estado=estado,
@@ -449,9 +465,21 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                                 tipo_red=tipo_red,
                                 tipo_uso=tipo_uso,
                                 ubicacion=ubicacion_obj,
-                                asignado_a=funcionario_obj
+                                asignado_a=funcionario_obj,
+                                creado_por=request.user  # ASIGNAMOS EL CREADOR REAL AQUÍ
                             )
+                            
                             nuevo_activo.save()
+                            
+                            # REGISTRO EN TU MODELO DE AUDITORÍA (CREACIÓN)
+                            AuditoriaActivo.objects.create(
+                                usuario=request.user,
+                                accion=AuditoriaActivo.TipoAccion.CREACION,
+                                content_type=activo_ct,
+                                object_id=nuevo_activo.id,
+                                campo="Todos (Importación Excel)",
+                                valor_nuevo="Creado masivamente vía Excel"
+                            )
                             
                         registros_exitosos += 1
 
@@ -469,6 +497,7 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
             else:
                 messages.info(request, 'El proceso finalizó, pero no se importó ningún registro nuevo.')
                 
+            # Retorno unificado a la lista principal
             return redirect('lista_activos')
 
         except Exception as e:
