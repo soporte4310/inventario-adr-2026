@@ -937,3 +937,57 @@ class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
             f"El equipo {activo.catalogo} ({activo.numero_serie or activo.etiqueta}) ha sido restaurado."
         )
         return redirect('lista_eliminados')
+
+
+
+
+class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    model = Catalogo
+    template_name = 'lista_catalogos.html'
+    context_object_name = 'catalogos'
+    paginate_by = 20
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        # Optimización de relaciones para evitar queries N+1
+        queryset = Catalogo.objects.select_related('categoria', 'marca').all()
+
+        # Captura de parámetros
+        self.search_query = self.request.GET.get('search', '').strip()
+        self.categoria_id = self.request.GET.get('categoria', '')
+        self.marca_id = self.request.GET.get('marca', '')
+
+        # Aplicación de filtros
+        if self.categoria_id:
+            queryset = queryset.filter(categoria_id=self.categoria_id)
+        
+        if self.marca_id:
+            queryset = queryset.filter(marca_id=self.marca_id)
+
+        if self.search_query:
+            queryset = queryset.filter(modelo__icontains=self.search_query)
+
+        return queryset.order_by('categoria__nombre', 'marca__nombre', 'modelo')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Preservar filtros en la paginación
+        get_copy = self.request.GET.copy()
+        if 'page' in get_copy:
+            get_copy.pop('page')
+        
+        context.update({
+            'titulo_lista': 'Catálogo de Productos',
+            'categorias': Categoria.objects.all().order_by('nombre'),
+            'marcas': Marca.objects.all().order_by('nombre'),
+            'search_query': self.search_query,
+            'categoria_seleccionada': self.categoria_id,
+            'marca_seleccionada': self.marca_id,
+            'query_string': f"&{get_copy.urlencode()}" if get_copy else ""
+        })
+        return context
+
+
+
+

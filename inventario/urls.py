@@ -2,11 +2,33 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import ListaActivosView, AgregarActivoView, EditarActivoView, DetalleActivoView, EliminarActivoView, SubirExcelActivosView, DescargarExcelActivosView, DescargarExcelFiltradoView, DescargarPlantillaExcelView, InicioNuevoView, AuditoriaListView, ActivosEliminadosListView, RestaurarActivoView
+from .views import (
+    InicioNuevoView, 
+
+    ListaActivosView, 
+    AgregarActivoView, 
+    EditarActivoView, 
+    DetalleActivoView, 
+    EliminarActivoView, 
+    ActivosEliminadosListView, 
+
+    SubirExcelActivosView, 
+    DescargarExcelActivosView, 
+    DescargarExcelFiltradoView, 
+    DescargarPlantillaExcelView, 
+
+    AuditoriaListView, 
+    RestaurarActivoView,
+
+    ListaCatalogoView
+
+)
 
 
 urlpatterns = [
     path('', InicioNuevoView.as_view(), name="inicio"),
+
+    # Activos
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
     path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
@@ -14,6 +36,9 @@ urlpatterns = [
     path('activos/<int:pk>/eliminar/', EliminarActivoView.as_view(), name='eliminar_activo'),
     path('activos/eliminados/', ActivosEliminadosListView.as_view(), name='lista_eliminados'),
     path('activos/restaurar/<int:pk>/', RestaurarActivoView.as_view(), name='restaurar_activo'),
+
+    # Catálogo
+    path('catalogos/', ListaCatalogoView.as_view(), name='lista_catalogos'),
 
     # Excel
     path('activos/importar/', SubirExcelActivosView.as_view(), name='subir_excel_activos'),
