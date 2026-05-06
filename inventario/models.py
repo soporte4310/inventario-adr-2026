@@ -348,22 +348,22 @@ class Activo(models.Model):
         if self.numero_serie and qs_activos.filter(numero_serie=self.numero_serie).exists():
             raise ValidationError({'numero_serie': f"El Número de Serie '{self.numero_serie}' ya está registrado en otro equipo del inventario."})
         
-        # 5. VALIDACIÓN DINÁMICA GUIADA POR LA CATEGORÍA
-        if self.catalogo and self.catalogo.categoria:
-            categoria = self.catalogo.categoria
-
-            # Validación de NetBIOS
-            if categoria.usa_netbios:
-                if self.tipo_red == self.TipoRed.DOMINIO and not self.netbios:
-                    raise ValidationError({'netbios': f"Los equipos de la categoría '{categoria.nombre}' conectados al dominio deben tener un código NetBIOS."})
-            else:
-                if self.netbios:
-                    raise ValidationError({'netbios': f"La categoría '{categoria.nombre}' no requiere NetBIOS. Deje este campo en blanco."})
-
-            # Validación de BDO
-            if not categoria.usa_bdo:
-                if self.bdo:
-                    raise ValidationError({'bdo': f"La categoría '{categoria.nombre}' no requiere placa BDO. Deje este campo en blanco."})
+        # 5. VALIDACIÓN DINÁMICA GUIADA POR LA CATEGORÍA (Se desactiva esta restricción para hacer al sistema más flexible)
+        #if self.catalogo and self.catalogo.categoria:
+        #    categoria = self.catalogo.categoria
+        #
+        #    # Validación de NetBIOS
+        #    if categoria.usa_netbios:
+        #        if self.tipo_red == self.TipoRed.DOMINIO and not self.netbios:
+        #            raise ValidationError({'netbios': f"Los equipos de la categoría '{categoria.nombre}' conectados al dominio deben tener un código NetBIOS."})
+        #    else:
+        #        if self.netbios:
+        #            raise ValidationError({'netbios': f"La categoría '{categoria.nombre}' no requiere NetBIOS. Deje este campo en blanco."})
+        #
+        #    # Validación de BDO
+        #    if not categoria.usa_bdo:
+        #        if self.bdo:
+        #            raise ValidationError({'bdo': f"La categoría '{categoria.nombre}' no requiere placa BDO. Deje este campo en blanco."})
 
     def save(self, *args, **kwargs):
         self.full_clean() # Ejecuta el clean() automáticamente antes de guardar
