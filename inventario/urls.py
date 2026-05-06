@@ -21,6 +21,7 @@ from .views import (
     RestaurarActivoView,
 
     ListaCatalogoView,
+    CrearCatalogoView,
     EditarCatalogoView
 
 )
@@ -40,6 +41,7 @@ urlpatterns = [
 
     # Catálogo
     path('catalogos/', ListaCatalogoView.as_view(), name='lista_catalogos'),
+    path('catalogos/nuevo/', CrearCatalogoView.as_view(), name='agregar_catalogo'),
     path('catalogos/<int:pk>/editar/', EditarCatalogoView.as_view(), name='editar_catalogo'),
 
     # Excel

@@ -1014,3 +1014,30 @@ class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
 
     def get_success_url(self):
         return reverse_lazy('lista_catalogos')
+
+
+
+
+class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+    model = Catalogo
+    form_class = CatalogoForm
+    template_name = 'agregar_catalogo.html'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = "Registrar Nuevo Producto"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # self.object se crea automáticamente en el form_valid de CreateView
+        messages.success(self.request, f'El producto "{self.object}" ha sido registrado exitosamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo registrar el producto. Por favor, revisa los errores del formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('lista_catalogos')
