@@ -24,6 +24,7 @@ THIRD_PARTY_APPS = [
     'django_browser_reload',
     'crispy_forms',
     'crispy_tailwind',
+    'django_cleanup.apps.CleanupConfig',
 ]
 LOCAL_APPS = [
     'adr',

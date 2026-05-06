@@ -1,5 +1,6 @@
 from django import forms
 from .models import Activo, Ubicacion, Catalogo
+from common.mixins import ImageProcessingFormMixin
 
 
 class UbicacionChoiceField(forms.ModelChoiceField):
@@ -11,6 +12,8 @@ class UbicacionChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         # Ejemplo de salida: "Pasillo Central|Edificio A - Piso 2"
         return f"{obj.nombre}|{obj.piso.edificio.nombre} - {obj.piso.nombre}"
+
+
 
 
 class ActivoForm(forms.ModelForm):
@@ -66,3 +69,39 @@ class ActivoForm(forms.ModelForm):
             self.fields['catalogo'].queryset = qs_filtrado
             self.fields['catalogo'].empty_label = f"-- Seleccione un modelo de {categoria_nombre} --"
             self.fields['catalogo'].help_text = f"💡 Mostrando únicamente productos de la categoría '{categoria_nombre}'."
+
+
+
+
+class CatalogoForm(ImageProcessingFormMixin, forms.ModelForm):
+    class Meta:
+        model = Catalogo
+        fields = ['categoria', 'marca', 'modelo', 'descripcion', 'imagen']
+        widgets = {
+            'categoria': forms.Select(attrs={'class': 'form-select select2'}),
+            'marca': forms.Select(attrs={'class': 'form-select select2'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: LATITUDE 5420 o GENÉRICO'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Detalles adicionales (opcional)'}),
+            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+        }
+
+    def save(self, commit=True):
+        # 1. Obtenemos la instancia sin guardar en BD todavía
+        instance = super().save(commit=False)
+        
+        # 2. Verificamos si se subió una NUEVA imagen en este request
+        # Esto evita procesar de nuevo si el usuario solo editó un texto
+        if 'imagen' in self.changed_data and self.cleaned_data.get('imagen'):
+            # 3. Ejecutamos el Mixin. Configuramos un tamaño prudente y forzamos un crop cuadrado (1:1)
+            self.process_image_upload(
+                instance=instance,
+                field_name='imagen',
+                max_dim=(1024, 1024),
+                crop=True, 
+                image_prefix='cat'
+            )
+            
+        if commit:
+            instance.save()
+            
+        return instance

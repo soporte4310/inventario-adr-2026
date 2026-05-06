@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Q, Count, ProtectedError
 from django.views.generic import TemplateView, ListView, UpdateView, DetailView, CreateView, DeleteView, View
 from django.http import HttpResponse
 from django.db import transaction
@@ -15,7 +15,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
-from .forms import ActivoForm
+from .forms import ActivoForm, CatalogoForm
 from .utils import _get_excel_val
 from accounts.mixins import GroupRequiredMixin
 
@@ -937,3 +937,177 @@ class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
             f"El equipo {activo.catalogo} ({activo.numero_serie or activo.etiqueta}) ha sido restaurado."
         )
         return redirect('lista_eliminados')
+
+
+
+
+class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    model = Catalogo
+    template_name = 'lista_catalogos.html'
+    context_object_name = 'catalogos'
+    paginate_by = 20
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        # 1. Anotamos el conteo de activos vinculados que NO están eliminados (is_deleted=False)
+        queryset = Catalogo.objects.select_related('categoria', 'marca').annotate(
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False))
+        )
+
+        # 2. Captura de parámetros
+        self.search_query = self.request.GET.get('search', '').strip()
+        self.categoria_id = self.request.GET.get('categoria', '')
+        self.marca_id = self.request.GET.get('marca', '')
+        self.orden = self.request.GET.get('orden', 'nombre')
+        self.show_empty = self.request.GET.get('show_empty') == 'on'
+
+        # 3. Filtro por defecto: Solo catálogos con activos (a menos que se marque el checkbox)
+        if not self.show_empty:
+            queryset = queryset.filter(activos_count__gt=0)
+
+        # 4. Aplicación de otros filtros
+        if self.categoria_id:
+            queryset = queryset.filter(categoria_id=self.categoria_id)
+        if self.marca_id:
+            queryset = queryset.filter(marca_id=self.marca_id)
+        if self.search_query:
+            queryset = queryset.filter(modelo__icontains=self.search_query)
+
+        # 5. Lógica de Ordenamiento
+        # 'nombre' ordena por la jerarquía lógica de la composición del nombre
+        if self.orden == 'nombre':
+            queryset = queryset.order_by('categoria__nombre', 'marca__nombre', 'modelo')
+        elif self.orden == '-created_at':
+            queryset = queryset.order_by('-created_at')
+        elif self.orden == '-updated_at':
+            queryset = queryset.order_by('-updated_at')
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Preservar filtros en la paginación
+        get_copy = self.request.GET.copy()
+        if 'page' in get_copy:
+            get_copy.pop('page')
+        
+        context.update({
+            'titulo_lista': 'Catálogo de Productos',
+            'categorias': Categoria.objects.all().order_by('nombre'),
+            'marcas': Marca.objects.all().order_by('nombre'),
+            'search_query': self.search_query,
+            'categoria_seleccionada': self.categoria_id,
+            'marca_seleccionada': self.marca_id,
+            'orden_seleccionado': self.orden,
+            'show_empty': self.show_empty,
+            'query_string': f"&{get_copy.urlencode()}" if get_copy else ""
+        })
+        return context
+
+
+
+
+class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+    model = Catalogo
+    form_class = CatalogoForm
+    template_name = 'editar_catalogo.html'
+    context_object_name = 'catalogo'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = f"Editar Producto: {self.object.marca.nombre} {self.object.modelo}"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'El catálogo "{self.object}" ha sido actualizado correctamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo guardar. Revisa los errores del formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('lista_catalogos')
+
+
+
+
+class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+    model = Catalogo
+    form_class = CatalogoForm
+    template_name = 'agregar_catalogo.html'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = "Registrar Nuevo Producto"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # self.object se crea automáticamente en el form_valid de CreateView
+        messages.success(self.request, f'El producto "{self.object}" ha sido registrado exitosamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo registrar el producto. Por favor, revisa los errores del formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('lista_catalogos')
+
+
+
+
+class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+    model = Catalogo
+    template_name = 'ver_catalogo.html'
+    context_object_name = 'catalogo'
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Recuperamos los activos vinculados a este catálogo, optimizando las relaciones
+        activos_vinculados = self.object.activo_set.select_related(
+            'estado', 
+            'ubicacion__piso__edificio', 
+            'asignado_a'
+        ).all().order_by('-updated_at')
+        
+        context['activos'] = activos_vinculados
+        context['total_activos'] = activos_vinculados.count()
+        context['titulo_detalle'] = f"Catálogo: {self.object.marca.nombre} {self.object.modelo}"
+        
+        return context
+
+
+
+
+class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+    model = Catalogo
+    template_name = 'eliminar_catalogo.html'
+    success_url = reverse_lazy('lista_catalogos')
+    group_required = ['ADR', 'Operador ADR']
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Intentamos realizar la eliminación física
+            return super().post(request, *args, **kwargs)
+        except ProtectedError:
+            # Si hay activos vinculados (activos o en papelera), evitamos el borrado
+            messages.error(
+                request, 
+                "No se puede eliminar este producto porque existen equipos físicos asociados a él (activos o en la papelera). "
+                "Para mantener la integridad del historial, el catálogo debe permanecer en el sistema."
+            )
+            return redirect('ver_catalogo', pk=self.get_object().id)
+
+    def form_valid(self, form):
+        success_url = self.get_success_url()
+        nombre_obj = str(self.get_object())
+        self.get_object().delete()
+        messages.success(self.request, f'El catálogo "{nombre_obj}" ha sido eliminado correctamente.')
+        return redirect(success_url)
