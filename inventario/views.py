@@ -15,7 +15,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
-from .forms import ActivoForm
+from .forms import ActivoForm, CatalogoForm
 from .utils import _get_excel_val
 from accounts.mixins import GroupRequiredMixin
 
@@ -946,7 +946,7 @@ class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     template_name = 'lista_catalogos.html'
     context_object_name = 'catalogos'
     paginate_by = 20
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    group_required = ['ADR', 'Operador ADR']
 
     def get_queryset(self):
         # Optimización de relaciones para evitar queries N+1
@@ -991,3 +991,26 @@ class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
 
 
+class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+    model = Catalogo
+    form_class = CatalogoForm
+    template_name = 'editar_catalogo.html'
+    context_object_name = 'catalogo'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = f"Editar Producto: {self.object.marca.nombre} {self.object.modelo}"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'El catálogo "{self.object}" ha sido actualizado correctamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo guardar. Revisa los errores del formulario.')
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('lista_catalogos')
