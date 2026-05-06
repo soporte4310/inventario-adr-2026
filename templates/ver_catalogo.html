@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_detalle }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <!-- Cabecera de la vista -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 mb-1 font-weight-bold text-dark">{{ titulo_detalle }}</h2>
+            <p class="text-muted small mb-0">Detalles del producto y existencias registradas</p>
+        </div>
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'lista_catalogos' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <a href="{% url 'editar_catalogo' catalogo.id %}" class="btn btn-primary btn-sm px-3">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Columna Izquierda: Detalles del Catálogo -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center pt-4 pb-3">
+                    <!-- Imagen del Producto -->
+                    <div class="mb-4">
+                        {% if catalogo.imagen %}
+                            <img src="{{ catalogo.imagen.url }}" class="img-fluid rounded shadow-sm border" alt="Imagen del producto" style="max-height: 250px; object-fit: contain;">
+                        {% else %}
+                            <div class="bg-light rounded border d-flex align-items-center justify-content-center mx-auto text-muted" style="height: 200px; width: 200px;">
+                                <i class="fas fa-box-open fa-4x"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <h5 class="font-weight-bold mb-0 text-dark">{{ catalogo.marca.nombre }} {{ catalogo.modelo|default:"GENÉRICO" }}</h5>
+                    <span class="badge bg-primary mt-2 mb-3">{{ catalogo.categoria.nombre }}</span>
+
+                    <ul class="list-group list-group-flush text-start small mt-2">
+                        <li class="list-group-item px-0 text-muted">
+                            <i class="fas fa-align-left me-2"></i> <strong>Descripción:</strong> <br>
+                            <span class="text-dark d-block mt-1">{{ catalogo.descripcion|default:"Ninguna descripción registrada." }}</span>
+                        </li>
+                        <li class="list-group-item px-0 text-muted d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-boxes me-2"></i> <strong>Total Existencias:</strong></span>
+                            <span class="badge bg-dark rounded-pill fs-6">{{ total_activos }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Lista de Activos Físicos -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-desktop text-muted me-2"></i> Equipos Registrados</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                            <thead class="bg-light text-secondary text-uppercase small">
+                                <tr>
+                                    <th class="ps-3">N° Serie / Etiqueta</th>
+                                    <th>Ubicación</th>
+                                    <th>Asignatario</th>
+                                    <th>Estado</th>
+                                    <th class="text-center pe-3">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activo in activos %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="font-weight-bold text-dark">{{ activo.numero_serie|default:"Sin Serie" }}</div>
+                                        <div class="small text-danger">{{ activo.etiqueta|default:"---" }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate font-weight-bold text-dark" style="max-width: 150px;" title="{{ activo.ubicacion.nombre }}">
+                                            {{ activo.ubicacion.nombre|default:"SIN UBICACIÓN" }}
+                                        </div>
+                                        <small class="text-muted d-block">{{ activo.ubicacion.piso.nombre }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 150px;">
+                                            {{ activo.asignado_a.nombre|default:"NO ASIGNADO" }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% with est=activo.estado.nombre %}
+                                        <span class="badge p-1 w-100 text-uppercase shadow-sm
+                                            {% if est == 'OPERATIVO' %}bg-success
+                                            {% elif est == 'EN MANTENIMIENTO' %}bg-info
+                                            {% elif est == 'DAÑADO' %}bg-danger
+                                            {% elif est == 'DE BAJA' %}bg-secondary
+                                            {% elif est == 'PRESTADO' %}bg-warning text-dark
+                                            {% else %}bg-light text-dark border{% endif %}"
+                                            style="font-size: 0.7rem;">
+                                            {{ est }}
+                                        </span>
+                                        {% endwith %}
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border text-primary shadow-sm" title="Ver detalle completo del equipo">
+                                            <i class="fas fa-eye"></i> Ver
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-ghost fa-2x mb-2 d-block"></i>
+                                            <p class="mb-0">No hay equipos físicos vinculados a este catálogo todavía.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

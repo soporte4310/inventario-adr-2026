@@ -1041,3 +1041,28 @@ class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse_lazy('lista_catalogos')
+
+
+
+
+class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+    model = Catalogo
+    template_name = 'ver_catalogo.html'
+    context_object_name = 'catalogo'
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Recuperamos los activos vinculados a este catálogo, optimizando las relaciones
+        activos_vinculados = self.object.activo_set.select_related(
+            'estado', 
+            'ubicacion__piso__edificio', 
+            'asignado_a'
+        ).all().order_by('-updated_at')
+        
+        context['activos'] = activos_vinculados
+        context['total_activos'] = activos_vinculados.count()
+        context['titulo_detalle'] = f"Catálogo: {self.object.marca.nombre} {self.object.modelo}"
+        
+        return context

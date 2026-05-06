@@ -85,8 +85,15 @@
                             <td class="text-muted small">{{ item.descripcion|default:"Sin descripción"|truncatechars:50 }}</td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm">
-                                    <a href="{% url 'editar_catalogo' item.pk %}" class="btn btn-sm btn-light border" title="Editar"><i class="fas fa-edit text-primary"></i></button>
-                                    <a class="btn btn-sm btn-light border text-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                    <a href="{% url 'ver_catalogo' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle y existencias">
+                                        <i class="fas fa-eye text-dark"></i>
+                                    </a>
+                                    <a href="{% url 'editar_catalogo' item.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                        <i class="fas fa-edit text-primary"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
