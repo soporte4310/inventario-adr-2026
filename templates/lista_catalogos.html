@@ -7,63 +7,101 @@
 <div class="container-fluid mt-4">
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
+            <!-- Cabecera -->
             <div class="d-md-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 class="h3 mb-1 font-weight-bold text-dark">{{ titulo_lista }}</h2>
                     <p class="text-muted small">Definición de productos base para el inventario</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
                     <a href="{% url 'lista_catalogos' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
-                    <!-- Por ahora solo el botón, la funcionalidad vendrá después -->
                     <a href="{% url 'agregar_catalogo' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                         <i class="fas fa-plus"></i> Nuevo Producto
                     </a>
                 </div>
             </div>
 
-            <!-- Filtros -->
+            <!-- Panel de Filtros y Ordenamiento -->
             <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
-                <div class="row g-2">
-                    <div class="col-md-5">
-                        <input type="text" name="search" class="form-control" 
-                               placeholder="Buscar por modelo..." value="{{ search_query }}">
-                    </div>
+                <div class="row g-2 align-items-end">
+                    <!-- Búsqueda y Filtros -->
                     <div class="col-md-3">
-                        <select name="categoria" class="form-select">
-                            <option value="">-- Todas las Categorías --</option>
+                        <label class="form-label small fw-bold text-muted">Buscar Modelo</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" name="search" class="form-control border-start-0" 
+                                   placeholder="Ej: Latitude 5420..." value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Categoría</label>
+                        <select name="categoria" class="form-select form-select-sm">
+                            <option value="">-- Todas --</option>
                             {% for cat in categorias %}
                             <option value="{{ cat.id }}" {% if categoria_seleccionada == cat.id|stringformat:"i" %}selected{% endif %}>{{ cat.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <select name="marca" class="form-select">
-                            <option value="">-- Todas las Marcas --</option>
+                        <label class="form-label small fw-bold text-muted">Marca</label>
+                        <select name="marca" class="form-select form-select-sm">
+                            <option value="">-- Todas --</option>
                             {% for m in marcas %}
                             <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"i" %}selected{% endif %}>{{ m.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
+
+                    <!-- Ordenamiento Avanzado -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Ordenar por</label>
+                        <select name="orden" class="form-select form-select-sm">
+                            <optgroup label="Nombre">
+                                <option value="nombre" {% if orden_seleccionado == 'nombre' %}selected{% endif %}>Nombre (A-Z)</option>
+                                <option value="-nombre" {% if orden_seleccionado == '-nombre' %}selected{% endif %}>Nombre (Z-A)</option>
+                            </optgroup>
+                            <optgroup label="Cronología de Registro">
+                                <option value="-created_at" {% if orden_seleccionado == '-created_at' %}selected{% endif %}>Más recientes primero</option>
+                                <option value="created_at" {% if orden_seleccionado == 'created_at' %}selected{% endif %}>Más antiguos primero</option>
+                            </optgroup>
+                            <optgroup label="Cronología de Edición">
+                                <option value="-updated_at" {% if orden_seleccionado == '-updated_at' %}selected{% endif %}>Última modificación (Reciente)</option>
+                                <option value="updated_at" {% if orden_seleccionado == 'updated_at' %}selected{% endif %}>Última modificación (Antigua)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-dark w-100 font-weight-bold shadow-sm">
-                            <i class="fas fa-filter"></i> Filtrar
+                        <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
                         </button>
+                    </div>
+                
+                    <!-- Checkbox de catálogos vacíos -->
+                    <div class="col-12 mt-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="show_empty" id="checkEmpty" {% if show_empty %}checked{% endif %}>
+                            <label class="form-check-label small text-muted fw-bold" for="checkEmpty">
+                                Mostrar productos sin equipos asociados en inventario
+                            </label>
+                        </div>
                     </div>
                 </div>
             </form>
 
             <!-- Tabla de Catálogos -->
             <div class="table-responsive">
-                <table class="table table-hover align-middle border-bottom">
+                <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
                     <thead class="bg-light text-secondary text-uppercase small">
                         <tr>
-                            <th style="width: 80px;">Imagen</th>
+                            <th style="width: 70px;">Imagen</th>
                             <th>Categoría</th>
-                            <th>Marca</th>
-                            <th>Modelo</th>
+                            <th>Marca y Modelo</th>
                             <th>Descripción</th>
+                            <th style="min-width: 150px;">Cronología</th>
+                            <th class="text-center">Existencias</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -72,43 +110,92 @@
                         <tr>
                             <td>
                                 {% if item.imagen_thumb_small %}
-                                    <img src="{{ item.imagen_thumb_small.url }}" class="rounded shadow-sm border" alt="Thumbnail" style="width: 50px; height: 50px; object-fit: cover;">
+                                    <img src="{{ item.imagen_thumb_small.url }}" class="rounded shadow-sm border" alt="Thumb" style="width: 48px; height: 48px; object-fit: cover;">
                                 {% else %}
-                                    <div class="bg-light rounded border d-flex align-items-center justify-content-center text-muted" style="width: 50px; height: 50px;">
-                                        <i class="fas fa-image fa-lg"></i>
+                                    <div class="bg-light rounded border d-flex align-items-center justify-content-center text-muted" style="width: 48px; height: 48px;">
+                                        <i class="fas fa-image"></i>
                                     </div>
                                 {% endif %}
                             </td>
-                            <td class="font-weight-bold text-primary">{{ item.categoria.nombre }}</td>
-                            <td class="font-weight-bold text-dark">{{ item.marca.nombre }}</td>
-                            <td><code>{{ item.modelo|default:"GENÉRICO" }}</code></td>
-                            <td class="text-muted small">{{ item.descripcion|default:"Sin descripción"|truncatechars:50 }}</td>
+                            <td>
+                                <span class="badge border border-primary text-primary" style="background-color: transparent;">
+                                    {{ item.categoria.nombre }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="font-weight-bold text-dark mb-0">{{ item.marca.nombre }}</div>
+                                <code class="small text-muted">{{ item.modelo|default:"GENÉRICO" }}</code>
+                            </td>
+                            <td>
+                                <p class="text-muted small mb-0 text-truncate" style="max-width: 200px;" title="{{ item.descripcion }}">
+                                    {{ item.descripcion|default:"---" }}
+                                </p>
+                            </td>
+                            <td>
+                                <div class="small text-muted">
+                                    <i class="fas fa-calendar-plus me-1" title="Fecha de creación"></i> {{ item.created_at|date:"d/m/Y H:i" }}
+                                </div>
+                                <div class="small text-primary">
+                                    <i class="fas fa-edit me-1" title="Última modificación"></i> {{ item.updated_at|date:"d/m/Y H:i" }}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                {% if item.activos_count > 0 %}
+                                    <span class="badge bg-dark rounded-pill shadow-sm px-3">{{ item.activos_count }}</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border rounded-pill px-3">0</span>
+                                {% endif %}
+                            </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm">
-                                    <a href="{% url 'ver_catalogo' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle y existencias">
+                                    <a href="{% url 'ver_catalogo' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle">
                                         <i class="fas fa-eye text-dark"></i>
                                     </a>
                                     <a href="{% url 'editar_catalogo' item.id %}" class="btn btn-sm btn-light border" title="Editar">
                                         <i class="fas fa-edit text-primary"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                    <a href="{% url 'eliminar_catalogo' item.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
                                         <i class="fas fa-trash"></i>
-                                    </button>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="fas fa-box-open fa-3x mb-3"></i>
-                                <p class="h5">No hay productos en el catálogo</p>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <div class="py-4">
+                                    <i class="fas fa-box-open fa-3x mb-3 opacity-50"></i>
+                                    <p class="h5">No se encontraron productos</p>
+                                    <p class="small">Prueba ajustando los filtros o el interruptor de existencias vacías.</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <!-- (Paginación idéntica a la de activos omitida por brevedad) -->
+
+            <!-- Paginación -->
+            {% if is_paginated %}
+            <nav class="mt-4">
+                <ul class="pagination pagination-sm justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link text-dark" href="?page=1{{ query_string }}">&laquo; Inicio</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{{ query_string }}">Anterior</a></li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link bg-dark border-dark">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{{ query_string }}">Siguiente</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ paginator.num_pages }}{{ query_string }}">Fin &raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
         </div>
     </div>
 </div>

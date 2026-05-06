@@ -23,7 +23,8 @@ from .views import (
     ListaCatalogoView,
     CrearCatalogoView,
     DetalleCatalogoView,
-    EditarCatalogoView
+    EditarCatalogoView,
+    EliminarCatalogoView
 
 )
 
@@ -45,6 +46,7 @@ urlpatterns = [
     path('catalogos/nuevo/', CrearCatalogoView.as_view(), name='agregar_catalogo'),
     path('catalogos/<int:pk>/', DetalleCatalogoView.as_view(), name='ver_catalogo'),
     path('catalogos/<int:pk>/editar/', EditarCatalogoView.as_view(), name='editar_catalogo'),
+    path('catalogos/<int:pk>/eliminar/', EliminarCatalogoView.as_view(), name='eliminar_catalogo'),
 
     # Excel
     path('activos/importar/', SubirExcelActivosView.as_view(), name='subir_excel_activos'),
