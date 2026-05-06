@@ -157,134 +157,147 @@
                 </div>
             </form>
 
-            <!-- Tabla de Activos -->
-            <div class="table-responsive">
-                <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
-                    <thead class="bg-light text-secondary text-uppercase small">
-                        <tr>
-                            <th>Categoría</th>
-                            <th>Marca y Modelo</th>
-                            <th>N° Serie / Etiqueta</th>
-                            <th>NetBIOS / Red</th>
-                            <th>BDO</th>
-                            <th>Ubicación</th>
-                            <th>Asignatario</th>
-                            <th>Estado</th>
-                            <th>Registro</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for activo in activos %}
-                        <tr>
-                            <td class="align-top">
-                                <div class="font-weight-bold text-primary">{{ activo.catalogo.categoria.nombre }}</div>
-                                <!-- Mostrar el propósito sutilmente aquí -->
-                                <span class="d-inline-block mt-1 text-muted fw-normal" style="font-size: 0.75rem; background-color: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #e9ecef;">
-                                    <i class="fas fa-briefcase text-secondary me-1"></i>{{ activo.get_tipo_uso_display }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="font-weight-bold mb-0 text-dark">{{ activo.catalogo.marca }}</div>
-                                <div class="text-muted small">{{ activo.catalogo.modelo }}</div>
-                            </td>
-                            <td>
-                                <div class="small"><b>S:</b> <span class="text-secondary">{{ activo.numero_serie|default:"---" }}</span></div>
-                                <div class="small"><b>E:</b> <span class="text-danger">{{ activo.etiqueta|default:"---" }}</span></div>
-                            </td>
-                            <td>
-                                <code class="text-dark font-weight-bold d-block">{{ activo.netbios|default:"---" }}</code>
-                                <div class="mt-1">
-                                    {% if activo.tipo_red == 'DOM' %}
-                                        <span class="badge border border-primary text-primary" style="font-size: 0.65rem; background-color: transparent;" title="Red Institucional (Dominio)"><i class="fas fa-globe"></i> DOMINIO</span>
-                                    {% elif activo.tipo_red == 'ISLA' %}
-                                        <span class="badge border border-warning" style="font-size: 0.65rem; background-color: transparent; color: #c08b00 !important;" title="Equipo Isla"><i class="fas fa-shield-alt"></i> ISLA</span>
-                                    {% elif activo.tipo_red == 'LAB' %}
-                                        <span class="badge border border-info text-info" style="font-size: 0.65rem; background-color: transparent;" title="Laboratorio Aislado"><i class="fas fa-flask"></i> LAB</span>
-                                    {% else %}
-                                        <span class="badge border border-secondary text-secondary" style="font-size: 0.65rem; background-color: transparent;" title="Otro / Sin Red"><i class="fas fa-unlink"></i> OTRO</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td>
-                                {% if activo.bdo %}
-                                <span class="badge bg-dark text-white px-2 py-1 shadow-sm" style="font-family: monospace; letter-spacing: 1px; min-width: 100px; display: inline-block; background-color: #212529 !important;">
-                                    {{ activo.bdo }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted small">---</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="text-truncate font-weight-bold" style="max-width: 140px;" title="{{ activo.ubicacion.nombre }}">
-                                    {{ activo.ubicacion.nombre }}
-                                </div>
-                                <small class="text-muted d-block">{{ activo.ubicacion.piso.nombre }} | {{ activo.ubicacion.piso.edificio.nombre }}</small>
-                            </td>
-                            <td>
-                                <div class="font-weight-bold text-dark">{{ activo.asignado_a.nombre|default:"SIN ASIGNAR" }}</div>
-                                <small class="text-muted text-truncate d-block" style="max-width: 150px;">{{ activo.asignado_a.cargo|default:"" }}</small>
-                            </td>
-                            <td>
-                                {% with est=activo.estado.nombre %}
-                                <span class="badge p-2 w-100 text-uppercase shadow-sm 
-                                    {% if est == 'OPERATIVO' %}bg-success text-white
-                                    {% elif est == 'EN MANTENIMIENTO' %}bg-info text-white
-                                    {% elif est == 'DAÑADO' %}bg-danger text-white
-                                    {% elif est == 'DE BAJA' %}bg-secondary text-white
-                                    {% elif est == 'PRESTADO' %}bg-warning text-dark
-                                    {% else %}bg-light text-dark border{% endif %}" 
-                                    style="min-width: 90px; display: inline-block; font-size: 0.75rem; 
-                                    {% if est == 'OPERATIVO' %}background-color: #28a745 !important;
-                                    {% elif est == 'EN MANTENIMIENTO' %}background-color: #17a2b8 !important;
-                                    {% elif est == 'DAÑADO' %}background-color: #dc3545 !important;
-                                    {% elif est == 'DE BAJA' %}background-color: #6c757d !important;
-                                    {% elif est == 'PRESTADO' %}background-color: #ffc107 !important;
-                                    {% endif %}">
-                                    {{ est }}
-                                </span>
-                                {% endwith %}
-                            </td>
-                            <td>
-                                <div class="font-weight-bold text-dark" style="font-size: 0.8rem;">
-                                    <i class="fas fa-user-edit text-muted me-1"></i> 
-                                    {{ activo.creado_por.username|default:"SISTEMA" }}
-                                </div>
-                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-                                    <i class="fas fa-calendar-alt me-1"></i> 
-                                    {{ activo.created_at|date:"d M Y, H:i" }}
-                                </small>
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group shadow-sm">
-                                    <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
-                                        <i class="fas fa-eye text-dark"></i>
-                                    </a>
-                                    <a href="{% url 'editar_activo' activo.id %}" class="btn btn-sm btn-light border" title="Editar">
-                                        <i class="fas fa-edit text-primary"></i>
-                                    </a>
-                                    <a href="{% url 'eliminar_activo' activo.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="10" class="text-center py-5">
-                                <div class="text-muted">
-                                    <i class="fas fa-filter fa-3x mb-3"></i>
-                                    <p class="h5">No se encontraron activos</p>
-                                    <p class="small">Intenta ajustar o limpiar los filtros avanzados</p>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <form method="POST" action="{% url 'eliminar_activos_masivo' %}" id="form-eliminacion-masiva">
+                {% csrf_token %}
+                
+                <div class="d-flex justify-content-start mb-2">
+                    <button type="submit" class="btn btn-outline-danger btn-sm shadow-sm font-weight-bold" id="btn-eliminar-masivo" disabled>
+                        <i class="fas fa-trash-alt me-1"></i> Mover Seleccionados a Papelera
+                    </button>
+                </div>
 
-            <!-- Paginación Consciente de Filtros -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
+                        <thead class="bg-light text-secondary text-uppercase small">
+                            <tr>
+                                <th class="text-center" style="width: 40px;">
+                                    <input type="checkbox" id="checkbox-maestro" class="form-check-input" title="Seleccionar todo de esta página" style="cursor: pointer;">
+                                </th>
+                                <th>Categoría</th>
+                                <th>Marca y Modelo</th>
+                                <th>N° Serie / Etiqueta</th>
+                                <th>NetBIOS / Red</th>
+                                <th>BDO</th>
+                                <th>Ubicación</th>
+                                <th>Asignatario</th>
+                                <th>Estado</th>
+                                <th>Registro</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activo in activos %}
+                            <tr>
+                                <td class="text-center">
+                                    <input type="checkbox" name="activos_seleccionados" value="{{ activo.id }}" class="form-check-input checkbox-activo" style="cursor: pointer;">
+                                </td>
+                                <td class="align-top">
+                                    <div class="font-weight-bold text-primary">{{ activo.catalogo.categoria.nombre }}</div>
+                                <!-- Mostrar el propósito sutilmente aquí -->
+                                    <span class="d-inline-block mt-1 text-muted fw-normal" style="font-size: 0.75rem; background-color: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #e9ecef;">
+                                        <i class="fas fa-briefcase text-secondary me-1"></i>{{ activo.get_tipo_uso_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold mb-0 text-dark">{{ activo.catalogo.marca }}</div>
+                                    <div class="text-muted small">{{ activo.catalogo.modelo }}</div>
+                                </td>
+                                <td>
+                                    <div class="small"><b>S:</b> <span class="text-secondary">{{ activo.numero_serie|default:"---" }}</span></div>
+                                    <div class="small"><b>E:</b> <span class="text-danger">{{ activo.etiqueta|default:"---" }}</span></div>
+                                </td>
+                                <td>
+                                    <code class="text-dark font-weight-bold d-block">{{ activo.netbios|default:"---" }}</code>
+                                    <div class="mt-1">
+                                        {% if activo.tipo_red == 'DOM' %}
+                                            <span class="badge border border-primary text-primary" style="font-size: 0.65rem; background-color: transparent;" title="Red Institucional (Dominio)"><i class="fas fa-globe"></i> DOMINIO</span>
+                                        {% elif activo.tipo_red == 'ISLA' %}
+                                            <span class="badge border border-warning" style="font-size: 0.65rem; background-color: transparent; color: #c08b00 !important;" title="Equipo Isla"><i class="fas fa-shield-alt"></i> ISLA</span>
+                                        {% elif activo.tipo_red == 'LAB' %}
+                                            <span class="badge border border-info text-info" style="font-size: 0.65rem; background-color: transparent;" title="Laboratorio Aislado"><i class="fas fa-flask"></i> LAB</span>
+                                        {% else %}
+                                            <span class="badge border border-secondary text-secondary" style="font-size: 0.65rem; background-color: transparent;" title="Otro / Sin Red"><i class="fas fa-unlink"></i> OTRO</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if activo.bdo %}
+                                    <span class="badge bg-dark text-white px-2 py-1 shadow-sm" style="font-family: monospace; letter-spacing: 1px; min-width: 100px; display: inline-block; background-color: #212529 !important;">
+                                        {{ activo.bdo }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted small">---</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="text-truncate font-weight-bold" style="max-width: 140px;" title="{{ activo.ubicacion.nombre }}">
+                                        {{ activo.ubicacion.nombre }}
+                                    </div>
+                                    <small class="text-muted d-block">{{ activo.ubicacion.piso.nombre }} | {{ activo.ubicacion.piso.edificio.nombre }}</small>
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold text-dark">{{ activo.asignado_a.nombre|default:"SIN ASIGNAR" }}</div>
+                                    <small class="text-muted text-truncate d-block" style="max-width: 150px;">{{ activo.asignado_a.cargo|default:"" }}</small>
+                                </td>
+                                <td>
+                                    {% with est=activo.estado.nombre %}
+                                    <span class="badge p-2 w-100 text-uppercase shadow-sm 
+                                        {% if est == 'OPERATIVO' %}bg-success text-white
+                                        {% elif est == 'EN MANTENIMIENTO' %}bg-info text-white
+                                        {% elif est == 'DAÑADO' %}bg-danger text-white
+                                        {% elif est == 'DE BAJA' %}bg-secondary text-white
+                                        {% elif est == 'PRESTADO' %}bg-warning text-dark
+                                        {% else %}bg-light text-dark border{% endif %}" 
+                                        style="min-width: 90px; display: inline-block; font-size: 0.75rem; 
+                                        {% if est == 'OPERATIVO' %}background-color: #28a745 !important;
+                                        {% elif est == 'EN MANTENIMIENTO' %}background-color: #17a2b8 !important;
+                                        {% elif est == 'DAÑADO' %}background-color: #dc3545 !important;
+                                        {% elif est == 'DE BAJA' %}background-color: #6c757d !important;
+                                        {% elif est == 'PRESTADO' %}background-color: #ffc107 !important;
+                                        {% endif %}">
+                                        {{ est }}
+                                    </span>
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold text-dark" style="font-size: 0.8rem;">
+                                        <i class="fas fa-user-edit text-muted me-1"></i> 
+                                        {{ activo.creado_por.username|default:"SISTEMA" }}
+                                    </div>
+                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-calendar-alt me-1"></i> 
+                                        {{ activo.created_at|date:"d M Y, H:i" }}
+                                    </small>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group shadow-sm">
+                                        <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
+                                            <i class="fas fa-eye text-dark"></i>
+                                        </a>
+                                        <a href="{% url 'editar_activo' activo.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                            <i class="fas fa-edit text-primary"></i>
+                                        </a>
+                                        <a href="{% url 'eliminar_activo' activo.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="11" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-filter fa-3x mb-3"></i>
+                                        <p class="h5">No se encontraron activos</p>
+                                        <p class="small">Intenta ajustar o limpiar los filtros avanzados</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
             {% if page_obj.has_other_pages %}
             <div class="mt-4 d-flex justify-content-center">
                 <nav aria-label="Navegación de páginas">
@@ -326,9 +339,11 @@
     </div>
 </div>
 
-<!-- Lógica JavaScript para hacer inteligente el filtro de ubicaciones -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        // -------------------------------------------------------------
+        // 1. LÓGICA DE FILTROS DEPENDIENTES DE UBICACIÓN
+        // -------------------------------------------------------------
         const edificioSelect = document.getElementById('id_edificio');
         const pisoSelect = document.getElementById('id_piso');
         const ubicacionSelect = document.getElementById('id_ubicacion');
@@ -337,10 +352,9 @@
             const edId = edificioSelect.value;
             const piId = pisoSelect.value;
 
-            // 1. Filtrar Pisos dependientes del Edificio
+            // Filtrar Pisos dependientes del Edificio
             Array.from(pisoSelect.options).forEach(opt => {
-                if (opt.value === "") return; // Ignorar la opción "-- Todos los Pisos --"
-                
+                if (opt.value === "") return;
                 if (!edId || opt.dataset.edificio === edId) {
                     opt.hidden = false;
                 } else {
@@ -349,21 +363,13 @@
                 }
             });
 
-            // 2. Filtrar Ubicaciones dependientes de Piso y/o Edificio
+            // Filtrar Ubicaciones dependientes de Piso y/o Edificio
             Array.from(ubicacionSelect.options).forEach(opt => {
                 if (opt.value === "") return;
                 
                 let mostrar = true;
-                
-                // Si hay un piso seleccionado, la ubicación debe pertenecer a él
-                if (piId && opt.dataset.piso !== piId) {
-                    mostrar = false;
-                }
-                
-                // Si no hay piso pero sí edificio, la ubicación debe pertenecer al edificio
-                if (!piId && edId && opt.dataset.edificio !== edId) {
-                    mostrar = false;
-                }
+                if (piId && opt.dataset.piso !== piId) mostrar = false;
+                if (!piId && edId && opt.dataset.edificio !== edId) mostrar = false;
 
                 if (mostrar) {
                     opt.hidden = false;
@@ -388,6 +394,58 @@
 
         // Ejecutar inmediatamente para configurar el estado inicial si la URL tiene parámetros activos
         actualizarFiltrosUbicacion();
+
+
+        // -------------------------------------------------------------
+        // 2. LÓGICA DE ELIMINACIÓN MASIVA (CHECKBOXES)
+        // -------------------------------------------------------------
+        const checkboxMaestro = document.getElementById('checkbox-maestro');
+        const checkboxesActivos = document.querySelectorAll('.checkbox-activo');
+        const btnEliminarMasivo = document.getElementById('btn-eliminar-masivo');
+        const formEliminacion = document.getElementById('form-eliminacion-masiva');
+
+        // Función para activar/desactivar el botón
+        function toggleBotonEliminar() {
+            const cantidadSeleccionados = Array.from(checkboxesActivos).filter(cb => cb.checked).length;
+            btnEliminarMasivo.disabled = cantidadSeleccionados === 0;
+            
+            // Actualizar texto del botón para feedback visual
+            if (cantidadSeleccionados > 0) {
+                btnEliminarMasivo.innerHTML = `<i class="fas fa-trash-alt me-1"></i> Enviar ${cantidadSeleccionados} a Papelera`;
+            } else {
+                btnEliminarMasivo.innerHTML = `<i class="fas fa-trash-alt me-1"></i> Mover Seleccionados a Papelera`;
+            }
+        }
+
+        if (checkboxMaestro && checkboxesActivos.length > 0) {
+            checkboxMaestro.addEventListener('change', function() {
+                checkboxesActivos.forEach(cb => {
+                    cb.checked = checkboxMaestro.checked;
+                });
+                toggleBotonEliminar();
+            });
+
+            checkboxesActivos.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (!this.checked) {
+                        checkboxMaestro.checked = false;
+                    } else {
+                        const todosMarcados = Array.from(checkboxesActivos).every(c => c.checked);
+                        checkboxMaestro.checked = todosMarcados;
+                    }
+                    toggleBotonEliminar();
+                });
+            });
+        }
+
+        if (formEliminacion) {
+            formEliminacion.addEventListener('submit', function(e) {
+                const seleccionados = document.querySelectorAll('.checkbox-activo:checked').length;
+                if (!confirm(`¿Estás seguro de que deseas eliminar ${seleccionados} equipo(s) seleccionados de esta página?`)) {
+                    e.preventDefault();
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

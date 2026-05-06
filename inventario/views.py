@@ -37,7 +37,7 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     """
     model = Activo
     template_name = 'lista_activos.html'
-    paginate_by = 20
+    paginate_by = 30
     context_object_name = 'activos'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
     
@@ -307,6 +307,40 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         activo.delete()
         messages.success(self.request, f'El equipo {activo} ha sido enviado a la papelera (Eliminado).')
         return redirect(self.success_url)
+
+
+
+
+class EliminarActivosMasivoView(LoginRequiredMixin, GroupRequiredMixin, View):
+    """
+    Vista para procesar la eliminación masiva (soft-delete) mediante checkboxes.
+    """
+    group_required = ['ADR', 'Operador ADR']
+
+    def post(self, request, *args, **kwargs):
+        # 'activos_seleccionados' será el atributo 'name' de nuestros checkboxes en el HTML
+        activos_ids = request.POST.getlist('activos_seleccionados')
+        
+        if not activos_ids:
+            messages.warning(request, "No se seleccionó ningún equipo para eliminar.")
+            return redirect('lista_activos')
+
+        try:
+            # Filtramos los activos que coincidan con los IDs recibidos
+            activos_a_eliminar = Activo.objects.filter(id__in=activos_ids)
+            cantidad = activos_a_eliminar.count()
+
+            # Iteramos para asegurarnos de que se ejecute el método delete() personalizado
+            # y cualquier señal o registro de auditoría acoplado al guardado.
+            for activo in activos_a_eliminar:
+                activo.delete() # Esto ejecuta tu soft-delete (is_deleted = True)
+
+            messages.success(request, f'Se han enviado {cantidad} equipos a la papelera correctamente.')
+        
+        except Exception as e:
+            messages.error(request, f'Ocurrió un error durante la eliminación masiva: {str(e)}')
+
+        return redirect('lista_activos')
 
 
 

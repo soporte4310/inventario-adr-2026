@@ -10,6 +10,7 @@ from .views import (
     EditarActivoView, 
     DetalleActivoView, 
     EliminarActivoView, 
+    EliminarActivosMasivoView,
     ActivosEliminadosListView, 
 
     SubirExcelActivosView, 
@@ -25,7 +26,6 @@ from .views import (
     DetalleCatalogoView,
     EditarCatalogoView,
     EliminarCatalogoView
-
 )
 
 
@@ -38,6 +38,7 @@ urlpatterns = [
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
     path('activos/<int:pk>/', DetalleActivoView.as_view(), name='ver_activo'),
     path('activos/<int:pk>/eliminar/', EliminarActivoView.as_view(), name='eliminar_activo'),
+    path('activos/eliminar-masivo/', EliminarActivosMasivoView.as_view(), name='eliminar_activos_masivo'),
     path('activos/eliminados/', ActivosEliminadosListView.as_view(), name='lista_eliminados'),
     path('activos/restaurar/<int:pk>/', RestaurarActivoView.as_view(), name='restaurar_activo'),
 
