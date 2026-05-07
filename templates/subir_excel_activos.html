@@ -28,23 +28,25 @@
                     {% endif %}
 
                     <div class="alert alert-light border shadow-sm mb-4">
-                        <h5 class="alert-heading text-dark font-weight-bold"><i class="fas fa-info-circle text-info"></i> Formato Requerido</h5>
+                        <h5 class="alert-heading text-dark font-weight-bold"><i class="fas fa-info-circle text-info mr-1"></i> Formato Requerido</h5>
                         <p class="small text-muted mb-2">Para que el sistema procese tu archivo correctamente, la primera fila (cabecera) de tu documento Excel debe contener <strong>exactamente</strong> los siguientes nombres de columnas (el orden no importa):</p>
                         
-                        <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="badge badge-secondary p-2">CATEGORIA</span>
-                            <span class="badge badge-secondary p-2">MARCA</span>
-                            <span class="badge badge-secondary p-2">MODELO</span>
-                            <span class="badge badge-secondary p-2">NUMERO_SERIE</span>
-                            <span class="badge badge-secondary p-2">ETIQUETA</span>
-                            <span class="badge badge-secondary p-2">BDO</span>
-                            <span class="badge badge-secondary p-2">NETBIOS</span>
-                            <span class="badge badge-secondary p-2">TIPO_RED</span>
-                            <span class="badge badge-secondary p-2">TIPO_USO</span>
-                            <span class="badge badge-secondary p-2">ESTADO</span>
-                            <span class="badge badge-secondary p-2">UBICACION</span>
-                            <span class="badge badge-secondary p-2">ASIGNATARIO</span>
-                        </div>
+                    <div class="d-flex flex-wrap mb-3">
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">CATEGORIA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">MARCA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">MODELO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">NUMERO_SERIE</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ETIQUETA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">BDO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">NETBIOS</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">TIPO_RED</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">TIPO_USO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ESTADO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">EDIFICIO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">PISO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">UBICACION</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ASIGNATARIO</span>
+                    </div>
 
                         <hr>
                         <h6 class="font-weight-bold small text-dark">Reglas Importantes y Restricciones:</h6>
@@ -68,13 +70,38 @@
                             <label class="custom-file-label" for="archivo_excel" data-browse="Examinar">Elegir archivo...</label>
                         </div>
                         
-                        <div class="d-flex justify-content-center gap-2">
-                            <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <div class="d-flex justify-content-center">
+                            <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary px-4 mr-2">Cancelar</a>
                             <button type="submit" class="btn btn-info px-4 shadow-sm">
                                 <i class="fas fa-upload mr-1"></i> Procesar Archivo
                             </button>
                         </div>
                     </form>
+
+                    {% if errores %}
+                    <div class="alert alert-danger mt-4 shadow-sm border-0">
+                        <h5 class="alert-heading text-danger font-weight-bold">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> Reporte de Inconsistencias
+                        </h5>
+                        
+                        {% if registros_exitosos > 0 %}
+                            <p class="mb-2 text-dark">Se procesaron <strong>{{ registros_exitosos }}</strong> registros con éxito, pero las siguientes filas del Excel fueron omitidas:</p>
+                        {% else %}
+                            <p class="mb-2 text-dark">No se pudo importar ningún registro. Por favor, corrige los siguientes errores en tu archivo Excel y vuelve a intentarlo:</p>
+                        {% endif %}
+                        
+                        <hr class="border-danger opacity-50">
+                        
+                        <div style="max-height: 250px; overflow-y: auto; background-color: rgba(255, 255, 255, 0.6);" class="p-3 rounded border border-danger">
+                            <ul class="mb-0 text-dark small" style="font-family: monospace; list-style-type: square;">
+                                {% for error in errores %}
+                                    <li class="mb-1">{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                 </div>
             </div>
         </div>

@@ -6,6 +6,7 @@ from django.db.models import Q, Count, ProtectedError
 from django.views.generic import TemplateView, ListView, UpdateView, DetailView, CreateView, DeleteView, View
 from django.http import HttpResponse
 from django.db import transaction
+from django.core.exceptions import ValidationError
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
@@ -517,14 +518,24 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
                             
                         registros_exitosos += 1
 
+                    # 1. Captura ESPECÍFICA para validaciones del modelo
+                    except ValidationError as e:
+                        # Extraemos los mensajes de forma limpia (sin diccionarios crudos)
+                        mensajes_error = ", ".join(e.messages)
+                        errores.append(f"Fila {index + 2}: {mensajes_error}")
+                        
+                    # 2. Captura genérica para otros fallos (ej. base de datos)
                     except Exception as e:
-                        errores.append(f"Fila {index + 2}: Error interno al procesar ({str(e)})")
+                        errores.append(f"Fila {index + 2}: Error interno ({str(e)})")
 
             if errores:
-                for error in errores[:10]:
-                    messages.warning(request, error)
-                if len(errores) > 10:
-                    messages.warning(request, f"...y {len(errores) - 10} errores más omitidos.")
+                # Si hay errores, renderiza la misma plantilla con el detalle.
+                context = {
+                    'errores': errores,
+                    'registros_exitosos': registros_exitosos,
+                }
+                messages.warning(request, f'Se importaron {registros_exitosos} equipos, pero hubo {len(errores)} errores. Revisa el detalle abajo.')
+                return render(request, self.template_name, context)
 
             if registros_exitosos > 0:
                 messages.success(request, f'Proceso completado. Se importaron/actualizaron {registros_exitosos} activos.')
