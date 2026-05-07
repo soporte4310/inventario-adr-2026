@@ -16,7 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
-from .forms import ActivoForm, CatalogoForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm
 from .utils import _get_excel_val
 from accounts.mixins import GroupRequiredMixin
 
@@ -1181,3 +1181,26 @@ class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         context['search_query'] = self.search_query
         context['titulo_lista'] = "Gestión de Categorías"
         return context
+
+
+
+
+class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'inventario/pages/agregar_categoria.html'
+    group_required = ['ADR', 'Operador ADR']
+    success_url = reverse_lazy('lista_categorias')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = "Registrar Nueva Categoría"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'La categoría "{form.instance.nombre}" ha sido creada exitosamente.')
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo crear la categoría. Revisa los errores en el formulario.')
+        return super().form_invalid(form)
