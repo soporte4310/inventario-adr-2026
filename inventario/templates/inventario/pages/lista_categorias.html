@@ -76,7 +76,7 @@
                     <div class="d-grid gap-2">
                         <div class="btn-group w-100 shadow-sm">
                             <a href="{% url 'editar_categoria' cat.id %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Editar</a>
-                            <a class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                            <a href="{% url 'eliminar_categoria' cat.id %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
                         </div>
                     </div>
                 </div>

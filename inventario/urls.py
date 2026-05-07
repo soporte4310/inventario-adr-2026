@@ -29,7 +29,8 @@ from .views import (
 
     ListaCategoriaView,
     CrearCategoriaView,
-    EditarCategoriaView
+    EditarCategoriaView,
+    EliminarCategoriaView
 )
 
 
@@ -50,6 +51,7 @@ urlpatterns = [
     path('categorias/', ListaCategoriaView.as_view(), name='lista_categorias'),
     path('categorias/nueva/', CrearCategoriaView.as_view(), name='agregar_categoria'),
     path('categorias/<int:pk>/editar/', EditarCategoriaView.as_view(), name='editar_categoria'),
+    path('categorias/<int:pk>/eliminar/', EliminarCategoriaView.as_view(), name='eliminar_categoria'),
 
     # Catálogos
     path('catalogos/', ListaCatalogoView.as_view(), name='lista_catalogos'),

@@ -1229,3 +1229,31 @@ class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudieron guardar los cambios. Por favor, revisa el formulario.')
         return super().form_invalid(form)
+
+
+
+
+class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+    model = Categoria
+    template_name = 'inventario/pages/eliminar_categoria.html'
+    success_url = reverse_lazy('lista_categorias')
+    group_required = ['ADR', 'Operador ADR']
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Intentamos la eliminación física
+            return super().post(request, *args, **kwargs)
+        except ProtectedError:
+            # Si existen catálogos asociados, mostramos el error
+            messages.error(
+                request, 
+                f"No se puede eliminar la categoría '{self.get_object().nombre}' porque tiene productos "
+                f"registrados en el catálogo. Primero debes eliminar o reasignar dichos productos."
+            )
+            return redirect('lista_categorias')
+
+    def form_valid(self, form):
+        nombre_obj = self.get_object().nombre
+        response = super().form_valid(form)
+        messages.success(self.request, f'La categoría "{nombre_obj}" ha sido eliminada correctamente.')
+        return response

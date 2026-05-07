@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Categoría{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle fa-4x text-danger"></i>
+                    </div>
+                    <h3 class="font-weight-bold text-dark">¿Confirmar Eliminación?</h3>
+                    <p class="text-muted">
+                        Estás a punto de eliminar la categoría <strong>{{ object.nombre }}</strong>. 
+                        Esta acción no se puede deshacer.
+                    </p>
+                    
+                    <div class="alert alert-warning small border-0 shadow-sm text-left">
+                        <i class="fas fa-info-circle mr-1"></i> 
+                        <strong>Nota:</strong> Solo podrás proceder si no hay productos (Laptops, Mouse, etc.) 
+                        creados bajo esta categoría en el catálogo.
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                            <a href="{% url 'lista_categorias' %}" class="btn btn-light px-4 mr-2">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4 shadow-sm">
+                                <i class="fas fa-trash-alt mr-1"></i> Eliminar Definitivamente
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
