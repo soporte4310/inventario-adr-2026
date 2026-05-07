@@ -1204,3 +1204,28 @@ class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudo crear la categoría. Revisa los errores en el formulario.')
         return super().form_invalid(form)
+
+
+
+
+class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'inventario/pages/editar_categoria.html'
+    group_required = ['ADR', 'Operador ADR']
+    success_url = reverse_lazy('lista_categorias')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # self.object contiene la instancia de la categoría que se está editando
+        context['titulo_form'] = f"Editar Categoría: {self.object.nombre}"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'La categoría "{self.object.nombre}" se ha actualizado correctamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudieron guardar los cambios. Por favor, revisa el formulario.')
+        return super().form_invalid(form)
