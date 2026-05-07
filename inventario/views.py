@@ -1156,3 +1156,28 @@ class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         self.get_object().delete()
         messages.success(self.request, f'El catálogo "{nombre_obj}" ha sido eliminado correctamente.')
         return redirect(success_url)
+
+
+
+
+class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    model = Categoria
+    template_name = 'lista_categorias.html'
+    context_object_name = 'categorias'
+    paginate_by = 12  # Un grid de 3x4 o 4x3 funciona muy bien para imágenes
+    group_required = ['ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        queryset = Categoria.objects.all().order_by('nombre')
+        self.search_query = self.request.GET.get('search', '').strip()
+        
+        if self.search_query:
+            queryset = queryset.filter(nombre__icontains=self.search_query)
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.search_query
+        context['titulo_lista'] = "Gestión de Categorías"
+        return context
