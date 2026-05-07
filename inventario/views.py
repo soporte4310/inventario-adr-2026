@@ -1162,7 +1162,7 @@ class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
 
 class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Categoria
-    template_name = 'lista_categorias.html'
+    template_name = 'inventario/pages/lista_categorias.html'
     context_object_name = 'categorias'
     paginate_by = 12  # Un grid de 3x4 o 4x3 funciona muy bien para imágenes
     group_required = ['ADR', 'Operador ADR']
