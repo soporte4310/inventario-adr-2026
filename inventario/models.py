@@ -121,6 +121,9 @@ class Categoria(models.Model):
     descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
     usa_netbios = models.BooleanField(default=False, verbose_name="¿Requiere NetBIOS?", help_text="Marque si los equipos de esta categoría se unen al dominio.")
     usa_bdo = models.BooleanField(default=True, verbose_name="¿Requiere BDO?", help_text="Marque si a estos equipos se les pega placa de inventario.")
+    imagen = models.ImageField(verbose_name="Imagen representativa", null=True, blank=True, upload_to="categorias/imagen/main")
+    imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="categorias/imagen/medium/", blank=True, null=True, editable=False)
+    imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)", upload_to="categorias/imagen/small/", blank=True, null=True, editable=False)
 
     class Meta:
         verbose_name = "Categoría"

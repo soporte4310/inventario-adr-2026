@@ -16,7 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
-from .forms import ActivoForm, CatalogoForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm
 from .utils import _get_excel_val
 from accounts.mixins import GroupRequiredMixin
 
@@ -1156,3 +1156,104 @@ class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         self.get_object().delete()
         messages.success(self.request, f'El catálogo "{nombre_obj}" ha sido eliminado correctamente.')
         return redirect(success_url)
+
+
+
+
+class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    model = Categoria
+    template_name = 'inventario/pages/lista_categorias.html'
+    context_object_name = 'categorias'
+    paginate_by = 12  # Un grid de 3x4 o 4x3 funciona muy bien para imágenes
+    group_required = ['ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        queryset = Categoria.objects.all().order_by('nombre')
+        self.search_query = self.request.GET.get('search', '').strip()
+        
+        if self.search_query:
+            queryset = queryset.filter(nombre__icontains=self.search_query)
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.search_query
+        context['titulo_lista'] = "Gestión de Categorías"
+        return context
+
+
+
+
+class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'inventario/pages/agregar_categoria.html'
+    group_required = ['ADR', 'Operador ADR']
+    success_url = reverse_lazy('lista_categorias')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_form'] = "Registrar Nueva Categoría"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'La categoría "{form.instance.nombre}" ha sido creada exitosamente.')
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudo crear la categoría. Revisa los errores en el formulario.')
+        return super().form_invalid(form)
+
+
+
+
+class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'inventario/pages/editar_categoria.html'
+    group_required = ['ADR', 'Operador ADR']
+    success_url = reverse_lazy('lista_categorias')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # self.object contiene la instancia de la categoría que se está editando
+        context['titulo_form'] = f"Editar Categoría: {self.object.nombre}"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f'La categoría "{self.object.nombre}" se ha actualizado correctamente.')
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'No se pudieron guardar los cambios. Por favor, revisa el formulario.')
+        return super().form_invalid(form)
+
+
+
+
+class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+    model = Categoria
+    template_name = 'inventario/pages/eliminar_categoria.html'
+    success_url = reverse_lazy('lista_categorias')
+    group_required = ['ADR', 'Operador ADR']
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Intentamos la eliminación física
+            return super().post(request, *args, **kwargs)
+        except ProtectedError:
+            # Si existen catálogos asociados, mostramos el error
+            messages.error(
+                request, 
+                f"No se puede eliminar la categoría '{self.get_object().nombre}' porque tiene productos "
+                f"registrados en el catálogo. Primero debes eliminar o reasignar dichos productos."
+            )
+            return redirect('lista_categorias')
+
+    def form_valid(self, form):
+        nombre_obj = self.get_object().nombre
+        response = super().form_valid(form)
+        messages.success(self.request, f'La categoría "{nombre_obj}" ha sido eliminada correctamente.')
+        return response

@@ -25,7 +25,12 @@ from .views import (
     CrearCatalogoView,
     DetalleCatalogoView,
     EditarCatalogoView,
-    EliminarCatalogoView
+    EliminarCatalogoView,
+
+    ListaCategoriaView,
+    CrearCategoriaView,
+    EditarCategoriaView,
+    EliminarCategoriaView
 )
 
 
@@ -42,7 +47,13 @@ urlpatterns = [
     path('activos/eliminados/', ActivosEliminadosListView.as_view(), name='lista_eliminados'),
     path('activos/restaurar/<int:pk>/', RestaurarActivoView.as_view(), name='restaurar_activo'),
 
-    # Catálogo
+    # Categorías
+    path('categorias/', ListaCategoriaView.as_view(), name='lista_categorias'),
+    path('categorias/nueva/', CrearCategoriaView.as_view(), name='agregar_categoria'),
+    path('categorias/<int:pk>/editar/', EditarCategoriaView.as_view(), name='editar_categoria'),
+    path('categorias/<int:pk>/eliminar/', EliminarCategoriaView.as_view(), name='eliminar_categoria'),
+
+    # Catálogos
     path('catalogos/', ListaCatalogoView.as_view(), name='lista_catalogos'),
     path('catalogos/nuevo/', CrearCatalogoView.as_view(), name='agregar_catalogo'),
     path('catalogos/<int:pk>/', DetalleCatalogoView.as_view(), name='ver_catalogo'),

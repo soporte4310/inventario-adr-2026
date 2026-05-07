@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo
+from .models import Activo, Ubicacion, Catalogo, Categoria
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -104,4 +104,36 @@ class CatalogoForm(ImageProcessingFormMixin, forms.ModelForm):
         if commit:
             instance.save()
             
+        return instance
+
+
+
+
+class CategoriaForm(ImageProcessingFormMixin, forms.ModelForm):
+    class Meta:
+        model = Categoria
+        fields = ['nombre', 'descripcion', 'usa_netbios', 'usa_bdo', 'imagen']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: LAPTOPS, MONITORES, etc.'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Breve descripción de la categoría...'}),
+            'usa_netbios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'usa_bdo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+        }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Si se subió una imagen nueva, procesamos los thumbnails
+        if 'imagen' in self.changed_data and self.cleaned_data.get('imagen'):
+            self.process_image_upload(
+                instance=instance,
+                field_name='imagen',
+                max_dim=(1024, 1024), # Tamaño máximo para la imagen principal
+                crop=True,            # Forzamos proporción cuadrada para las tarjetas
+                image_prefix='cat'    # Prefijo para el nombre del archivo
+            )
+            
+        if commit:
+            instance.save()
         return instance

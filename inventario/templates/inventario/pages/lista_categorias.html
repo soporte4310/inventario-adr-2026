@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_lista }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-md-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-1 font-weight-bold text-dark">{{ titulo_lista }}</h2>
+            <p class="text-muted small">Configuración de tipos de activos y reglas de inventario</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_categorias' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                <i class="fas fa-sync-alt"></i>
+            </a>
+            <a href="{% url 'agregar_categoria' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
+                <i class="fas fa-plus"></i> Nueva Categoría
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3 bg-light rounded">
+            <form method="GET" class="row g-2">
+                <div class="col-md-10">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" name="search" class="form-control border-start-0" 
+                               placeholder="Buscar categoría por nombre..." 
+                               value="{{ search_query }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-dark w-100 font-weight-bold">
+                        Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for cat in categorias %}
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm border-0 transition-hover">
+                <div class="position-relative">
+                    {% if cat.imagen_thumb_medium %}
+                        <img src="{{ cat.imagen_thumb_medium.url }}" class="card-img-top" alt="{{ cat.nombre }}" style="height: 180px; object-fit: cover;">
+                    {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                            <i class="fas fa-layer-group fa-3x text-secondary opacity-25"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="position-absolute bottom-0 end-0 p-2 d-flex gap-1">
+                        {% if cat.usa_netbios %}
+                            <span class="badge bg-primary shadow-sm" title="Requiere NetBIOS">NB</span>
+                        {% endif %}
+                        {% if cat.usa_bdo %}
+                            <span class="badge bg-dark shadow-sm" title="Requiere BDO">BDO</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <h5 class="card-title font-weight-bold text-dark mb-1">{{ cat.nombre }}</h5>
+                    <p class="card-text text-muted small text-truncate-2" style="height: 2.5rem;">
+                        {{ cat.descripcion|default:"Sin descripción disponible." }}
+                    </p>
+                </div>
+
+                <div class="card-footer bg-white border-top-0 pb-3">
+                    <div class="d-grid gap-2">
+                        <div class="btn-group w-100 shadow-sm">
+                            <a href="{% url 'editar_categoria' cat.id %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Editar</a>
+                            <a href="{% url 'eliminar_categoria' cat.id %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted">
+                <i class="fas fa-folder-open fa-3x mb-3"></i>
+                <p class="h5">No se encontraron categorías</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% include 'inventario/partials/pagination.html' %} 
+</div>
+
+<style>
+    .transition-hover:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s ease;
+    }
+    .text-truncate-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
