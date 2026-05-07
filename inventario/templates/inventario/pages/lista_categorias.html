@@ -55,12 +55,12 @@
                         </div>
                     {% endif %}
                     
-                    <div class="position-absolute bottom-0 end-0 p-2 d-flex gap-1">
+                   <div class="position-absolute bottom-0 right-0 p-2 d-flex gap-1">
                         {% if cat.usa_netbios %}
-                            <span class="badge bg-primary shadow-sm" title="Requiere NetBIOS">NB</span>
+                            <span class="badge bg-primary text-white shadow-sm">NB</span>
                         {% endif %}
                         {% if cat.usa_bdo %}
-                            <span class="badge bg-dark shadow-sm" title="Requiere BDO">BDO</span>
+                            <span class="badge bg-dark text-white shadow-sm">BDO</span>
                         {% endif %}
                     </div>
                 </div>
@@ -75,6 +75,9 @@
                 <div class="card-footer bg-white border-top-0 pb-3">
                     <div class="d-grid gap-2">
                         <div class="btn-group w-100 shadow-sm">
+                            <a href="{% url 'ver_categoria' cat.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
                             <a href="{% url 'editar_categoria' cat.id %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Editar</a>
                             <a href="{% url 'eliminar_categoria' cat.id %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
                         </div>

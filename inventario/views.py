@@ -1257,3 +1257,49 @@ class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         response = super().form_valid(form)
         messages.success(self.request, f'La categoría "{nombre_obj}" ha sido eliminada correctamente.')
         return response
+
+
+
+
+class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+    model = Categoria
+    template_name = 'inventario/pages/ver_categoria.html'
+    context_object_name = 'categoria'
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        categoria = self.object
+
+        # 1. Queryset base de activos vinculados a esta categoría
+        # El manager por defecto de Activo ya filtra is_deleted=False
+        activos_qs = Activo.objects.filter(catalogo__categoria=categoria)
+
+        # 2. Cifra total de activos
+        total_activos = activos_qs.count()
+
+        # 3. Métricas: Distribución por Estado
+        # Esto genera una lista de diccionarios: [{'estado__nombre': 'OPERATIVO', 'total': 15}, ...]
+        metricas_estado = activos_qs.values('estado__nombre').annotate(
+            total=Count('id')
+        ).order_by('-total')
+
+        # 4. Métricas: Distribución por Edificio (Dónde se concentran)
+        metricas_edificio = activos_qs.values('ubicacion__piso__edificio__nombre').annotate(
+            total=Count('id')
+        ).order_by('-total')
+
+        # 5. Listado de Catálogos (Modelos) específicos de esta categoría
+        # Aprovechamos de contar cuántos activos tiene cada modelo
+        catalogos_relacionados = Catalogo.objects.filter(categoria=categoria).annotate(
+            total_equipos=Count('activo', filter=Q(activo__is_deleted=False))
+        ).order_by('marca__nombre', 'modelo')
+
+        context.update({
+            'titulo_detalle': f"Resumen de Categoría: {categoria.nombre}",
+            'total_activos': total_activos,
+            'metricas_estado': metricas_estado,
+            'metricas_edificio': metricas_edificio,
+            'catalogos': catalogos_relacionados,
+        })
+        return context
