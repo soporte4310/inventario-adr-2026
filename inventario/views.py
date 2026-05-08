@@ -246,44 +246,64 @@ class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 
 
 class AgregarActivoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
-    """
-    Vista para registrar un nuevo activo.
-    """
     model = Activo
     form_class = ActivoForm
     template_name = 'agregar_activo.html'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
-
-    def get_form_kwargs(self):
-        # Pasamos el parámetro de categoría al formulario, al igual que en la vista original
-        kwargs = super().get_form_kwargs()
-        kwargs['categoria_nombre'] = self.request.GET.get('categoria_nombre', '')
-        return kwargs
+    success_url = reverse_lazy('lista_activos')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        categoria_nombre = self.request.GET.get('categoria_nombre', '')
-        
-        context['titulo_form'] = f"Nuevo Activo: {categoria_nombre}" if categoria_nombre else "Registrar Nuevo Activo"
-        context['categoria_nombre'] = categoria_nombre
+        if 'catalogo_form' not in context:
+            context['catalogo_form'] = CatalogoForm()
         return context
 
+    def post(self, request, *args, **kwargs):
+        self.object = None
+        form = self.get_form()
+        crear_nuevo = request.POST.get('crear_nuevo_catalogo') == 'true'
+        
+        if crear_nuevo:
+            with transaction.atomic():
+                # El form procesa la Marca automáticamente en su clean_marca
+                catalogo_form = CatalogoForm(request.POST, request.FILES)
+                if catalogo_form.is_valid():
+                    nuevo_catalogo = catalogo_form.save()
+                    
+                    ## Log de Auditoría para el nuevo Catálogo
+                    #AuditoriaActivo.objects.create(
+                    #    usuario=request.user,
+                    #    accion=AuditoriaActivo.TipoAccion.CREACION,
+                    #    content_type=ContentType.objects.get_for_model(Catalogo),
+                    #    object_id=nuevo_catalogo.id,
+                    #    valor_nuevo=f"Producto creado desde activo: {nuevo_catalogo}"
+                    #)
+                    
+                    data_activo = request.POST.copy()
+                    data_activo['catalogo'] = nuevo_catalogo.id
+                    form = ActivoForm(data_activo)
+                else:
+                    return self.render_to_response(self.get_context_data(form=form, catalogo_form=catalogo_form))
+
+        if form.is_valid():
+            return self.form_valid(form)
+        return self.form_invalid(form)
+
     def form_valid(self, form):
+        # 1. Asignamos el usuario autenticado
+        form.instance.creado_por = self.request.user
         response = super().form_valid(form)
-        messages.success(self.request, f'Activo registrado exitosamente: {self.object}')
+        
+        ## 2. Log de Auditoría para el Activo (EL REGISTRO DE AUDITORIA SE CREA EN SIGNALS. NO HACE FATA QUE ESTÉ AQUÍ)
+        #AuditoriaActivo.objects.create(
+        #    usuario=self.request.user,
+        #    accion=AuditoriaActivo.TipoAccion.CREACION,
+        #    content_type=ContentType.objects.get_for_model(Activo),
+        #    object_id=self.object.id,
+        #    valor_nuevo=f"Activo registrado: {self.object}"
+        #)
+        messages.success(self.request, "Activo y auditoría registrados correctamente.")
         return response
-
-    def form_invalid(self, form):
-        messages.error(self.request, 'No se pudo guardar el activo. Por favor, corrige los errores del formulario.')
-        return super().form_invalid(form)
-
-    def get_success_url(self):
-        # Redirigir de vuelta a la lista con el mismo filtro de la categoría
-        redirect_url = reverse('lista_activos')
-        categoria_nombre = self.request.GET.get('categoria_nombre', '')
-        if categoria_nombre:
-            redirect_url += f"?categoria_nombre={categoria_nombre}"
-        return redirect_url
 
 
 class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):

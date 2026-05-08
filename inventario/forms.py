@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo, Categoria
+from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -52,13 +52,21 @@ class ActivoForm(forms.ModelForm):
         categoria_nombre = kwargs.pop('categoria_nombre', None)
         
         super().__init__(*args, **kwargs)
+
+        # 1. PRESELECCIÓN DE "OPERATIVO"
+        if not self.instance.pk: # Solo para registros nuevos
+            from .models import Estado
+            # Buscamos el estado "OPERATIVO" de forma segura
+            estado_op = Estado.objects.filter(nombre__iexact='OPERATIVO').first()
+            if estado_op:
+                self.fields['estado'].initial = estado_op.id
         
-        # 1. Asignamos placeholders a los campos no obligatorios
+        # 2. Asignamos placeholders a los campos no obligatorios
         for field in self.fields.values():
             if not field.required:
                 field.widget.attrs['placeholder'] = field.widget.attrs.get('placeholder', 'Opcional')
 
-        # 2. Reglas de Negocio para el Catálogo
+        # 3. Reglas de Negocio para el Catálogo
         if self.instance and self.instance.pk:
             # MODO EDICIÓN: Bloquear catálogo
             self.fields['catalogo'].disabled = True
@@ -74,25 +82,36 @@ class ActivoForm(forms.ModelForm):
 
 
 class CatalogoForm(ImageProcessingFormMixin, forms.ModelForm):
+    # Redefinimos para aceptar IDs numéricos (existentes) o Texto (nuevos)
+    marca = forms.CharField(
+        widget=forms.Select(attrs={'class': 'form-control select2-tags'}),
+        help_text="Busca una marca o escribe una nueva y presiona Enter",
+        label="Marca"
+    )
+
     class Meta:
         model = Catalogo
         fields = ['categoria', 'marca', 'modelo', 'descripcion', 'imagen']
         widgets = {
             'categoria': forms.Select(attrs={'class': 'form-select select2'}),
-            'marca': forms.Select(attrs={'class': 'form-select select2'}),
-            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: LATITUDE 5420 o GENÉRICO'}),
-            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Detalles adicionales (opcional)'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: LATITUDE 5420'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'imagen': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
 
+    def clean_marca(self):
+        # Lógica inteligente: Si es ID busca el objeto, si es texto lo crea
+        marca_data = self.cleaned_data.get('marca')
+        if str(marca_data).isdigit():
+            return Marca.objects.get(id=marca_data)
+        
+        marca_obj, _ = Marca.objects.get_or_create(nombre=str(marca_data).strip().upper())
+        return marca_obj
+
     def save(self, commit=True):
-        # 1. Obtenemos la instancia sin guardar en BD todavía
         instance = super().save(commit=False)
         
-        # 2. Verificamos si se subió una NUEVA imagen en este request
-        # Esto evita procesar de nuevo si el usuario solo editó un texto
         if 'imagen' in self.changed_data and self.cleaned_data.get('imagen'):
-            # 3. Ejecutamos el Mixin. Configuramos un tamaño prudente y forzamos un crop cuadrado (1:1)
             self.process_image_upload(
                 instance=instance,
                 field_name='imagen',
@@ -105,7 +124,13 @@ class CatalogoForm(ImageProcessingFormMixin, forms.ModelForm):
             instance.save()
             
         return instance
-
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cargamos las opciones para el widget Select
+        self.fields['marca'].widget.choices = [('', '-- Seleccione o escriba --')] + [
+            (m.id, m.nombre) for m in Marca.objects.all().order_by('nombre')
+        ]
 
 
 
