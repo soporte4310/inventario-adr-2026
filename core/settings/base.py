@@ -100,6 +100,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
 CRISPY_TEMPLATE_PACK = "tailwind"
 
 # Seguridad y Login
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/inventario'
 LOGOUT_REDIRECT_URL = '/'
 X_FRAME_OPTIONS = "SAMEORIGIN"

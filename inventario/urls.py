@@ -3,7 +3,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from .views import (
-    InicioNuevoView, 
+    DashboardInventario, 
 
     ListaActivosView, 
     AgregarActivoView, 
@@ -36,7 +36,7 @@ from .views import (
 
 
 urlpatterns = [
-    path('', InicioNuevoView.as_view(), name="inicio"),
+    path('', DashboardInventario.as_view(), name="dashboard_inventario"),
 
     # Activos
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),

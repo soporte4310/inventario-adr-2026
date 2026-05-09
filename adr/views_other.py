@@ -814,23 +814,7 @@ class ProfilePasswordChangeView(PasswordChangeView):
         messages.error(self.request, 'Las contraseñas no coinciden o no cumple el estándar de seguridad')
         return super().form_invalid(form)
 
-@add_group_name_to_context
-class CustomLoginView(LoginView):
-    def form_invalid(self, form):
-        messages.error(self.request, 'Usuario o contraseña incorrectos. Por favor, intente nuevamente.')
-        return super().form_invalid(form)
 
-    def form_valid(self, form):
-        user = form.get_user()
-        profile = getattr(user, "profile", None)
-
-        if profile and profile.create_by_adr:
-            messages.warning(self.request, 'Bienvenido, debes cambiar tu contraseña ahora.')
-            return HttpResponseRedirect(reverse_lazy('profile_password_change'))
-
-        resp = super().form_valid(form)
-        messages.success(self.request, 'Inicio de sesión exitoso.')
-        return resp
 
 # -------- VISTAS DE ALL IN ONE --------
 

@@ -5,7 +5,7 @@ from django.contrib.auth import views as auth_views
 from django.views.generic import TemplateView
 from django.views.generic import RedirectView
 from .views import (
-    LoginView, AddUserView, IndexView, ProfileListView, ProfileUpdateView, ProfileDeleteView, HomeView, CustomLoginView, HistorialCambiosView,
+    LoginView, AddUserView, IndexView, ProfileListView, ProfileUpdateView, ProfileDeleteView, HomeView, HistorialCambiosView,
     ProfilePasswordChangeView,
     AllInOneView, Add_AllInOneView, Edit_AllInOneView,
     AllInOneAdminView, Add_AllInOneAdminView, Edit_AllInOneAdmView, Add_SwitchDeRed,
@@ -44,8 +44,8 @@ from .forms import LoginForm
 
 urlpatterns = [
     # Autenticación
-    path('', CustomLoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
+    #path('login/', CustomLoginView.as_view(), name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
     path('password_change/', login_required(ProfilePasswordChangeView.as_view()), name="profile_password_change"),
     
     # Gestión de Usuarios
@@ -56,17 +56,17 @@ urlpatterns = [
     path('profile_delete/<int:pk>/', login_required(ProfileDeleteView.as_view()), name='profile_delete'),
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
     # Páginas Principales
-    path('', IndexView.as_view(), name="index"),
+    #path('', IndexView.as_view(), name="index"),
     # Esta ruta para el home será sustituida
     # path('inicio/', login_required(HomeView.as_view()), name='inicio'),
-    path(
-        "login/",
-        LoginView.as_view(
-            authentication_form= LoginForm,
-            template_name="registration/login.html",
-        ),
-        name="login",
-    ),
+    #path(
+    #    "login/",
+    #    LoginView.as_view(
+    #        authentication_form= LoginForm,
+    #        template_name="registration/login.html",
+    #    ),
+    #    name="login",
+    #),
     
     path('password_reset/', auth_views.PasswordResetView.as_view(
         email_template_name='registration/password_reset_email.txt',

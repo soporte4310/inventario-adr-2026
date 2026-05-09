@@ -21,11 +21,11 @@ from .utils import _get_excel_val
 from accounts.mixins import GroupRequiredMixin
 
 
-class InicioNuevoView(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
+class DashboardInventario(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
     """
     Vista de inicio (Requiere Login)
     """
-    template_name = 'home_nuevo.html'
+    template_name = 'inventario/pages/dashboard.html'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
 
