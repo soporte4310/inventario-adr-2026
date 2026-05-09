@@ -15,8 +15,16 @@ class GroupRequiredMixin(UserPassesTestMixin):
         if self.group_required is None:
             return True
             
+        # Verificar si está autenticado aquí también para evitar errores
+        if not self.request.user.is_authenticated:
+            return False
+            
         return self.request.user.groups.filter(name__in=self.group_required).exists()
 
     def handle_no_permission(self):
-        # Si no tiene permiso, lanzamos un 403 en lugar de redirigir al login
+        # Si el usuario NO está logueado, que LoginRequiredMixin o AccessMixin manejen la redirección
+        if not self.request.user.is_authenticated:
+            return super().handle_no_permission()
+        
+        # Si está logueado pero llegó aquí, es porque test_func falló (no tiene el grupo)
         raise PermissionDenied
