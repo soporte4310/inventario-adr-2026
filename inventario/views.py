@@ -1008,7 +1008,7 @@ class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Catalogo
-    template_name = 'lista_catalogos.html'
+    template_name = 'inventario/pages/lista_catalogos.html'
     context_object_name = 'catalogos'
     paginate_by = 20
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
@@ -1075,7 +1075,7 @@ class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     model = Catalogo
     form_class = CatalogoForm
-    template_name = 'editar_catalogo.html'
+    template_name = 'inventario/pages/editar_catalogo.html'
     context_object_name = 'catalogo'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
@@ -1102,7 +1102,7 @@ class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
 class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Catalogo
     form_class = CatalogoForm
-    template_name = 'agregar_catalogo.html'
+    template_name = 'inventario/pages/agregar_catalogo.html'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
@@ -1128,7 +1128,7 @@ class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
 
 class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
     model = Catalogo
-    template_name = 'ver_catalogo.html'
+    template_name = 'inventario/pages/ver_catalogo.html'
     context_object_name = 'catalogo'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
@@ -1153,7 +1153,7 @@ class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 
 class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     model = Catalogo
-    template_name = 'eliminar_catalogo.html'
+    template_name = 'inventario/pages/eliminar_catalogo.html'
     success_url = reverse_lazy('lista_catalogos')
     group_required = ['ADR', 'Operador ADR']
 
