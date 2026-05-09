@@ -15,6 +15,8 @@ urlpatterns = [
     
     # Rutas nuevas para el inventario
     path('inventario/', include('inventario.urls')),
+    # Django Debug Toolbar
+    path("__debug__/", include("debug_toolbar.urls")),
 ]
 
 

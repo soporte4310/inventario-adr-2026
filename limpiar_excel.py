@@ -41,7 +41,8 @@ def limpiar_excel():
         'EQUIPOS_ISLA': 'ALL IN ONE',
         'IPAD 9° GEN.': 'IPAD',
         'IPAD 9° GENERACIÓN': 'IPAD',
-        'IPAD 9° GENERACION': 'IPAD'
+        'IPAD 9° GENERACION': 'IPAD',
+        'MULTIPART': 'MULTIPAR'
     }
     df['Categoria_Base'] = df['Categoria_Base'].replace(reemplazos_categoria)
 

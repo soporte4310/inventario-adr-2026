@@ -25,6 +25,7 @@ THIRD_PARTY_APPS = [
     'crispy_forms',
     'crispy_tailwind',
     'django_cleanup.apps.CleanupConfig',
+    'debug_toolbar',
 ]
 LOCAL_APPS = [
     'adr',
@@ -35,6 +36,7 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -106,3 +108,8 @@ LOGIN_FAILED_WINDOW_SECONDS = 900
 LOGIN_LOCK_SECONDS = 60
 BACKUP_DIR = config('BACKUP_DIR', default=os.path.join(BASE_DIR, 'backups'))
 PASSWORD_RESET_TIMEOUT = 3600
+
+# Para Django Debug Toolbar
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
