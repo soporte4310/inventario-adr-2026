@@ -60,6 +60,7 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         self.edificio_id = self.request.GET.get('edificio', '')
         self.piso_id = self.request.GET.get('piso', '')
         self.ubicacion_id = self.request.GET.get('ubicacion', '')
+        self.ubicacion_nombre = self.request.GET.get('ubicacion_nombre', '')
         self.tipo_uso = self.request.GET.get('tipo_uso', '')
         self.tipo_red = self.request.GET.get('tipo_red', '')
         self.asignatario_id = self.request.GET.get('asignatario', '')
@@ -67,9 +68,11 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         self.fecha_hasta = self.request.GET.get('fecha_hasta', '')
         self.orden = self.request.GET.get('orden', '-updated_at') # Orden por defecto
 
+        # Título base por defecto
         self.titulo_lista = "Listado General de Activos"
 
         # 3. Aplicación dinámica de filtros
+        # --- CATEGORÍAS ---
         if self.categoria_id:
             queryset = queryset.filter(catalogo__categoria_id=self.categoria_id)
             try:
@@ -78,9 +81,13 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
             except Categoria.DoesNotExist:
                 pass
 
-        if self.categoria_nombre:
+        elif self.categoria_nombre:
             queryset = queryset.filter(catalogo__categoria__nombre__icontains=self.categoria_nombre)
             self.titulo_lista = f"Inventario de {self.categoria_nombre}s"
+            cat_obj = Categoria.objects.filter(nombre__iexact=self.categoria_nombre).first()
+            if cat_obj:
+                self.categoria_id = str(cat_obj.id)
+
 
         if self.marca_id:
             queryset = queryset.filter(catalogo__marca_id=self.marca_id)
@@ -90,15 +97,6 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
         if self.estado_id:
             queryset = queryset.filter(estado_id=self.estado_id)
-            
-        if self.edificio_id:
-            queryset = queryset.filter(ubicacion__piso__edificio_id=self.edificio_id)
-            
-        if self.piso_id:
-            queryset = queryset.filter(ubicacion__piso_id=self.piso_id)
-            
-        if self.ubicacion_id:
-            queryset = queryset.filter(ubicacion_id=self.ubicacion_id)
 
         if self.tipo_uso:
             queryset = queryset.filter(tipo_uso=self.tipo_uso)
@@ -118,6 +116,52 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
             
         if self.fecha_hasta:
             queryset = queryset.filter(created_at__date__lte=self.fecha_hasta)
+            
+        # --- UBICACIONES ---
+        ub_obj = None
+            
+        if self.ubicacion_id:
+            queryset = queryset.filter(ubicacion_id=self.ubicacion_id)
+            ub_obj = Ubicacion.objects.filter(id=self.ubicacion_id).select_related('piso__edificio').first()
+        elif self.ubicacion_nombre:
+            queryset = queryset.filter(ubicacion__nombre__icontains=self.ubicacion_nombre)
+            ub_obj = Ubicacion.objects.filter(nombre__iexact=self.ubicacion_nombre).select_related('piso__edificio').first()
+            if ub_obj:
+                # Sincronizamos el ID para que el selector del HTML se marque
+                self.ubicacion_id = str(ub_obj.id)
+        
+        # Si hay una ubicación (ya sea por ID o Nombre), actualizamos título y jerarquía
+        if ub_obj:
+            suffix = f" en {ub_obj.nombre}"
+            # Si el título es el general, usamos "Inventario en...", si no, concatenamos
+            if self.titulo_lista == "Listado General de Activos":
+                self.titulo_lista = f"Inventario{suffix}"
+            else:
+                self.titulo_lista += suffix
+            
+            self.piso_id = str(ub_obj.piso_id)
+            self.edificio_id = str(ub_obj.piso.edificio_id)
+
+        # Filtros de Piso o Edificio si no se seleccionó una ubicación específica
+        elif self.piso_id:
+            pi_obj = Piso.objects.filter(id=self.piso_id).first()
+            if pi_obj:
+                suffix = f" en {pi_obj.nombre}"
+                if self.titulo_lista == "Listado General de Activos":
+                    self.titulo_lista = f"Inventario{suffix}"
+                else:
+                    self.titulo_lista += suffix
+                self.edificio_id = str(pi_obj.edificio_id)
+        
+        elif self.edificio_id:
+            ed_obj = Edificio.objects.filter(id=self.edificio_id).first()
+            if ed_obj:
+                suffix = f" en {ed_obj.nombre}"
+                if self.titulo_lista == "Listado General de Activos":
+                    self.titulo_lista = f"Inventario{suffix}"
+                else:
+                    self.titulo_lista += suffix
+
 
         # 4. Búsqueda de texto global (Ampliando la capacidad del buscador)
         if self.search_query:
