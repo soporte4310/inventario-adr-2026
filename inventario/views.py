@@ -37,7 +37,7 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     Reemplaza a activo_list.
     """
     model = Activo
-    template_name = 'lista_activos.html'
+    template_name = 'inventario/pages/lista_activos.html'
     paginate_by = 30
     context_object_name = 'activos'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
@@ -193,7 +193,7 @@ class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     """
     model = Activo
     form_class = ActivoForm
-    template_name = 'editar_activo.html'
+    template_name = 'inventario/pages/editar_activo.html'
     context_object_name = 'activo'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
@@ -225,7 +225,7 @@ class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
     Vista para mostrar el detalle completo de un activo.
     """
     model = Activo
-    template_name = 'ver_activo.html'
+    template_name = 'inventario/pages/ver_activo.html'
     context_object_name = 'activo'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
@@ -248,7 +248,7 @@ class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 class AgregarActivoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Activo
     form_class = ActivoForm
-    template_name = 'agregar_activo.html'
+    template_name = 'inventario/pages/agregar_activo.html'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
     success_url = reverse_lazy('lista_activos')
 
@@ -311,7 +311,7 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     Vista para procesar la eliminación (soft-delete) de un activo.
     """
     model = Activo
-    template_name = 'eliminar_activo.html'
+    template_name = 'inventario/pages/eliminar_activo.html'
     context_object_name = 'activo'
     success_url = reverse_lazy('lista_activos')
     group_required = ['ADR', 'Operador ADR']
@@ -371,7 +371,7 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
     Vista para importar activos masivamente mediante Excel.
     Aplica reglas estrictas, mapea etiquetas legibles y registra al usuario en auditoría.
     """
-    template_name = 'subir_excel_activos.html'
+    template_name = 'inventario/pages/subir_excel_activos.html'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get(self, request, *args, **kwargs):
@@ -923,7 +923,7 @@ class DescargarExcelFiltradoView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 class AuditoriaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = AuditoriaActivo
-    template_name = 'auditoria_lista.html'
+    template_name = 'inventario/pages/auditoria_lista.html'
     context_object_name = 'registros'
     paginate_by = 30
     group_required = ['ADR', 'Operador ADR']
@@ -953,7 +953,7 @@ class AuditoriaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
 class ActivosEliminadosListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Activo
-    template_name = 'lista_eliminados.html'
+    template_name = 'inventario/pages/lista_eliminados.html'
     context_object_name = 'activos'
     paginate_by = 15
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
