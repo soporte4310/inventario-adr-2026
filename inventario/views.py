@@ -1047,23 +1047,36 @@ class ActivosEliminadosListView(LoginRequiredMixin, GroupRequiredMixin, ListView
 
 class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
     """
-    Vista para restaurar un activo eliminado (Soft Delete).
-    Cambia el estado de is_deleted a False.
+    Vista para restaurar un activo eliminado (Soft Delete) y registrar la auditoría.
     """
-
     group_required = ['ADR', 'Operador ADR']
 
     def post(self, request, pk):
-        # Buscamos en all_objects porque el manager principal filtra los eliminados
+        # 1. Obtener el activo usando el manager que incluye eliminados
         activo = get_object_or_404(Activo.all_objects, pk=pk)
         
-        activo.is_deleted = False
-        activo.save() # Esto dispara automáticamente las señales de auditoría
-        
-        messages.success(
-            request, 
-            f"El equipo {activo.catalogo} ({activo.numero_serie or activo.etiqueta}) ha sido restaurado."
-        )
+        try:
+            with transaction.atomic():
+                # 2. Restaurar el estado del activo
+                activo.is_deleted = False
+                activo.save()
+                
+                # 3. Generar el registro de auditoría manual para la RESTAURACIÓN
+                AuditoriaActivo.objects.create(
+                    usuario=request.user,
+                    accion=AuditoriaActivo.TipoAccion.RESTAURACION,
+                    content_type=ContentType.objects.get_for_model(Activo),
+                    object_id=activo.id,
+                    valor_nuevo=f"Activo restaurado: {activo}"
+                )
+            
+            messages.success(
+                request, 
+                f"El equipo {activo.catalogo} ({activo.numero_serie or activo.etiqueta}) ha sido restaurado."
+            )
+        except Exception as e:
+            messages.error(request, f"Error técnico al restaurar: {str(e)}")
+
         return redirect('lista_eliminados')
 
 
