@@ -560,10 +560,11 @@ class ProfileListView(LoginRequiredMixin, ListView):
         
         profiles_with_singular_groups = []
         for profile in context['profiles']:
-            singular_groups = [plural_singular(group.name) for group in profile.user.groups.all()]
+            groups = [group.name for group in profile.user.groups.all()]
+
             profiles_with_singular_groups.append({
                 'profile': profile,
-                'singular_groups': singular_groups
+                'singular_groups': groups
             })
 
         context['profiles_with_singular_groups'] = profiles_with_singular_groups
