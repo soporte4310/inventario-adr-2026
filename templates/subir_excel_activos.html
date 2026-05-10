@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Importar Activos (Excel){% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow border-0">
+                <div class="card-header bg-info text-white pt-4 pb-3 d-flex justify-content-between align-items-center">
+                    <h3 class="h4 mb-0"><i class="fas fa-file-excel mr-2"></i> Importación Masiva de Activos</h3>
+                    <a href="{% url 'descargar_plantilla_excel' %}" class="btn btn-light btn-sm text-info font-weight-bold shadow-sm">
+                        <i class="fas fa-download mr-1"></i> Descargar Plantilla
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                                {{ message }}
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-light border shadow-sm mb-4">
+                        <h5 class="alert-heading text-dark font-weight-bold"><i class="fas fa-info-circle text-info mr-1"></i> Formato Requerido</h5>
+                        <p class="small text-muted mb-2">Para que el sistema procese tu archivo correctamente, la primera fila (cabecera) de tu documento Excel debe contener <strong>exactamente</strong> los siguientes nombres de columnas (el orden no importa):</p>
+                        
+                    <div class="d-flex flex-wrap mb-3">
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">CATEGORIA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">MARCA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">MODELO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">NUMERO_SERIE</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ETIQUETA</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">BDO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">NETBIOS</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">TIPO_RED</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">TIPO_USO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ESTADO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">EDIFICIO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">PISO</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">UBICACION</span>
+                        <span class="badge p-2 m-1 shadow-sm" style="background-color: #343a40 !important; color: #ffffff !important; font-family: monospace; font-size: 0.85rem; border: 1px solid #212529;">ASIGNATARIO</span>
+                    </div>
+
+                        <hr>
+                        <h6 class="font-weight-bold small text-dark">Reglas Importantes y Restricciones:</h6>
+                        <ul class="small text-muted mb-0 pl-3">
+                            <li><strong>Obligatorios:</strong> Las columnas CATEGORIA y MARCA son estrictamente obligatorias.</li>
+                            <li><strong><i class="fas fa-exclamation-triangle text-warning"></i> Restricción de Categorías:</strong> El Excel NO puede crear Categorías nuevas. Si ingresas una Categoría que no existe previamente en el sistema, la fila será rechazada.</li>
+                            <li><strong><i class="fas fa-exclamation-triangle text-warning"></i> Restricción de Ubicaciones:</strong> Si indicas una UBICACION, debe coincidir exactamente con una existente. De lo contrario, se denegará el registro de ese equipo.</li>
+                            <li><strong>Nuevas Marcas o Modelos:</strong> Si la Marca o el Modelo no existen bajo una Categoría válida, el sistema los creará automáticamente.</li>
+                            <li><strong>Códigos de Red y Uso:</strong> En <code class="text-dark">TIPO_RED</code> usar DOM, ISLA, LAB u OTRO. En <code class="text-dark">TIPO_USO</code> usar PER, LAB, EVE, ACA, ADM u OTR.</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" class="text-center border p-5 bg-light rounded" style="border-style: dashed !important; border-width: 2px !important;">
+                        {% csrf_token %}
+                        <i class="fas fa-cloud-upload-alt fa-4x text-info mb-3"></i>
+                        <h5 class="font-weight-bold text-dark">Selecciona un archivo Excel</h5>
+                        <p class="text-muted small mb-4">Soporta formatos .xlsx o .xls</p>
+                        
+                        <div class="custom-file text-left mx-auto mb-4" style="max-width: 400px;">
+                            <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel" accept=".xlsx, .xls" required>
+                            <label class="custom-file-label" for="archivo_excel" data-browse="Examinar">Elegir archivo...</label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center">
+                            <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary px-4 mr-2">Cancelar</a>
+                            <button type="submit" class="btn btn-info px-4 shadow-sm">
+                                <i class="fas fa-upload mr-1"></i> Procesar Archivo
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if errores %}
+                    <div class="alert alert-danger mt-4 shadow-sm border-0">
+                        <h5 class="alert-heading text-danger font-weight-bold">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> Reporte de Inconsistencias
+                        </h5>
+                        
+                        {% if registros_exitosos > 0 %}
+                            <p class="mb-2 text-dark">Se procesaron <strong>{{ registros_exitosos }}</strong> registros con éxito, pero las siguientes filas del Excel fueron omitidas:</p>
+                        {% else %}
+                            <p class="mb-2 text-dark">No se pudo importar ningún registro. Por favor, corrige los siguientes errores en tu archivo Excel y vuelve a intentarlo:</p>
+                        {% endif %}
+                        
+                        <hr class="border-danger opacity-50">
+                        
+                        <div style="max-height: 250px; overflow-y: auto; background-color: rgba(255, 255, 255, 0.6);" class="p-3 rounded border border-danger">
+                            <ul class="mb-0 text-dark small" style="font-family: monospace; list-style-type: square;">
+                                {% for error in errores %}
+                                    <li class="mb-1">{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Cambiar el texto del input al seleccionar el archivo
+    document.querySelector('.custom-file-input').addEventListener('change', function(e) {
+        var fileName = document.getElementById("archivo_excel").files[0].name;
+        var nextSibling = e.target.nextElementSibling;
+        nextSibling.innerText = fileName;
+    });
+</script>
+{% endblock %}

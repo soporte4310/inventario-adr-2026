@@ -2,10 +2,10 @@ from django.urls import path
 from .views import CustomLoginView
 from django.contrib.auth import views as auth_views # Para otras vistas de auth
 
-app_name = 'accounts'
 
 urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
+    #path('login/', CustomLoginView.as_view(), name='login_old'),
     # Puedes añadir aquí otras URLs de la app 'accounts' si las necesitas,
     # o importar el resto de django.contrib.auth.urls en core/urls.py
     # por ejemplo, para logout, cambio de contraseña, etc.

@@ -1,5 +1,5 @@
 # adr/signals.py
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from adr.models import (
     HistorialCambios, AllInOne, Notebook, MiniPC, Proyectores,
@@ -16,6 +16,8 @@ from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
+from django.dispatch import receiver
+
 
 # ---------------------------------------------------------------------
 # 1) HISTORIAL DE CAMBIOS

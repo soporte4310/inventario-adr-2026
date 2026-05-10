@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo_form }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white pt-4 pb-3">
+                    <h3 class="h4 mb-0"><i class="fas fa-edit mr-2"></i> {{ titulo_form }}</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label font-weight-bold text-dark">Nombre de la Categoría</label>
+                            {{ form.nombre }}
+                            {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label font-weight-bold text-dark">Descripción</label>
+                            {{ form.descripcion }}
+                        </div>
+
+                        <div class="card bg-light border-0 mb-4">
+                            <div class="card-body">
+                                <h6 class="font-weight-bold mb-3"><i class="fas fa-tasks mr-1"></i> Reglas de Inventario</h6>
+                                <div class="form-check mb-2">
+                                    {{ form.usa_bdo }}
+                                    <label class="form-check-label ml-2">¿Requiere placa de inventario BDO?</label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.usa_netbios }}
+                                    <label class="form-check-label ml-2">¿Los equipos se unen al dominio (NetBIOS)?</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label font-weight-bold text-dark">Imagen Representativa</label>
+                            
+                            {% if object.imagen %}
+                            <div class="mb-3">
+                                <p class="small text-muted mb-2">Imagen actual:</p>
+                                <img src="{{ object.imagen_thumb_medium.url }}" class="img-thumbnail shadow-sm" style="max-height: 150px;">
+                            </div>
+                            {% endif %}
+                            
+                            {{ form.imagen }}
+                            <small class="text-muted d-block mt-1">Si seleccionas una nueva imagen, se reemplazarán la original y los thumbnails.</small>
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'lista_categorias' %}" class="btn btn-outline-secondary px-4 mr-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                                <i class="fas fa-sync-alt mr-1"></i> Actualizar Categoría
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

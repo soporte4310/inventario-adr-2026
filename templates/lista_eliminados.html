@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_lista }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="alert alert-secondary border-left-danger shadow-sm d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="h4 mb-0 text-danger"><i class="fas fa-trash-alt me-2"></i>{{ titulo_lista }}</h2>
+            <p class="mb-0 small text-muted">Equipos marcados para eliminación. Pueden ser restaurados al inventario activo.</p>
+        </div>
+        <a href="{% url 'lista_activos' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Volver al Inventario
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Código BDO</th>
+                            <th>N° Serie / Etiqueta</th>
+                            <th>Categoría</th>
+                            <th>Marca / Modelo</th>
+                            <th>Última Ubicación</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activo in activos %}
+                        <tr class="table-light">
+                            <td class="ps-4 font-monospace small">{{ activo.bdo|default:"---" }}</td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ activo.numero_serie|default:"S/N" }}</div>
+                                <div class="small text-muted">{{ activo.etiqueta|default:"Sin Etiqueta" }}</div>
+                            </td>
+                            <td><span class="badge bg-secondary opacity-75">{{ activo.catalogo.categoria }}</span></td>
+                            <td>{{ activo.catalogo.marca }} {{ activo.catalogo.modelo }}</td>
+                            <td><i class="fas fa-map-marker-alt text-muted me-1"></i>{{ activo.ubicacion|default:"Desconocida" }}</td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <form action="{% url 'restaurar_activo' activo.pk %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-success" title="Restaurar Equipo">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </form>
+                                    <a href="{% url 'lista_auditoria' %}?object_id={{ activo.pk }}" class="btn btn-outline-info" title="Ver motivo de eliminación">
+                                        <i class="fas fa-search"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="fas fa-check-circle fa-2x mb-3 d-block text-success"></i>
+                                No hay equipos eliminados en este momento.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

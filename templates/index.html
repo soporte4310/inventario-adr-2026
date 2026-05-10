@@ -1,5 +1,8 @@
+{% load static %}
+
 <!doctype html>
-<html>
+<!-- Es vital que html y body tengan h-full -->
+<html class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,58 +22,27 @@
     }
   </style>
 </head>
-<body class="bg-custom bg-opacity-50">
-  <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
-      <img class="mx-auto h-28 w-auto rounded-full border-4 border-white shadow-xl"
-           src="{% static 'Imagenes/adr_icon.png' %}" alt="Your Company">
-      <h2 class="mt-5 text-center text-3xl font-bold leading-9 tracking-tight text-white">
-        ADMINISTRACIÓN INVENTARIO ADR
-      </h2>
-    </div>
 
-    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-      <form class="space-y-6" method="POST" action="{% url 'login' %}">
-        {% csrf_token %}
+<body class="bg-custom bg-opacity-50 h-full m-0 flex items-center justify-center">
+  
+  <!-- Contenedor principal -->
+  <div class="w-full max-w-sm px-6 py-12 bg-black/40 rounded-2xl backdrop-blur-md shadow-2xl flex flex-col items-center">
+    
+    <!-- Logo -->
+    <img class="h-28 w-auto rounded-full border-4 border-white shadow-xl mb-6"
+         src="{% static 'imagenes/adr_icon.png' %}" alt="Logo ADR">
+         
+    <!-- Título -->
+    <h2 class="text-center text-2xl font-bold leading-9 tracking-tight text-white mb-10">
+      SISTEMA DE GESTIÓN DE ADR
+    </h2>
 
-        {# Bloque para mostrar mensajes de error (incluye bloqueo y credenciales inválidas) #}
-        {% if form.non_field_errors %}
-          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-            <strong class="font-bold">Error:</strong>
-            {% for error in form.non_field_errors %}
-              <span class="block sm:inline">{{ error }}</span>
-            {% endfor %}
-          </div>
-        {% endif %}
+    <!-- Botón de acceso -->
+    <a href="{% url 'dashboard_inventario' %}" 
+       class="w-full text-center rounded-md bg-red-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+      Ir al Inventario
+    </a>
 
-        <div>
-          <label for="username" class="block text-lg italic leading-6 text-white font-bold">
-            Usuario
-          </label>
-          <div class="mt-2">
-            <input id="username" name="username" type="text" autocomplete="username" required
-                   class="block w-full rounded-md border-0 bg-white/5 py-1.5 text-cyan-600 shadow-sm ring-1 ring-inset ring-red-500 focus:ring-2 focus:ring-inset focus:ring-black sm:text-sm sm:leading-6">
-          </div>
-        </div>
-
-        <div>
-          <label for="password" class="block text-lg italic leading-6 text-white font-bold">
-            Contraseña
-          </label>
-          <div class="mt-2">
-            <input id="password" name="password" type="password" autocomplete="current-password" required
-                   class="block w-full rounded-md border-0 bg-white/5 py-1.5 text-white shadow-sm ring-1 ring-inset ring-red-500 focus:ring-2 focus:ring-inset focus:ring-black sm:text-sm sm:leading-6">
-          </div>
-        </div>
-
-        <div>
-          <button type="submit"
-                  class="flex w-full justify-center rounded-md bg-red-500 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
-            Ingresar
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <script>
@@ -79,20 +51,10 @@
         document.body.style.MozUserSelect = 'none';
       }
       document.body.onselectstart = function() { return false; };
-
-      var inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
-      inputs.forEach(function(input) {
-        if (input.style.MozUserSelect !== undefined) {
-          input.style.MozUserSelect = 'none';
-        }
-        input.onselectstart = function() { return false; };
-      });
-
       document.body.addEventListener('copy', function(e) {
         e.preventDefault();
         return false;
       });
-
       document.body.addEventListener('contextmenu', function(e) {
         e.preventDefault();
         return false;

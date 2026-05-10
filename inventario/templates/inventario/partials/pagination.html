@@ -1,0 +1,43 @@
+{% if is_paginated %}
+<div class="mt-4 d-flex justify-content-center">
+    <nav aria-label="Navegación de páginas">
+        <ul class="pagination pagination-sm shadow-sm">
+            
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link text-dark" href="?page=1{{ query_string }}" title="Primera página">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{{ query_string }}">Anterior</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-left"></i></span></li>
+            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link bg-dark border-dark text-white">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{{ query_string }}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link text-dark" href="?page={{ page_obj.paginator.num_pages }}{{ query_string }}" title="Última página">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-right"></i></span></li>
+            {% endif %}
+
+        </ul>
+    </nav>
+</div>
+{% endif %}

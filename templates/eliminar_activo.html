@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar Activo | {{ activo }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white pt-3 pb-2">
+                    <h4 class="mb-0 h5 font-weight-bold">
+                        <i class="fas fa-exclamation-triangle mr-2"></i> {{ titulo_form }}
+                    </h4>
+                </div>
+                <div class="card-body text-center p-4">
+                    <div class="mb-4 mt-2">
+                        <i class="fas fa-trash-alt fa-4x text-danger opacity-50"></i>
+                    </div>
+                    <p class="lead font-weight-bold text-dark">¿Estás seguro que deseas eliminar este equipo?</p>
+                    
+                    <!-- Ficha resumen del activo para que el usuario esté 100% seguro -->
+                    <div class="alert alert-light border text-left my-4 shadow-sm">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2">
+                                <span class="text-muted font-weight-bold text-uppercase d-inline-block" style="width: 100px;">Categoría:</span> 
+                                <span class="font-weight-bold text-primary">{{ activo.catalogo.categoria.nombre }}</span>
+                            </li>
+                            <li class="mb-2">
+                                <span class="text-muted font-weight-bold text-uppercase d-inline-block" style="width: 100px;">Equipo:</span> 
+                                {{ activo.catalogo.marca.nombre }} {{ activo.catalogo.modelo }}
+                            </li>
+                            <li class="mb-2">
+                                <span class="text-muted font-weight-bold text-uppercase d-inline-block" style="width: 100px;">N° Serie:</span> 
+                                <span class="text-dark">{{ activo.numero_serie|default:"---" }}</span>
+                            </li>
+                            <li class="mb-2">
+                                <span class="text-muted font-weight-bold text-uppercase d-inline-block" style="width: 100px;">Etiqueta:</span> 
+                                <span class="text-danger">{{ activo.etiqueta|default:"---" }}</span>
+                            </li>
+                            <li>
+                                <span class="text-muted font-weight-bold text-uppercase d-inline-block" style="width: 100px;">BDO:</span> 
+                                <span class="badge bg-dark text-white px-2 py-1" style="font-family: monospace;">{{ activo.bdo|default:"---" }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <p class="text-muted small mb-4">
+                        <i class="fas fa-info-circle"></i> Esta acción no borrará físicamente el registro de la base de datos (Soft Delete), pero el activo dejará de aparecer en los listados regulares y quedará liberado su Número de Serie y BDO.
+                    </p>
+                    
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary px-4">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4 shadow-sm font-weight-bold">
+                                <i class="fas fa-trash mr-1"></i> Sí, eliminar equipo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

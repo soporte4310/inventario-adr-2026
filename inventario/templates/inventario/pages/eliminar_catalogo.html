@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5 text-center">
+                    <div class="text-danger mb-4">
+                        <i class="fas fa-exclamation-triangle fa-4x"></i>
+                    </div>
+                    <h2 class="h4 font-weight-bold text-dark mb-3">¿Confirmar eliminación?</h2>
+                    <p class="text-muted mb-4">
+                        Estás a punto de eliminar permanentemente el catálogo: <br>
+                        <strong class="text-dark">{{ catalogo.marca.nombre }} {{ catalogo.modelo|default:"GENÉRICO" }}</strong>
+                    </p>
+                    
+                    <div class="alert alert-warning small text-start">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Solo podrás eliminarlo si no existen equipos físicos registrados bajo este modelo (incluyendo los que están en la papelera).
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger font-weight-bold shadow-sm">
+                                <i class="fas fa-trash-alt me-1"></i> Eliminar Definitivamente
+                            </button>
+                            <a href="{% url 'ver_catalogo' catalogo.id %}" class="btn btn-light border">
+                                Cancelar y Volver
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

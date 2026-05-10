@@ -11,6 +11,7 @@ venv/
 db.sqlite3
 
 /staticfiles/
+media/
 
 # IDEs & system
 .vscode/

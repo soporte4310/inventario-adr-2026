@@ -17,7 +17,7 @@ from accounts.models import Profile
 from .models import (
     AllInOne, AllInOneAdmins, Notebook, MiniPC,
     Proyectores, BodegaADR, Azotea, Monitor, Audio, Tablet,
-    EquiposIsla, SwitchDeRed, Televisor, Profile,
+    EquiposIsla, SwitchDeRed, Televisor,
 )
 from .opciones import (
     opciones_sala_All_In_One,

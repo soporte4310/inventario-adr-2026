@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nuevo Activo{% endblock %}
+
+{% block content %}
+<!-- IMPORTAMOS CSS DE SELECT2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 0.25rem !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1 font-weight-bold text-dark">
+                        <i class="fas fa-plus-circle text-danger mr-2"></i> {{ titulo_form }}
+                    </h2>
+                    <p class="text-muted mb-0">Registrando un nuevo equipo físico en la base de datos</p>
+                </div>
+                <a href="{% url 'lista_activos' %}{% if categoria_nombre %}?categoria_nombre={{ categoria_nombre }}{% endif %}" class="btn btn-outline-secondary shadow-sm">
+                    <i class="fas fa-arrow-left"></i> Volver a la lista
+                </a>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger shadow-sm border-left-danger">
+                    <h6 class="font-weight-bold"><i class="fas fa-exclamation-triangle"></i> Revisa lo siguiente:</h6>
+                    <ul class="mb-0">
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- Para mantener el parámetro de URL al hacer POST en caso de error de validación -->
+            <form method="POST" action="{% url 'agregar_activo' %}{% if categoria_nombre %}?categoria_nombre={{ categoria_nombre }}{% endif %}" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- SECCIÓN 1: IDENTIFICACIÓN PRINCIPAL -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-desktop mr-1"></i> Especificaciones y Estado
+                        </h6>
+                        <button type="button" id="btn-toggle-catalogo" class="btn btn-sm btn-link text-primary font-weight-bold p-0 text-decoration-none">
+                            <i class="fas fa-plus-circle"></i> ¿No encuentras el producto? Crea uno nuevo
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <input type="hidden" name="crear_nuevo_catalogo" id="id_crear_nuevo_catalogo" value="false">
+
+                        <div class="row mb-3 border-bottom pb-3">
+                            <div class="col-md-4">
+                                <label class="font-weight-bold text-dark">{{ form.estado.label }}</label>
+                                {{ form.estado }}
+                                {% if form.estado.errors %}<div class="text-danger small">{{ form.estado.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-8">
+                                <small class="text-muted d-block mt-4">Defina la condición operativa actual del equipo antes de continuar.</small>
+                            </div>
+                        </div>
+                    
+                        <div id="section-catalogo-existente">
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    <label class="font-weight-bold">{{ form.catalogo.label }}</label>
+                                    {{ form.catalogo }}
+                                    {% if form.catalogo.errors %}<div class="text-danger small mt-1">{{ form.catalogo.errors.0 }}</div>{% endif %}
+                                    <small class="form-text text-muted">{{ form.catalogo.help_text }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div id="section-nuevo-catalogo" style="display: none;" class="bg-light p-3 rounded border">
+                            <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                                <h6 class="font-weight-bold text-dark mb-0"><i class="fas fa-magic mr-1"></i> Nuevo Producto en Catálogo</h6>
+                                <button type="button" id="btn-cancelar-catalogo" class="btn btn-sm btn-outline-secondary py-0">Cancelar y buscar existente</button>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ catalogo_form.categoria.label }}</label>
+                                    {{ catalogo_form.categoria }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ catalogo_form.marca.label }}</label>
+                                    {{ catalogo_form.marca }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ catalogo_form.modelo.label }}</label>
+                                    {{ catalogo_form.modelo }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ catalogo_form.descripcion.label }}</label>
+                                    {{ catalogo_form.descripcion }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ catalogo_form.imagen.label }}</label>
+                                    {{ catalogo_form.imagen }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="font-weight-bold small text-muted">{{ form.estado.label }}</label>
+                                    <select name="estado_sync" id="id_estado_sync" class="form-control form-control-sm">
+                                        {% for x, y in form.fields.estado.choices %}
+                                            <option value="{{ x }}">{{ y }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: NÚMEROS DE SERIE Y PLACAS -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-barcode mr-1"></i> Identificadores Únicos
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.numero_serie.label }}</label>
+                                {{ form.numero_serie }}
+                                {% if form.numero_serie.errors %}<div class="text-danger small mt-1">{{ form.numero_serie.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold text-danger">{{ form.etiqueta.label }}</label>
+                                {{ form.etiqueta }}
+                                {% if form.etiqueta.errors %}<div class="text-danger small mt-1">{{ form.etiqueta.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.bdo.label }}</label>
+                                {{ form.bdo }}
+                                {% if form.bdo.errors %}<div class="text-danger small mt-1">{{ form.bdo.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">Acepta formato corto (Ej. 11180)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 3: CONECTIVIDAD Y PROPÓSITO -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-network-wired mr-1"></i> Conectividad y Uso
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.tipo_red.label }}</label>
+                                {{ form.tipo_red }}
+                                {% if form.tipo_red.errors %}<div class="text-danger small mt-1">{{ form.tipo_red.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.netbios.label }}</label>
+                                {{ form.netbios }}
+                                {% if form.netbios.errors %}<div class="text-danger small mt-1">{{ form.netbios.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.tipo_uso.label }}</label>
+                                {{ form.tipo_uso }}
+                                {% if form.tipo_uso.errors %}<div class="text-danger small mt-1">{{ form.tipo_uso.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: UBICACIÓN Y RESPONSABLE -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-map-marker-alt mr-1"></i> Ubicación y Asignación
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.ubicacion.label }}</label>
+                                {{ form.ubicacion }}
+                                {% if form.ubicacion.errors %}<div class="text-danger small mt-1">{{ form.ubicacion.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.asignado_a.label }}</label>
+                                {{ form.asignado_a }}
+                                {% if form.asignado_a.errors %}<div class="text-danger small mt-1">{{ form.asignado_a.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="card shadow-sm border-0 mb-5 bg-light">
+                    <div class="card-body text-right">
+                        <a href="{% url 'lista_activos' %}{% if categoria_nombre %}?categoria_nombre={{ categoria_nombre }}{% endif %}" class="btn btn-secondary px-4 mr-2">Cancelar</a>
+                        <button type="submit" class="btn btn-danger px-5 font-weight-bold shadow-sm">
+                            <i class="fas fa-save mr-1"></i> Guardar Activo
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // 1. Inicialización Select2 Estándar
+        $('.select2').select2({ width: '100%' });
+
+        // 2. Inicialización de Marca Dinámica (Tags)
+        // Permite buscar marcas existentes o escribir una nueva y presionar Enter
+        $('.select2-tags').select2({
+            width: '100%',
+            tags: true,
+            placeholder: "Busca o escribe una marca...",
+            language: {
+                noResults: function() {
+                    return "Presiona Enter para crear esta marca";
+                }
+            }
+        });
+
+        // 3. Lógica de Ubicación con Formato Especial
+        function formatUbicacionResult(state) {
+            if (!state.id) return state.text;
+            var parts = state.text.split('|');
+            if (parts[1]) {
+                return $('<div><div class="font-weight-bold text-dark" style="font-size: 0.95rem;">' + parts[0] + '</div><div class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-building mr-1"></i> ' + parts[1] + '</div></div>');
+            }
+            return state.text;
+        }
+
+        function formatUbicacionSelection(state) {
+            if (!state.id) return state.text;
+            var parts = state.text.split('|');
+            return parts[0] + (parts[1] ? ' (' + parts[1] + ')' : '');
+        }
+
+        $('.select2-ubicacion').select2({
+            width: '100%',
+            templateResult: formatUbicacionResult,
+            templateSelection: formatUbicacionSelection,
+            matcher: function(params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
+                return null;
+            }
+        });
+
+        // 4. Gestión de Secciones (Toggle) y Sincronización
+        const $btnToggle = $('#btn-toggle-catalogo');
+        const $btnCancel = $('#btn-cancelar-catalogo');
+        const $secExistente = $('#section-catalogo-existente');
+        const $secNuevo = $('#section-nuevo-catalogo');
+        const $inputFlag = $('#id_crear_nuevo_catalogo');
+
+        // Función para asegurar que el campo oculto 'estado' tenga el valor del visible
+        function sincronizarEstado() {
+            const valSync = $('#id_estado_sync').val();
+            const valOriginal = $('#id_estado').val();
+            
+            // Si estamos en modo nuevo catálogo, mandamos el valor del sync al original
+            if ($inputFlag.val() === 'true') {
+                $('#id_estado').val(valSync);
+            } else {
+                // Si no, aseguramos que el sync tenga lo que tiene el original (para preselección)
+                $('#id_estado_sync').val(valOriginal);
+            }
+        }
+
+        $btnToggle.click(function() {
+            $secExistente.hide();
+            $secNuevo.fadeIn();
+            $inputFlag.val('true');
+            $(this).hide();
+            sincronizarEstado();
+            // Quitamos el required del select original para que no bloquee el envío
+            $('#id_catalogo').prop('required', false);
+        });
+
+        $btnCancel.click(function() {
+            $secNuevo.hide();
+            $secExistente.fadeIn();
+            $inputFlag.val('false');
+            $btnToggle.show();
+            $('#id_catalogo').prop('required', true);
+        });
+
+        // Sincronizar en tiempo real cuando el usuario cambie cualquiera de los dos
+        $('#id_estado_sync, #id_estado').change(function() {
+            const nuevoValor = $(this).val();
+            $('#id_estado_sync, #id_estado').val(nuevoValor);
+        });
+
+        // 5. Corrección para errores de validación (Mantener sección abierta si falló el catálogo)
+        if ($inputFlag.val() === 'true') {
+            $secExistente.hide();
+            $secNuevo.show();
+            $btnToggle.hide();
+        }
+
+        // Ejecutar sincronización inicial para asegurar "OPERATIVO" al cargar
+        sincronizarEstado();
+    });
+</script>
+
+{% endblock %}
