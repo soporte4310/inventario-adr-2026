@@ -157,7 +157,7 @@
                 </div>
             </form>
 
-            <form method="POST" action="{% url 'eliminar_activos_masivo' %}" id="form-eliminacion-masiva">
+            <form method="POST" action="{% url 'eliminar_activos_masivo' %}?{{ request.GET.urlencode }}" id="form-eliminacion-masiva">
                 {% csrf_token %}
                 
                 <div class="d-flex justify-content-start mb-2">
@@ -271,13 +271,13 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group shadow-sm">
-                                        <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
+                                        <a href="{% url 'ver_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-light border" title="Ver Detalle">
                                             <i class="fas fa-eye text-dark"></i>
                                         </a>
-                                        <a href="{% url 'editar_activo' activo.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                        <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-light border" title="Editar">
                                             <i class="fas fa-edit text-primary"></i>
                                         </a>
-                                        <a href="{% url 'eliminar_activo' activo.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                        <a href="{% url 'eliminar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>

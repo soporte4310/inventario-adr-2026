@@ -196,6 +196,7 @@ class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     template_name = 'inventario/pages/editar_activo.html'
     context_object_name = 'activo'
     group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    success_url = reverse_lazy('lista_activos')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -215,7 +216,12 @@ class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
     def get_success_url(self):
-        return reverse_lazy('lista_activos')
+        # Redirección dinámica
+        params = self.request.GET.urlencode()
+        url = self.success_url
+        if params:
+            return f"{url}?{params}"
+        return url
 
 
 
@@ -327,7 +333,15 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         # Llamar a delete() invoca override en adr/models.py (soft-delete)
         activo.delete()
         messages.success(self.request, f'El equipo {activo} ha sido enviado a la papelera (Eliminado).')
-        return redirect(self.success_url)
+        return redirect(self.get_success_url())
+    
+    def get_success_url(self):
+        # Redirección dinámica
+        params = self.request.GET.urlencode()
+        url = self.success_url
+        if params:
+            return f"{url}?{params}"
+        return url
 
 
 
@@ -361,7 +375,12 @@ class EliminarActivosMasivoView(LoginRequiredMixin, GroupRequiredMixin, View):
         except Exception as e:
             messages.error(request, f'Ocurrió un error durante la eliminación masiva: {str(e)}')
 
-        return redirect('lista_activos')
+        # Redirección dinámica
+        params = request.GET.urlencode()
+        url = reverse('lista_activos')
+        if params:
+            return redirect(f"{url}?{params}")
+        return redirect(url)
 
 
 
