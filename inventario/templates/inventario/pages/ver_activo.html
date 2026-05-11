@@ -17,15 +17,15 @@
             </p>
         </div>
         <div class="btn-group shadow-sm">
-            <a href="{% url 'lista_activos' %}" class="btn btn-light border" title="Volver">
+            <a href="{% url 'lista_activos' %}?{{ request.GET.urlencode }}" class="btn btn-light border" title="Volver">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
-            <a href="{% url 'editar_activo' activo.id %}" class="btn btn-light border text-primary" title="Editar">
+            <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-light border text-primary" title="Editar">
                 <i class="fas fa-edit"></i> Editar
             </a>
-            <button type="button" class="btn btn-light border text-danger" title="Eliminar">
+            <a href="{% url 'eliminar_activo' activo.id %}?{{ request.GET.urlencode }}" type="button" class="btn btn-light border text-danger" title="Eliminar">
                 <i class="fas fa-trash"></i>
-            </button>
+            </a>
         </div>
     </div>
 

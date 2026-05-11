@@ -169,7 +169,7 @@
                 <!-- BOTONES DE ACCIÓN -->
                 <div class="card shadow-sm border-0 mb-5 bg-light">
                     <div class="card-body text-right">
-                        <a href="{% url 'lista_activos' %}" class="btn btn-secondary px-4 mr-2">Cancelar</a>
+                        <a href="{% url 'lista_activos' %}?{{ request.GET.urlencode }}" class="btn btn-secondary px-4 mr-2">Cancelar</a>
                         <button type="submit" class="btn btn-success px-5 font-weight-bold shadow-sm">
                             <i class="fas fa-save mr-1"></i> Guardar Cambios
                         </button>
