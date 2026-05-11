@@ -50,8 +50,10 @@ class ActivoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         # Extraemos el kwarg personalizado antes de pasarlo al super()
         categoria_nombre = kwargs.pop('categoria_nombre', None)
-        
         super().__init__(*args, **kwargs)
+
+        # Optimización de consulta para la marca y categoría
+        self.fields['catalogo'].queryset = Catalogo.objects.select_related('categoria', 'marca').all()
 
         # 1. PRESELECCIÓN DE "OPERATIVO"
         if not self.instance.pk: # Solo para registros nuevos
@@ -73,7 +75,9 @@ class ActivoForm(forms.ModelForm):
             self.fields['catalogo'].help_text = "🔒 El producto base no puede modificarse una vez registrado en el sistema."
         elif categoria_nombre:
             # MODO CREACIÓN FILTRADA: Limitar las opciones a la categoría solicitada
-            qs_filtrado = Catalogo.objects.filter(categoria__nombre__iexact=categoria_nombre)
+            qs_filtrado = Catalogo.objects.select_related('categoria', 'marca').filter(
+                categoria__nombre__iexact=categoria_nombre
+            )
             self.fields['catalogo'].queryset = qs_filtrado
             self.fields['catalogo'].empty_label = f"-- Seleccione un modelo de {categoria_nombre} --"
             self.fields['catalogo'].help_text = f"💡 Mostrando únicamente productos de la categoría '{categoria_nombre}'."
@@ -127,6 +131,8 @@ class CatalogoForm(ImageProcessingFormMixin, forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['categoria'].queryset = Categoria.objects.all()
+        
         # Cargamos las opciones para el widget Select
         self.fields['marca'].widget.choices = [('', '-- Seleccione o escriba --')] + [
             (m.id, m.nombre) for m in Marca.objects.all().order_by('nombre')
