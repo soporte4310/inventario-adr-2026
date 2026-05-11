@@ -32,7 +32,7 @@ from .views import (
     # Vista para borrar contenido de inventario
     ClearInventoryView,
     # Vistas para Televisor
-    TelevisorView, Add_Televisor, Edit_Televisor, Delete_Televisor, Detalle_Televisor, UploadExcelTelevisorView,
+    TelevisorView, Add_Televisor, Edit_Televisor, Delete_Televisor, Detalle_Televisor, UploadExcelTelevisorView,PrestamoListView, AddPrestamoView, DevolverPrestamoView
 )
 
 from . import views
@@ -208,6 +208,11 @@ urlpatterns = [
     path('delete_televisor/<str:model_name>/<int:pk>/', login_required(DeleteToEliminadosView.as_view()), name='delete_televisor'),
     path('detalle_televisor/<int:pk>/', login_required(Detalle_Televisor.as_view()), name='detalle_televisor'),
     path('upload_excel_televisor/', login_required(UploadExcelTelevisorView.as_view()), name="upload_excel_televisor"),
+    
+    # Gestión de Préstamos Diarios
+    path('prestamos/', login_required(PrestamoListView.as_view()), name='prestamos'),
+    path('add_prestamo/', login_required(AddPrestamoView.as_view()), name='add_prestamo'),
+    path('prestamo/<int:pk>/devolver/', login_required(DevolverPrestamoView.as_view()), name='devolver_prestamo'),
 ]
 
 

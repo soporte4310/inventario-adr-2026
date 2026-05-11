@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Préstamos Diarios ADR{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-800 flex items-center gap-3">
+                <i data-lucide="arrow-right-left" class="w-8 h-8 text-red-600"></i>
+                Gestión de Préstamos Diarios
+            </h1>
+            <p class="text-gray-500 mt-2 font-medium">Control operativo de accesorios para docentes y funcionarios de INACAP.</p>
+        </div>
+        
+        <a href="{% url 'add_prestamo' %}" class="w-full lg:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            Registrar Nuevo Préstamo
+        </a>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+        <form method="GET" class="relative w-full md:w-96">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+            </div>
+            <input type="text" name="q" value="{{ request.GET.q }}" 
+                   class="form-control block w-full pl-10 h-11 rounded-lg border-gray-300 shadow-sm focus:ring-red-500 focus:border-red-500 text-sm" 
+                   placeholder="Buscar por nombre, RUT o sala...">
+            {% if request.GET.estado %}
+                <input type="hidden" name="estado" value="{{ request.GET.estado }}">
+            {% endif %}
+        </form>
+
+        <div class="flex p-1 bg-gray-100 rounded-lg w-full md:w-auto">
+            <a href="{% url 'prestamos' %}" 
+               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if not request.GET.estado %}bg-white shadow-sm text-red-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Todos
+            </a>
+            <a href="{% url 'prestamos' %}?estado=En Préstamo" 
+               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if request.GET.estado == 'En Préstamo' %}bg-white shadow-sm text-amber-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Pendientes
+            </a>
+            <a href="{% url 'prestamos' %}?estado=Devuelto" 
+               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if request.GET.estado == 'Devuelto' %}bg-white shadow-sm text-green-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Devueltos
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Docente / RUT</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ubicación</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Accesorio</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Salida</th>
+                        <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    {% for prestamo in prestamos %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if prestamo.estado == 'En Préstamo' %}
+                                <span class="flex items-center gap-1.5 w-fit px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Pendiente
+                                </span>
+                            {% else %}
+                                <span class="flex items-center gap-1.5 w-fit px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+                                    <i data-lucide="check" class="w-3 h-3"></i>
+                                    Finalizado
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold text-gray-900">{{ prestamo.docente_nombre }}</div>
+                            <div class="text-xs text-gray-500">{{ prestamo.docente_rut }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i>
+                                {{ prestamo.sala }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-semibold text-gray-800">{{ prestamo.item_prestado }}</div>
+                            {% if prestamo.observaciones %}
+                                <div class="text-xs text-gray-400 italic truncate max-w-xs">{{ prestamo.observaciones }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900 font-medium">{{ prestamo.fecha_prestamo|date:"d/m/Y" }}</div>
+                            <div class="text-xs text-gray-500">{{ prestamo.fecha_prestamo|time:"H:i" }} hrs</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {% if prestamo.estado == 'En Préstamo' %}
+                                <a href="{% url 'devolver_prestamo' prestamo.id %}" 
+                                   class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm transition-all">
+                                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                                    Recibir
+                                </a>
+                            {% else %}
+                                <div class="text-gray-400 text-xs text-right">
+                                    <p class="font-bold">Devuelto el:</p>
+                                    <p>{{ prestamo.fecha_devolucion|date:"d/m/Y H:i" }}</p>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                            <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
+                            <p class="text-lg font-medium">No se encontraron registros de préstamos</p>
+                            <p class="text-sm">Intenta ajustar los filtros o realiza una nueva búsqueda.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-6">
+        {% include 'componentes/pagination.html' %}
+    </div>
+</div>
+{% endblock %}

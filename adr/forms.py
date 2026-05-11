@@ -17,7 +17,7 @@ from accounts.models import Profile
 from .models import (
     AllInOne, AllInOneAdmins, Notebook, MiniPC,
     Proyectores, BodegaADR, Azotea, Monitor, Audio, Tablet,
-    EquiposIsla, SwitchDeRed, Televisor,
+    EquiposIsla, SwitchDeRed, Televisor,Prestamo,
 )
 from .opciones import (
     opciones_sala_All_In_One,
@@ -1255,3 +1255,38 @@ class UploadExcelForm(forms.Form):
         required=True,
         widget=forms.ClearableFileInput(attrs={'class': 'form-control'})
     )
+
+
+class PrestamoForm(forms.ModelForm):
+    class Meta:
+        model = Prestamo
+        fields = ['docente_nombre', 'docente_rut', 'sala', 'item_prestado', 'observaciones']
+        widgets = {
+            'docente_nombre': forms.TextInput(attrs={
+                'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
+                'placeholder': 'Ej. Juan Pérez'
+            }),
+            'docente_rut': forms.TextInput(attrs={
+                'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
+                'placeholder': 'Ej. 12345678-9'
+            }),
+            'sala': forms.TextInput(attrs={
+                'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
+                'placeholder': 'Ej. Sala 205'
+            }),
+            'item_prestado': forms.Select(attrs={
+                'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-white'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
+                'rows': 3, 
+                'placeholder': 'Opcional: Detalles del equipo (Ej. Mouse HP n/s 1234)'
+            }),
+        }
+
+    def clean_docente_rut(self):
+        # Limpieza básica para estandarizar el RUT
+        rut = self.cleaned_data.get('docente_rut')
+        if rut:
+            rut = rut.replace('.', '').strip().upper()
+        return rut
