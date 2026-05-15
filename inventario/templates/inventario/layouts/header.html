@@ -1,0 +1,68 @@
+{% load static %}
+<header class="header">
+    <section class="header__izquierda">
+        <div id="btn-toggle" class="menu-icon-container">
+        <svg 
+            class="menu-icon" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="white" 
+            stroke-width="2" 
+            stroke-linecap="round" 
+            stroke-linejoin="round"
+            style="width: 32px; height: 32px;"
+        > <!-- Control inicial de tamaño -->
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        </div>
+        <a class="header__logo" href="{% url 'dashboard_inventario' %}">
+            <img src="{% static 'imagenes/adr_logo.png' %}" alt="">
+        </a>
+        <h1 class="header__titulo">Inventario</h1>
+    </section>
+
+    {# Sección para opciones de usuario #}
+    <section class="header__derecha">
+        <div id="MenuUsuarioPerfil" class="menu_usuario__usuario">
+
+            <div class="menu_usuario__nombre_usuario text-base color_primario">
+                <div class="menu_usuario__nombre_email">
+                    <span class="menu_usuario__nombre">
+                        {{ user.get_full_name|title|default:user.username }}
+                    </span>
+                    
+                    <div class="user-role-container-mini">
+                        {% for group in user.groups.all %}
+                            <span class="role-badge-xs badge-{{ group.name|slugify }}">
+                                {{ group.name }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="menu_usuario__flecha">
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        stroke-width="2.5" 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        style="width: 1em; height: 1em; vertical-align: middle;">
+                        <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                </div>
+            </div>
+
+             <div class="menu_usuario__avatar_usuario">
+            {% if profile.image %}
+                <img src="{{ profile.image.url|default_if_none:'imagenes/default_avatar.png' }}" alt="">
+            {% else %}
+                <img src="{% static 'imagenes/default_avatar.png' %}" alt="">
+            {% endif %}
+            </div>
+        </div>
+    </section>
+</header>

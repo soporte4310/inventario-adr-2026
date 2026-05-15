@@ -1,0 +1,88 @@
+/* --- RESPONSIVE DESIGN --- */
+
+@media (max-width: 768px) {
+  /* 1. Ajuste del Grid: Pasamos a una sola columna */
+  #customRoot {
+    grid-template-columns: 1fr; 
+    grid-template-areas: 
+      "header"
+      "main";
+  }
+
+  /* 2. Sidebar como Overlay Fullscreen */
+  .sidebar {
+    position: fixed; /* Lo sacamos del flujo del grid */
+    top: 0;
+    left: -100%; /* Escondido a la izquierda */
+    width: 100% !important; /* Cubre toda la pantalla */
+    height: 100vh;
+    z-index: 999; /* Por encima de todo */
+    transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-top: 60px;
+  }
+
+  .sidebar-content {
+        padding-top: 10px;
+    }
+
+  /* Clase para mostrar el sidebar (cuando se activa el menú) */
+  #customRoot.sidebar-open .sidebar {
+    left: 0;
+  }
+
+  /* 3. Simplificación del Header */
+  .header__titulo {
+    font-size: 18px; /* Texto más pequeño */
+    padding: 0 10px;
+  }
+
+  /* Ocultamos elementos innecesarios en móvil */
+  .menu_usuario__nombre_email, 
+  .menu_usuario__opciones,
+  .menu_usuario__flecha {
+    display: none; 
+  }
+
+  .header__seccion_menu_usuario {
+    gap: 5px;
+  }
+
+  /* 4. Ajuste del Main Content */
+  .main_content {
+    padding: 15px;
+  }
+
+  /* Botón para cerrar sidebar */
+    .btn-close-sidebar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 15px;
+        right: 15px; /* Lo movemos a la derecha para que sea más natural al pulgar */
+        background: rgba(255, 255, 255, 0.1); /* Un fondo sutil para ubicarlo */
+        border: none;
+        color: #ffffff;
+        font-size: 32px; /* Más grande */
+        width: 45px;    /* Área de clic definida */
+        height: 45px;   /* Área de clic definida */
+        border-radius: 8px;
+        cursor: pointer;
+        line-height: 0;
+        transition: background 0.2s;
+        z-index: 1001;
+    }
+
+    .btn-close-sidebar:active {
+        background: rgba(255, 255, 255, 0.2);
+        scale: 0.95;
+    }
+}
+
+
+/* Ocultar botón X en escritorio */
+@media (min-width: 769px) {
+    .btn-close-sidebar {
+        display: none;
+    }
+}

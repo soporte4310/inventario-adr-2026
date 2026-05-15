@@ -1,0 +1,35 @@
+@import url("base.css");
+@import url("header.css");
+@import url("menu_desplegable_usuario.css");
+@import url("sidebar.css");
+@import url("footer.css");
+@import url("fuentes.css");
+@import url("responsive.css");
+@import url("especial.css");
+
+
+.main_content {
+  grid-area: main;
+  overflow-y: auto;
+  background-color: #f5f6fa;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Contenido interno para separar del footer */
+.content {
+  flex: 1; /* Empuja al footer hacia abajo */
+  max-width: 1280px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;       /* Centra el bloque horizontalmente */
+}
+
+/* Clase para el botón de despliegue */
+#customRoot.collapsed .sidebar {
+  width: 0px;
+}
