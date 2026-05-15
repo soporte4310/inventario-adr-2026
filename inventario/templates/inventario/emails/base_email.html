@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        .header-adr {
+            background-color: #D32F2F; /* Rojo institucional */
+            padding: 15px 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .header-text {
+            color: #ffffff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .header-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .content-body {
+            background-color: #ffffff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+    </style>
+</head>
+<body style="background-color: #f4f7f6; padding: 20px;">
+    <div style="max-width: 700px; margin: 0 auto;">
+        <div class="header-adr">
+            <div class="header-icon"></div>
+            <p class="header-text">Plataforma de Inventario ADR</p>
+        </div>
+        
+        <div class="content-body">
+            {% block content %}{% endblock %}
+        </div>
+
+        <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 12px;">
+            © {% now "Y" %} Soporte ADR - Sistema Automatizado
+        </div>
+    </div>
+</body>
+</html>

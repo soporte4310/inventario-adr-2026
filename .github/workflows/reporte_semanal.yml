@@ -1,4 +1,4 @@
-name: Reporte Semanal de Inventario
+name: Enviar Reporte Semanal ADR
 
 on:
   schedule:
@@ -40,10 +40,8 @@ jobs:
         DB_PORT: ${{ secrets.DB_PORT }}
         EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
         EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
-        # Lista de destinatarios del reporte (separados por coma)
-        EMAIL_RECIPIENTS: 'wtapia@inacap.cl,hleris@inacap.cl,mvergarao@inacap.cl,jhonorato@inacap.cl,algonzalezv@inacap.cl,enavarrom@inacap.cl,farnaldi@inacap.cl,pcasanga@inacap.cl'
         CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
         CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
         CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
       run: |
-        python manage.py enviar_reporte
+        python manage.py enviar_reporte_semanal
