@@ -1,5 +1,6 @@
 {% extends 'inventario/layouts/base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block content %}
 <script src="https://cdn.tailwindcss.com"></script>
@@ -159,7 +160,7 @@
                         </div>
                         <p class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between">
                             <span>{{ item.get_accion_display }}</span>
-                            <span>{{ item.fecha|date:"H:i" }}</span>
+                            <span>{{ item.fecha|naturaltime }}</span>
                         </p>
                         <p class="text-sm font-bold text-slate-800 leading-tight mb-2">{{ item.content_object|default:"Equipo ADR" }}</p>
                         
