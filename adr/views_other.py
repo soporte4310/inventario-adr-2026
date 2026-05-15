@@ -19,6 +19,7 @@ from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from PIL import Image, ImageOps
 
+from django.db.models import Q
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
@@ -51,14 +52,14 @@ from .forms import (
     ProyectoresForm, BodegaADRForm, AzoteaForm,
     UploadExcelForm, MonitorForm, AudioForm, TabletForm,
     EquiposIslaForm, SwitchDeRedForm, TelevisorForm,
-    ProfileImageForm, UserUpdateForm,
+    ProfileImageForm, UserUpdateForm,PrestamoForm,
 )
 from .funciones import plural_singular, filtrar_y_paginar
 from .models import (
     AllInOne, AllInOneAdmins, Notebook, MiniPC,
     Proyectores, BodegaADR, Azotea, Eliminados, HistorialCambios,
     Monitor, Audio, Tablet, EquiposIsla as EquiposIslaModel,
-    SwitchDeRed as SwitchDeRedModel, Televisor,
+    SwitchDeRed as SwitchDeRedModel, Televisor,Prestamo,
 )
 from .opciones import (
     opciones_estado_activo, opciones_activos,
@@ -6337,4 +6338,52 @@ class UploadExcelTelevisorView(LoginRequiredMixin, UserPassesTestMixin, FormView
         except Exception as e:
             messages.error(self.request, f'Error al procesar el archivo: {str(e)}')
         
+        return super().form_valid(form)
+    
+class PrestamoListView(ListView):
+    model = Prestamo
+    template_name = 'modulos/lista_prestamos.html'
+    context_object_name = 'prestamos'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtro por estado
+        estado = self.request.GET.get('estado')
+        if estado:
+            queryset = queryset.filter(estado=estado)
+            
+        # Búsqueda por texto (Nombre o RUT o Sala)
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(docente_nombre__icontains=query) |
+                Q(docente_rut__icontains=query) |
+                Q(sala__icontains=query)
+            )
+            
+        return queryset
+
+class AddPrestamoView(CreateView):
+    model = Prestamo
+    form_class = PrestamoForm
+    template_name = 'modulos/add_prestamo.html'
+    success_url = reverse_lazy('prestamos')
+
+    def form_valid(self, form):
+        form.instance.creado_por = self.request.user
+        messages.success(self.request, "Préstamo registrado exitosamente.")
+        return super().form_valid(form)
+
+class DevolverPrestamoView(UpdateView):
+    model = Prestamo
+    fields = ['observaciones'] # Permite actualizar observaciones al devolver si hay daño
+    template_name = 'modulos/devolver_prestamo.html'
+    success_url = reverse_lazy('prestamos')
+
+    def form_valid(self, form):
+        form.instance.estado = 'Devuelto'
+        form.instance.fecha_devolucion = timezone.now()
+        messages.success(self.request, "El ítem ha sido devuelto exitosamente.")
         return super().form_valid(form)

@@ -1,120 +1,197 @@
-{% extends 'base.html' %}
+{% extends 'inventario/layouts/base.html' %}
 {% load static %}
 
-{% block title %} Inicio {% endblock %}
-
 {% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
 
-<style>
-    .cardTitle {
-        min-height: 2.4em;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        font-size: clamp(16px, 1.9vw, 20px);
-    }
-
-    /* Ajuste solo para títulos largos que quieres en una sola línea - DEPRECADO, usa estilo base */
-    .cardTitle--tight {
-        white-space: nowrap;
-        line-height: 1.1;
-    }
-</style>
-
-<div class="homeContainer">
-    <div class="homeContent">
-        <!-- Contenedor del buscador -->
-        <div class="buscadorContainer" style="margin: 20px auto;
-                    width: fit-content;
-                    text-align: center;
-                    border-radius: 10px;
-                    overflow: hidden;
-                    background: #f5f5f5;">
-            <form method="get" action="{% url 'lista_activos' %}" style="display: inline-flex; gap: 10px;">
-                <input type="text" id="search" name="search" placeholder="Escanea BDO, Serie, Etiqueta..."
-                    style="padding: 10px; width: 300px;" required>
-                <button type="submit"
-                    style="padding: 10px 20px; border-radius: 10px; border: none; background-color: #9e0909; color: #fff;">
-                    <i class="fas fa-search"></i> Buscar
-                </button>
-            </form>
+<div class="bg-slate-50 min-h-screen pb-12 font-sans">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-800">Panel de Control</h1>
+                <p class="text-slate-500 font-medium">Gestión de activos • Sede Iquique</p>
+            </div>
+            <div class="w-full max-w-md">
+                <form method="get" action="{% url 'lista_activos' %}" class="relative group">
+                    <input type="text" name="search" placeholder="Escanear BDO, Serie o Etiqueta..." 
+                           class="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 focus:border-red-500 outline-none transition-all shadow-sm">
+                    <div class="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="homeCard">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-3xl shadow-lg shadow-blue-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-blue-100 text-xs font-bold uppercase tracking-widest">Total Equipos</p>
+                        <h3 class="text-4xl font-black mt-1">{{ total_activos }}</h3>
+                    </div>
+                    <div class="bg-white/20 p-2 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-red-500 to-red-700 p-6 rounded-3xl shadow-lg shadow-red-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-red-100 text-xs font-bold uppercase tracking-widest">En Préstamo</p>
+                        <h3 class="text-4xl font-black mt-1">{{ prestamos_count }}</h3>
+                    </div>
+                    <div class="bg-white/20 p-2 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-indigo-600 to-violet-800 p-6 rounded-3xl shadow-lg shadow-indigo-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-indigo-100 text-xs font-bold uppercase tracking-widest">Bodega ADR</p>
+                        <h3 class="text-4xl font-black mt-1">{{ activos_bodega }}</h3>
+                    </div>
+                    <div class="bg-white/20 p-2 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-500 to-teal-700 p-6 rounded-3xl shadow-lg shadow-emerald-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-emerald-100 text-xs font-bold uppercase tracking-widest">En Azotea</p>
+                        <h3 class="text-4xl font-black mt-1">{{ activos_azotea }}</h3>
+                    </div>
+                    <div class="bg-white/20 p-2 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <a href="{% url 'lista_activos' %}?categoria_nombre=All In One" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/allinone.png' %}" alt="all_in_one">
-                <h2 class="cardTitle">All In One</h2>
-            </a>
+        <div class="mb-12">
+            <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center">
+                <span class="w-2 h-8 bg-red-600 rounded-full mr-3"></span> Categorías
+            </h2>
+            <div class="flex overflow-x-auto gap-6 pb-6 snap-x hide-scrollbar">
+                {% for cat in categorias %}
+                <a href="{% url 'lista_activos' %}?categoria_nombre={{ cat.nombre }}" 
+                   class="flex-none w-44 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:border-red-200 hover:shadow-xl transition-all snap-start text-center group">
+                    <div class="h-20 w-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                        {% if cat.imagen_thumb_medium %}
+                            <img src="{{ cat.imagen_thumb_medium.url }}" alt="{{ cat.nombre }}" class="h-full object-contain">
+                        {% else %}
+                            <svg class="h-12 w-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                        {% endif %}
+                    </div>
+                    <span class="text-sm font-bold text-slate-700 block">{{ cat.nombre }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
 
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Notebook" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/notebook.png' %}" alt="notebook">
-                <h2 class="cardTitle">Notebooks</h2>
-            </a>
+        <div class="mb-12">
+            <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center">
+                <span class="w-2 h-8 bg-indigo-600 rounded-full mr-3"></span> Ubicaciones ADR
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {% for ubi in ubicaciones_clave %}
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre={{ ubi.nombre }}" 
+                   class="py-4 px-4 rounded-2xl text-center text-sm font-black transition-all transform hover:-translate-y-1 shadow-sm
+                   {% if ubi.nombre == 'Oficina ADR' %} bg-purple-100 text-purple-700 hover:bg-purple-200
+                   {% elif ubi.nombre == 'Bodega ADR' %} bg-blue-100 text-blue-700 hover:bg-blue-200
+                   {% elif ubi.nombre == 'Bodega Patio' %} bg-orange-100 text-orange-700 hover:bg-orange-200
+                   {% elif ubi.nombre == 'Azotea' %} bg-emerald-100 text-emerald-700 hover:bg-emerald-200
+                   {% elif ubi.nombre == 'Bodega Central' %} bg-teal-100 text-teal-700 hover:bg-teal-200
+                   {% elif ubi.nombre == 'Auditorio' %} bg-rose-100 text-rose-700 hover:bg-rose-200
+                   {% else %} bg-slate-100 text-slate-600 hover:bg-slate-200 {% endif %}">
+                    {{ ubi.nombre }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
 
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Mini PC" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/mini_pc.png' %}" alt="mini_pc">
-                <h2 class="cardTitle">Mini PC</h2>
-            </a>
+        <div class="grid lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                    <h2 class="font-black text-slate-800">Préstamos en Curso</h2>
+                    <span class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold">{{ prestamos_count }} Activos</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50/50">
+                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                <th class="px-6 py-4">Ítem</th>
+                                <th class="px-6 py-4">Docente</th>
+                                <th class="px-6 py-4">Sala</th>
+                                <th class="px-6 py-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            {% for p in prestamos_pendientes %}
+                            <tr class="hover:bg-slate-50/80 transition-colors">
+                                <td class="px-6 py-4 font-bold text-slate-700">{{ p.item_prestado }}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ p.docente_nombre }}</td>
+                                <td class="px-6 py-4"><span class="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">{{ p.sala }}</span></td>
+                                <td class="px-6 py-4 text-right">
+                                    <a href="{% url 'devolver_prestamo' p.id %}" class="text-sm font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl">Recibir</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="px-6 py-12 text-center text-slate-400 font-medium">No hay equipos fuera de bodega</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Proyector" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/proyector.png' %}" alt="proyector">
-                <h2 class="cardTitle">Proyectores</h2>
-            </a>
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                <h2 class="font-black text-slate-800 mb-8 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    Actividad Reciente
+                </h2>
+                <div class="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                    {% for item in auditoria %}
+                    <div class="relative pl-8">
+                        <div class="absolute left-0 top-1.5 h-6 w-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center
+                            {% if item.accion == 'CRE' %} bg-emerald-500 {% elif item.accion == 'MOD' %} bg-blue-500 {% else %} bg-red-500 {% endif %}">
+                        </div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between">
+                            <span>{{ item.get_accion_display }}</span>
+                            <span>{{ item.fecha|date:"H:i" }}</span>
+                        </p>
+                        <p class="text-sm font-bold text-slate-800 leading-tight mb-2">{{ item.content_object|default:"Equipo ADR" }}</p>
+                        
+                        {% if item.accion == 'MOD' and item.campo %}
+                        <div class="p-3 bg-slate-50 rounded-2xl text-[10px] border border-slate-100 space-y-1">
+                            <p class="text-slate-400 font-bold uppercase tracking-tighter">{{ item.campo }}</p>
+                            <div class="flex items-center text-slate-600">
+                                <span class="line-through opacity-50">{{ item.valor_anterior|default:"Vacio" }}</span>
+                                <svg class="w-3 h-3 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7l5 5m0 0l-5 5m5-5H6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                                <span class="font-black text-blue-600">{{ item.valor_nuevo }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
 
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Monitor" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/monitor.png' %}" alt="monitor">
-                <h2 class="cardTitle">Monitores</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Televisor" class="card">
-                <img class="cardImage" src="{% static 'imagenes/TV.png' %}" alt="televisor">
-                <h2 class="cardTitle">Televisores</h2>
-            </a>
-
-            <!-- AQUÍ EL CAMBIO CLAVE: tipo_uso=EVE -->
-            <a href="{% url 'lista_activos' %}?tipo_uso=EVE" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/eventos.png' %}" alt="eventos">
-                <h2 class="cardTitle">Eventos</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Tablet" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/tablet.png' %}" alt="tablet">
-                <h2 class="cardTitle">Tablets</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR" class="card">
-                <img class="cardImage" src="{% static 'imagenes/adr_logo_email.png' %}" alt="bodega_adr">
-                <h2 class="cardTitle">Bodega ADR</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?ubicacion_nombre=Azotea" class="card">
-                <img class="cardImage" src="{% static 'imagenes/Azotea.png' %}" alt="azotea_adr">
-                <h2 class="cardTitle">Azotea</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?tipo_red=ISLA" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/equipo_isla.png' %}" alt="equipos_isla">
-                <h2 class="cardTitle">Equipos Islas</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}?categoria_nombre=Switch de red" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/241494-19148364.png' %}"
-                    alt="switch_de_red">
-                <h2 class="cardTitle">Switch de red</h2>
-            </a>
-
-            <a href="{% url 'lista_activos' %}" class="card">
-                <img class="cardImage" src="{% static 'imagenes_normalizadas/241494-19148364.png' %}"
-                    alt="lista_general">
-                <h2 class="cardTitle">Lista de Equipos</h2>
-            </a>
-
+                        <div class="flex items-center mt-3">
+                            <div class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-500 mr-2 uppercase">
+                                {{ item.usuario.username|slice:":1"|default:"S" }}
+                            </div>
+                            <span class="text-[10px] font-black text-slate-500">
+                                {% if item.usuario %}{{ item.usuario.username }}{% else %}Sistema{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<script src="{% static 'js/search.js' %}"></script>
-
+<style>
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
 {% endblock %}

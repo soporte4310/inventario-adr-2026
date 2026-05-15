@@ -1,0 +1,10 @@
+.font-roboto {
+  font-family: "Roboto", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+/* Pesos específicos que puedes usar */
+.fw-light { font-weight: 300; }
+.fw-regular { font-weight: 400; }
+.fw-bold { font-weight: 700; }

@@ -1,0 +1,49 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --custom-header-height: 70px;
+    --custom-header-z-index: 100;
+
+    --custom-sidebar-width: 300px;
+    --custom-sidebar-max-width: 30%;
+    --custom-sidebar-min-width: 300px;
+    --custom-sidebar-z-index: 99;
+    --custom-sidebar-collapsed-width: 80px;
+
+    --custom-main-z-index: 1;
+
+    --user-avatar-width: 40px;
+    --color-user-menu:rgb(223, 223, 223);
+    --dropdown-user-menu-z-index: 99;
+
+    --sidebar-bg: #09090b; /* Zinc 950 */
+    --link-color: #a1a1aa;
+    --link-hover-bg: #18181b;
+    --accent-color: #ffffff;
+    --sidebar-width: 260px;
+}
+
+
+html, body {
+    min-height: 100vh;
+    height: 100%;
+    margin: 0;
+}
+
+#customRoot {
+  display: grid;
+  /* La primera columna cambia de tamaño según una clase 'collapsed' */
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: var(--custom-header-height) 1fr;
+  
+  grid-template-areas: 
+    "header header"
+    "sidebar main";
+    
+  height: 100%; /* Altura total de la ventana */
+  overflow: hidden; /* Evita que la página entera haga scroll */
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    {% load static %}
+    <title>{% block title %} {% endblock %}</title>
+    <!-- Enlace al archivo de estilos de Tailwind CSS -->
+    <!-- Enlace al archivo de la biblioteca FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="{%  static 'imagenes/favicon.ico' %}" type="image/x-icon">
+    <!-- Script para incluir TailwindCSS -->
+
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'inventario/css/estilos.css' %}">
+
+
+</head>
+
+<body>
+    <div id="customRoot" class="collapsed">
+        {% include 'inventario/layouts/header.html' %}
+        {% include "inventario/layouts/menu_desplegable_usuario.html" %}
+        {% include 'inventario/layouts/sidebar.html' %}
+
+        <main class="main_content">
+            <section class="content">
+                {% block content %}{% endblock content %}
+            </section>
+
+            <footer class="footer">
+                {% include 'inventario/layouts/footer.html' %}
+            </footer>
+        </main>
+        
+    </div>
+
+  <!-- Script de SweetAlert -->
+  <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!--Scripts personalizados-->
+  <script src="{% static 'inventario/js/profileMenu.js' %}"></script>
+  <script src="{% static 'inventario/js/sidebar.js' %}"></script>
+
+  <!-- Manejo de mensajes con SweetAlert -->
+  {% if messages %}
+  {% for message in messages %}
+  {% if message.tags == 'success' %}
+  <script>
+    Swal.fire({
+      title: "¡Excelente!",
+      text: "{{ message }}",
+      icon: "success",
+    });
+  </script>
+  {% elif message.tags == 'error' %}
+  <script>
+    Swal.fire({
+      title: "Error",
+      text: "{{ message }}",
+      icon: "error",
+    });
+  </script>
+  {% elif message.tags == 'warning' %}
+  <script>
+    Swal.fire({
+      title: "Advertencia",
+      text: "{{ message }}",
+      icon: "warning",
+    });
+  </script>
+  {% elif message.tags == 'info' %}
+  <script>
+    Swal.fire({
+      title: "Información",
+      text: "{{ message }}",
+      icon: "info",
+    });
+  </script>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+</body>
+
+</html>

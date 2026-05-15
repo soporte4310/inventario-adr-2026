@@ -1,0 +1,44 @@
+.user-role-container-mini {
+    display: flex;
+    gap: 3px;
+    margin-top: 1px; /* Espacio mínimo bajo el nombre */
+}
+
+.role-badge-xs {
+    font-size: 12px; /* Tamaño mínimo legible */
+    font-weight: 600;
+    padding: 0px 6px;
+    border-radius: 5px;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: inline-block;
+    line-height: 12px; /* Controla la altura total del badge */
+}
+
+/* COLORES ELEGIDOS POR KASSANDRA */
+/* ADR: Ámbar / Naranja*/
+.badge-adr {
+    background-color: #b45f06;
+}
+
+/* Operador ADR: Rojo oscuro / Granate */
+.badge-operador-adr {
+    background-color: #a51d1d;
+}
+
+/* Auxiliar Operador ADR: Púrpura / Guinda */
+.badge-auxiliar-operador-adr {
+    background-color: #8e24aa;
+}
+
+/* Alumno en Práctica: Verde bosque */
+.badge-alumno-en-practica {
+    background-color: #1b5e20;
+}
+
+/* Estilo del nombre para que no se vea gigante al lado del badge */
+.menu_usuario__nombre {
+    font-size: 15px;
+    font-weight: 600;
+}

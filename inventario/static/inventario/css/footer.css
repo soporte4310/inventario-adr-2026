@@ -1,0 +1,61 @@
+/* footer.css */
+.footer {
+    /* Fondo Slate 800: un gris azulado profesional que no es negro */
+    background-color: #1e293b; 
+    color: #f1f5f9; 
+    padding: 24px 0;
+    width: 100%;
+    
+    /* El acento rojo: una línea sutil pero vibrante */
+    border-top: 4px solid #ef4444; 
+    
+    /* Propiedades Flexbox para el main_content */
+    flex-shrink: 0; 
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.footer__container {
+    max-width: 1280px; /* Alineado con .content */
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer__copyright {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #cbd5e1; /* Gris claro para que no brille tanto como el blanco */
+}
+
+.footer__copyright strong {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.footer__version {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-family: 'Roboto', sans-serif;
+}
+
+.footer__badge {
+    background-color: #991b1b; /* Rojo sangre para la etiqueta */
+    color: #ffffff;
+    padding: 2px 10px;
+    border-radius: 9999px; /* Forma de píldora */
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .footer__container {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+}

@@ -13,20 +13,51 @@ from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.datavalidation import DataValidation
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 
 
-from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
+from accounts.mixins import GroupRequiredMixin
 from .forms import ActivoForm, CatalogoForm, CategoriaForm
 from .utils import _get_excel_val
-from accounts.mixins import GroupRequiredMixin
+from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
+from adr.models import Prestamo
 
 
 class DashboardInventario(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
-    """
-    Vista de inicio (Requiere Login)
-    """
     template_name = 'inventario/pages/dashboard.html'
     group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Filtro base para activos no eliminados
+        activos_qs = Activo.objects.filter(is_deleted=False) #
+        
+        # KPIs Principales
+        context['total_activos'] = activos_qs.count()
+        context['activos_azotea'] = activos_qs.filter(ubicacion__nombre='Azotea').count()
+        context['activos_bodega'] = activos_qs.filter(ubicacion__nombre='Bodega ADR').count()
+        
+        # Gestión de Préstamos
+        prestamos_activos = Prestamo.objects.filter(estado='En Préstamo') #
+        context['prestamos_count'] = prestamos_activos.count()
+        context['prestamos_pendientes'] = prestamos_activos.order_by('-fecha_prestamo')[:6]
+
+        # Categorías con Caché (15 minutos)
+        categorias = cache.get('dash_categorias')
+        if not categorias:
+            categorias = Categoria.objects.all().order_by('nombre') #
+            cache.set('dash_categorias', categorias, 900)
+        context['categorias'] = categorias
+
+        # Ubicaciones de interés para ADR
+        nombres_adr = ["Oficina ADR", "Bodega ADR", "Bodega Patio", "Azotea", "Bodega Central", "Auditorio"]
+        context['ubicaciones_clave'] = Ubicacion.objects.filter(nombre__in=nombres_adr) #
+
+        # Historial de Auditoría
+        context['auditoria'] = AuditoriaActivo.objects.select_related('usuario', 'content_type').all()[:8] #
+
+        return context
 
 
 

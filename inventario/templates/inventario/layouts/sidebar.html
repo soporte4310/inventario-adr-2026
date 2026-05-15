@@ -1,0 +1,111 @@
+{% load static %}
+<aside class="sidebar">
+    <button id="btn-close-sidebar" class="btn-close-sidebar">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
+
+    <nav class="sidebar-content">
+        <div class="nav-group">
+            <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Inicio</span>
+            </a>
+            
+            <a href="{% url 'prestamos' %}" class="nav-link {% if 'prestamos' in request.path %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+                <span>Préstamos Diarios</span>
+            </a>
+        </div>
+
+        {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
+        <details class="nav-dropdown" {% if 'profile_list' in request.path %}open{% endif %}>
+            <summary class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Gestión Usuarios</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="dropdown-content">
+                <a href="{% url 'profile_list' %}">Lista de Usuarios</a>
+            </div>
+        </details>
+        {% endif %}
+
+        <details class="nav-dropdown" {% if 'lista_activos' in request.path and not request.GET.ubicacion_nombre %}open{% endif %}>
+            <summary class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                <span>Recursos TI</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="dropdown-content">
+                <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ACA">AIO Académico</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ADM">AIO Administrativo</a>
+                <a href="{% url 'lista_activos' %}?tipo_red=ISLA">Equipos Isla</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=Notebook">Notebooks</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=Mini PC">Mini PCs</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=Switch de red">Switches</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=Proyector">Proyectores</a>
+                <a href="{% url 'lista_activos' %}?categoria_nombre=Monitor">Monitores</a>
+                <a href="{% url 'lista_activos' %}?tipo_uso=EVE">Eventos</a>
+            </div>
+        </details>
+
+        <details class="nav-dropdown" {% if request.GET.ubicacion_nombre %}open{% endif %}>
+            <summary class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18h12"/><path d="M8 22h8"/><path d="M12 2v16"/><path d="m18 7-6-5-6 5"/><path d="m17 14-5-5-5 5"/></svg>
+                <span>Inventario ADR</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="dropdown-content">
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR">Bodega ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Azotea">Azotea</a>
+            </div>
+        </details>
+
+        {% if group_name_singular != 'Alumno en Práctica' %}
+        <details class="nav-dropdown" {% if 'catalogos' in request.path or 'categorias' in request.path %}open{% endif %}>
+            <summary class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                </svg>
+                <span>Taxonomía</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="dropdown-content">
+                <a href="{% url 'lista_catalogos' %}" class="{% if 'catalogos' in request.path %}active{% endif %}">Catálogo de Productos</a>
+                {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
+                <a href="{% url 'lista_categorias' %}" class="{% if 'categorias' in request.path %}active{% endif %}">Gestión de Categorías</a>
+                {% endif %}
+            </div>
+        </details>
+        {% endif %}
+
+        <details class="nav-dropdown" {% if 'auditoria' in request.path or 'historial' in request.path or 'lista_eliminados' in request.path %}open{% endif %}>
+            <summary class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                <span>Historial</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="dropdown-content">
+                {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
+                <a href="{% url 'lista_auditoria' %}">Auditoría</a>
+                {% endif %}
+                <a href="{% url 'lista_eliminados' %}">Papelera de Equipos</a>
+            </div>
+        </details>
+    </nav>
+
+    <div class="sidebar-footer">
+        <form method="POST" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="logout-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                <span>Cerrar Sesión</span>
+            </button>
+        </form>
+    </div>
+</aside>

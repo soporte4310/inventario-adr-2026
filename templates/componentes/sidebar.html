@@ -168,7 +168,15 @@
           </li>
         </ul>
       </li>
-
+      <li>
+        <a href="{% url 'prestamos' %}" class="nav-item flex items-center h-10 px-4 rounded-md border-l-4 border-transparent
+                      {% if current == 'prestamos' or current == 'add_prestamo' or current == 'devolver_prestamo' %}active{% endif %}">
+          <span class="inline-flex justify-center items-center">
+            <i data-lucide="arrow-right-left" class="w-5 h-5"></i>
+          </span>
+          <span class="ml-2 text-sm tracking-wide truncate">Préstamos Diarios</span>
+        </a>
+      </li>
       <!-- Gestión de Inventario ADR -->
       <li x-data="{ open: {% if request.GET.ubicacion_nombre %}true{% else %}false{% endif %} }" class="relative">
         <button @click="open=!open" :class="open ? 'active' : ''"

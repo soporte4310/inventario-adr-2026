@@ -1,0 +1,128 @@
+.header {
+  grid-area: header;
+  background-color: #1a1a1a;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  z-index: var(--custom-header-z-index);
+}
+
+.header__izquierda {
+    display: flex;
+    width: auto;
+    height: 100%;
+    gap: 10px;
+    align-items: center;
+    justify-content: start;
+}
+
+.header__logo {
+    height: 100%;
+    padding: 0 10px;
+    /*background-color: red;*/
+}
+
+.header__logo img {
+    width: auto;
+    height: 100%;
+}
+
+.menu-icon-container {
+    cursor: pointer;
+    display: flex;
+    width: 60px;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+}
+
+.header__titulo {
+    padding: 0 20px;
+    font-size: 25px;
+    font-family: 'Roboto';
+}
+
+
+/* Header: Sección derecha */
+.header__seccion_menu_usuario {
+    display: flex;
+    flex-direction: row;
+    width: auto;
+    max-width: 500px;
+    height: 100%;
+    align-items: center;
+    gap: 15px;
+}
+
+.menu_usuario__opciones {
+    display: flex;
+    flex-direction: row;
+    height: 70%;
+    width: auto;
+    justify-content: center;
+    align-items: center;
+    padding: 0 10px;
+    gap: 5px;
+    border-right: 1px solid var(--color-header-border);
+}
+
+.menu_usuario__opcion {
+    display: flex;
+    width: auto;
+    height: 100%;
+    padding: 0 15px;
+    justify-content: center;
+    align-items: center;
+}
+
+.menu_usuario__usuario {
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 5px;
+}
+
+.menu_usuario__nombre_usuario {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    align-items: center;
+}
+
+.menu_usuario__nombre_email {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: start;
+    padding: 5px;
+}
+/*.menu_usuario__nombre {
+}
+.menu_usuario__email {
+}*/
+.menu_usuario__flecha {
+    padding: 5px;
+}
+
+.menu_usuario__avatar_usuario {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+}
+
+.menu_usuario__avatar_usuario img {
+    width: var(--user-avatar-width);
+    height: var(--user-avatar-width);
+    border-radius: 100%;
+    object-fit: cover;
+}

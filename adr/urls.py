@@ -1,5 +1,4 @@
 from django.urls import path
-from django.contrib.auth.views import LogoutView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import views as auth_views
 from django.views.generic import TemplateView
@@ -32,7 +31,7 @@ from .views import (
     # Vista para borrar contenido de inventario
     ClearInventoryView,
     # Vistas para Televisor
-    TelevisorView, Add_Televisor, Edit_Televisor, Delete_Televisor, Detalle_Televisor, UploadExcelTelevisorView,
+    TelevisorView, Add_Televisor, Edit_Televisor, Delete_Televisor, Detalle_Televisor, UploadExcelTelevisorView,PrestamoListView, AddPrestamoView, DevolverPrestamoView
 )
 
 from . import views
@@ -45,7 +44,6 @@ from .forms import LoginForm
 urlpatterns = [
     # Autenticación
     #path('login/', CustomLoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
     path('password_change/', login_required(ProfilePasswordChangeView.as_view()), name="profile_password_change"),
     
     # Gestión de Usuarios
@@ -55,27 +53,6 @@ urlpatterns = [
     path("mi-perfil/", views.my_profile, name="my_profile"),
     path('profile_delete/<int:pk>/', login_required(ProfileDeleteView.as_view()), name='profile_delete'),
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
-    # Páginas Principales
-    #path('', IndexView.as_view(), name="index"),
-    # Esta ruta para el home será sustituida
-    # path('inicio/', login_required(HomeView.as_view()), name='inicio'),
-    #path(
-    #    "login/",
-    #    LoginView.as_view(
-    #        authentication_form= LoginForm,
-    #        template_name="registration/login.html",
-    #    ),
-    #    name="login",
-    #),
-    
-    path('password_reset/', auth_views.PasswordResetView.as_view(
-        email_template_name='registration/password_reset_email.txt',
-        html_email_template_name='registration/password_reset_email.html',
-        subject_template_name='registration/password_reset_subject.txt',
-    ), name='password_reset'),
-    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
-    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
    
         # Redirección LEGACY con nombre 'home' (así reverse('home') sigue funcionando)
     path('home/', RedirectView.as_view(pattern_name='inicio', permanent=True), name='home'),
@@ -208,6 +185,11 @@ urlpatterns = [
     path('delete_televisor/<str:model_name>/<int:pk>/', login_required(DeleteToEliminadosView.as_view()), name='delete_televisor'),
     path('detalle_televisor/<int:pk>/', login_required(Detalle_Televisor.as_view()), name='detalle_televisor'),
     path('upload_excel_televisor/', login_required(UploadExcelTelevisorView.as_view()), name="upload_excel_televisor"),
+    
+    # Gestión de Préstamos Diarios
+    path('prestamos/', login_required(PrestamoListView.as_view()), name='prestamos'),
+    path('add_prestamo/', login_required(AddPrestamoView.as_view()), name='add_prestamo'),
+    path('prestamo/<int:pk>/devolver/', login_required(DevolverPrestamoView.as_view()), name='devolver_prestamo'),
 ]
 
 
