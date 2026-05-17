@@ -88,7 +88,7 @@ class Command(BaseCommand):
         html_content = render_to_string('inventario/emails/reporte_semanal.html', context)
         
         email = EmailMultiAlternatives(
-            subject=f"📊 Dashboard Semanal ADR: Estado del Inventario",
+            subject=f"Reporte Semanal: Estado del Inventario",
             body="Favor visualizar en modo HTML",
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=emails_destinatarios,

@@ -1,0 +1,80 @@
+{% extends "inventario/emails/base_email.html" %}
+
+{% block content %}
+    <div style="margin-bottom: 20px;">
+        <h2 style="color: #2c3e50; margin-bottom: 5px;">Reporte Diario de Inventario</h2>
+        <p style="color: #718096; font-size: 14px; margin-top: 0;">Resumen detallado de cambios en las últimas 24 horas.</p>
+    </div>
+
+    <div style="background-color: #f8f9fa; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 6px; margin-bottom: 25px; display: inline-block;">
+        <span style="font-size: 13px; color: #4a5568;">Activos Totales: <strong>{{ total_activos }}</strong></span>
+    </div>
+
+    {% if stats_usuarios %}
+    <div style="margin-bottom: 35px; padding: 20px; background-color: #ffffff; border: 1px solid #edf2f7; border-radius: 8px;">
+        <h3 style="font-size: 14px; color: #2d3748; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">📊 Ranking de Actividad Diaria</h3>
+        {% for user in stats_usuarios %}
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                <span style="font-weight: 600; color: #4a5568;">{{ user.nombre }}</span>
+                <span style="color: #a0aec0;">{{ user.cantidad }} cambios</span>
+            </div>
+            <div style="width: 100%; background-color: #edf2f7; height: 8px; border-radius: 4px;">
+                <div style="width: {{ user.porcentaje }}%; background-color: #D32F2F; height: 8px; border-radius: 4px;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <table width="100%" style="border-collapse: collapse; font-size: 13px;">
+        <thead>
+            <tr style="background-color: #2c3e50; color: #ffffff;">
+                <th align="left" style="padding: 10px;">Hora</th>
+                <th align="left" style="padding: 10px;">Usuario</th>
+                <th align="left" style="padding: 10px;">Acción / Elemento</th>
+                <th align="left" style="padding: 10px;">Detalle del Cambio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr style="border-bottom: 1px solid #edf2f7;">
+                <td style="padding: 12px 10px; vertical-align: top; color: #718096;">
+                    {{ log.fecha|date:"H:i" }}
+                </td>
+                <td style="padding: 12px 10px; vertical-align: top; font-weight: bold;">
+                    {{ log.usuario.get_full_name|default:log.usuario.username }}
+                </td>
+                <td style="padding: 12px 10px; vertical-align: top;">
+                    {% if log.accion == 'CRE' %}
+                        <span style="background-color: #c6f6d5; color: #22543d; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">CREACIÓN</span>
+                    {% elif log.accion == 'MOD' %}
+                        <span style="background-color: #bee3f8; color: #2a4365; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">MODIFICACIÓN</span>
+                    {% elif log.accion == 'ELI' %}
+                        <span style="background-color: #fed7d7; color: #822727; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">ELIMINACIÓN</span>
+                    {% endif %}
+                    <br>
+                    <span style="color: #4a5568; font-size: 12px;">{{ log.content_object }}</span>
+                </td>
+                <td style="padding: 12px 10px; vertical-align: top;">
+                    {% if log.accion == 'MOD' %}
+                        <div style="background-color: #f7fafc; padding: 8px; border-radius: 4px; border-left: 3px solid #3182ce;">
+                            <strong style="color: #2b6cb0; text-transform: uppercase; font-size: 11px;">Campo: {{ log.campo }}</strong><br>
+                            <span style="color: #e53e3e; text-decoration: line-through;">{{ log.valor_anterior|default:"(vacío)" }}</span> 
+                            <span style="color: #4a5568;"> &rarr; </span> 
+                            <span style="color: #38a169; font-weight: bold;">{{ log.valor_nuevo }}</span>
+                        </div>
+                    {% elif log.accion == 'CRE' %}
+                        <span style="color: #718096; font-style: italic;">Nuevo registro ingresado al sistema.</span>
+                    {% elif log.accion == 'ELI' %}
+                        <span style="color: #e53e3e; font-style: italic;">Registro marcado como eliminado.</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 15px; font-size: 12px; color: #a0aec0;">
+        Este es un reporte automático de seguridad. Si detecta movimientos no autorizados, contacte al administrador.
+    </div>
+{% endblock %}

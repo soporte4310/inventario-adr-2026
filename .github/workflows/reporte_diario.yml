@@ -1,10 +1,10 @@
-name: Reporte Semanal ADR
+name: Reporte Diario ADR
 
 on:
   schedule:
     # Se ejecuta a las 14:00 UTC (11:00 AM Chile Verano / 10:00 AM Chile Invierno)
     # Todos los domingos (0)
-    - cron: '0 14 * * 0'
+    - cron: '0 3 * * *'
   
   # Permite ejecutarlo manualmente desde la pestaña "Actions" para probar
   workflow_dispatch:
@@ -44,4 +44,4 @@ jobs:
         CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
         CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
       run: |
-        python manage.py enviar_reporte_semanal
+        python manage.py enviar_reporte_diario
