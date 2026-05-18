@@ -1,9 +1,7 @@
 # adr/signals.py
 from django.dispatch import receiver
-from adr.middleware import get_current_user
 
 from django.conf import settings
-from django.core.mail import send_mail
 from django.contrib.auth.signals import user_login_failed, user_logged_in
 from django.core.cache import cache
 from django.utils import timezone
