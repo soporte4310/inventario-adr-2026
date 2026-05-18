@@ -1528,6 +1528,23 @@ class EliminarAreaAdministrativaView(DeleteView):
         response = super().post(request, *args, **kwargs)
         messages.success(request, f"Área '{nombre_area}' eliminada con éxito.")
         return response
+    
+
+class DetalleAreaAdministrativaView(DetailView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/ver_area.html'
+    context_object_name = 'area'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_vista'] = "Detalle de Área Administrativa"
+        
+        # Recuperamos los funcionarios de esta área ordenados alfabéticamente
+        funcionarios = self.object.funcionario_set.select_related('cargo').order_by('nombre')
+        
+        context['funcionarios_asociados'] = funcionarios
+        context['cant_funcionarios'] = funcionarios.count()
+        return context
 
 
 
