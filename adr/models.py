@@ -2,15 +2,6 @@ from django.db import models
 from django.urls import reverse
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from .opciones import (
-    opciones_sala_All_In_One, opciones_estado, opciones_marca_all_in_one,
-    opciones_ubicacion_all_in_one_admin, opciones_marca_notebook,
-    opciones_ubicacion_notebook, opciones_marca_mini_pc, opciones_ubicacion_mini_pc,
-    opciones_marca_proyector, opciones_ubicacion_proyector, opciones_activos,
-    opciones_marca_azotea, opciones_estado_activo,
-    opciones_edificio, opciones_marca_monitor, opciones_ubicacion_monitor,
-    opciones_marca_audio, opciones_ubicacion_audio 
-)
 
 
 class ActivoBase(models.Model):
