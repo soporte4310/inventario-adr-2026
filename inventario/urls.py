@@ -31,7 +31,12 @@ from .views import (
     CrearCategoriaView,
     EditarCategoriaView,
     EliminarCategoriaView,
-    DetalleCategoriaView
+    DetalleCategoriaView,
+
+    ListaAreaAdministrativaView,
+    CrearAreaAdministrativaView,
+    EditarAreaAdministrativaView,
+    EliminarAreaAdministrativaView,
 )
 
 
@@ -70,6 +75,13 @@ urlpatterns = [
 
     # Historial
     path('auditoria/', AuditoriaListView.as_view(), name='lista_auditoria'),
+
+    # Áreas administrativas
+    path('areas/', ListaAreaAdministrativaView.as_view(), name='lista_areas'),
+    path('areas/nuevo/', CrearAreaAdministrativaView.as_view(), name='agregar_area'),
+    path('areas/<int:pk>/', ListaAreaAdministrativaView.as_view(), name='ver_area'),
+    path('areas/<int:pk>/editar/', EditarAreaAdministrativaView.as_view(), name='editar_area'),
+    path('areas/<int:pk>/eliminar/', EliminarAreaAdministrativaView.as_view(), name='eliminar_area'),
 ]
 
 

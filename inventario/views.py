@@ -17,9 +17,9 @@ from django.core.cache import cache
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm
 from .utils import _get_excel_val
-from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
+from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
 
 
@@ -1310,8 +1310,6 @@ class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-
-
 class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Categoria
     form_class = CategoriaForm
@@ -1331,8 +1329,6 @@ class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudo crear la categoría. Revisa los errores en el formulario.')
         return super().form_invalid(form)
-
-
 
 
 class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
@@ -1356,8 +1352,6 @@ class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudieron guardar los cambios. Por favor, revisa el formulario.')
         return super().form_invalid(form)
-
-
 
 
 class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
@@ -1384,8 +1378,6 @@ class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         response = super().form_valid(form)
         messages.success(self.request, f'La categoría "{nombre_obj}" ha sido eliminada correctamente.')
         return response
-
-
 
 
 class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
@@ -1430,3 +1422,109 @@ class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
             'catalogos': catalogos_relacionados,
         })
         return context
+
+
+
+
+class ListaAreaAdministrativaView(ListView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/lista_areas.html'
+    context_object_name = 'areas'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = AreaAdministrativa.objects.annotate(
+            funcionarios_count=Count('funcionario')
+        ).order_by('nombre')
+        
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            # Busca coincidencias en nombre O en siglas
+            queryset = queryset.filter(
+                Q(nombre__icontains=search_query) | Q(siglas__icontains=search_query)
+            )
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_query = self.request.GET.get('search', '')
+        context['titulo_lista'] = "Áreas Administrativas"
+        context['search_query'] = search_query
+        context['query_string'] = f"&search={search_query}" if search_query else ""
+        return context
+
+
+class CrearAreaAdministrativaView(CreateView):
+    model = AreaAdministrativa
+    form_class = AreaAdministrativaForm
+    template_name = 'inventario/pages/agregar_area.html'
+    success_url = reverse_lazy('lista_areas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nueva Área Administrativa"
+        return context
+
+    def form_valid(self, form):
+        # Normalizamos la sigla a mayúsculas antes de guardar
+        if form.instance.sigla:
+            form.instance.sigla = form.instance.sigla.strip().upper()
+        
+        messages.success(self.request, f"Área '{form.instance.nombre}' creada correctamente.")
+        return super().form_valid(form)
+
+
+class EditarAreaAdministrativaView(UpdateView):
+    model = AreaAdministrativa
+    form_class = AreaAdministrativaForm
+    template_name = 'inventario/pages/editar_area.html'
+    success_url = reverse_lazy('lista_areas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Área Administrativa"
+        # Pasamos el objeto actual para mostrar el nombre antiguo en algún subtítulo
+        context['area'] = self.object 
+        return context
+
+    def form_valid(self, form):
+        # Mantenemos la normalización de la sigla en mayúsculas al editar
+        if form.instance.sigla:
+            form.instance.sigla = form.instance.sigla.strip().upper()
+        
+        messages.success(self.request, f"Área '{form.instance.nombre}' actualizada correctamente.")
+        return super().form_valid(form)
+
+
+class EliminarAreaAdministrativaView(DeleteView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/eliminar_area.html'
+    success_url = reverse_lazy('lista_areas')
+    context_object_name = 'area'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Área Administrativa"
+        
+        # Enviamos el conteo a la plantilla para adaptar la interfaz
+        context['cant_funcionarios'] = self.object.funcionario_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_funcionarios = self.object.funcionario_set.count()
+        
+        # Alerta de seguridad por si intentan saltarse la interfaz
+        if cant_funcionarios > 0:
+            messages.error(
+                request, 
+                f"No se puede eliminar '{self.object.nombre}' porque tiene {cant_funcionarios} funcionario(s) asociado(s)."
+            )
+            return redirect('lista_areas')
+        
+        # Si no tiene dependencias, procedemos con el flujo normal
+        nombre_area = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Área '{nombre_area}' eliminada con éxito.")
+        return response

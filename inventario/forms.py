@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado
+from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -168,3 +168,23 @@ class CategoriaForm(ImageProcessingFormMixin, forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+
+
+class AreaAdministrativaForm(forms.ModelForm):
+    class Meta:
+        model = AreaAdministrativa
+        fields = ['nombre', 'sigla']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Dirección de Asuntos Estudiantiles',
+                'autocomplete': 'off',
+            }),
+            'sigla': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: DAE',
+                'autocomplete': 'off',
+            })
+        }
