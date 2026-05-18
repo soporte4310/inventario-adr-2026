@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo
+from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -206,4 +206,35 @@ class CargoForm(forms.ModelForm):
                 'class': 'form-check-input',
                 'role': 'switch',
             })
+        }
+
+
+
+
+class FuncionarioForm(forms.ModelForm):
+    class Meta:
+        model = Funcionario
+        fields = ['nombre', 'email', 'telefono', 'cargo', 'area']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Juan Castillo Lizama',
+                'autocomplete': 'off',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: juan.castillo@institucion.cl',
+                'autocomplete': 'off',
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: +56912345678',
+                'autocomplete': 'off',
+            }),
+            'cargo': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+            }),
+            'area': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+            }),
         }

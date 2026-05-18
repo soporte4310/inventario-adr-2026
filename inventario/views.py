@@ -17,7 +17,7 @@ from django.core.cache import cache
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm
 from .utils import _get_excel_val
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
@@ -1561,8 +1561,6 @@ class ListaCargoView(ListView):
         return context
 
 
-
-
 class CrearCargoView(CreateView):
     model = Cargo
     form_class = CargoForm
@@ -1577,8 +1575,6 @@ class CrearCargoView(CreateView):
     def form_valid(self, form):
         messages.success(self.request, f"Cargo '{form.instance.nombre}' creado correctamente.")
         return super().form_valid(form)
-
-
 
 
 class EditarCargoView(UpdateView):
@@ -1596,8 +1592,6 @@ class EditarCargoView(UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Cargo '{form.instance.nombre}' actualizado correctamente.")
         return super().form_valid(form)
-
-
 
 
 class EliminarCargoView(DeleteView):
@@ -1630,3 +1624,152 @@ class EliminarCargoView(DeleteView):
         response = super().post(request, *args, **kwargs)
         messages.success(request, f"Cargo '{nombre_cargo}' eliminado con éxito.")
         return response
+
+
+
+
+class ListaFuncionarioView(ListView):
+    model = Funcionario
+    template_name = 'inventario/pages/lista_funcionarios.html'
+    context_object_name = 'funcionarios'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Ordenamos los funcionarios alfabéticamente por nombre
+        queryset = Funcionario.objects.select_related('cargo', 'area').annotate(
+            activos_count=Count('activo')
+        ).order_by('nombre')
+        
+        # Captura de parámetros GET
+        search_query = self.request.GET.get('search', '')
+        area_filtrada = self.request.GET.get('area', '')
+        cargo_filtrado = self.request.GET.get('cargo', '')
+
+        # 1. Aplicar Búsqueda por Texto (Filtra por nombre del funcionario)
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+
+        # 2. Aplicar Filtro Avanzado por Área Administrativa
+        if area_filtrada:
+            queryset = queryset.filter(area_id=area_filtrada)
+
+        # 3. Aplicar Filtro Avanzado por Cargo
+        if cargo_filtrado:
+            queryset = queryset.filter(cargo_id=cargo_filtrado)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Datos estáticos para los dropdowns de los filtros
+        context['areas'] = AreaAdministrativa.objects.all().order_by('nombre')
+        context['cargos'] = Cargo.objects.all().order_by('nombre')
+        
+        # Mantener los estados de los filtros en la plantilla
+        context['titulo_lista'] = "Nómina de Funcionarios"
+        context['search_query'] = self.request.GET.get('search', '')
+        context['area_seleccionada'] = self.request.GET.get('area', '')
+        context['cargo_seleccionado'] = self.request.GET.get('cargo', '')
+        
+        # Reconstruir la query string para que la paginación no rompa los filtros
+        params = []
+        if context['search_query']: params.append(f"search={context['search_query']}")
+        if context['area_seleccionada']: params.append(f"area={context['area_seleccionada']}")
+        if context['cargo_seleccionado']: params.append(f"cargo={context['cargo_seleccionado']}")
+        
+        context['query_string'] = f"&{'&'.join(params)}" if params else ""
+        return context
+
+
+class CrearFuncionarioView(CreateView):
+    model = Funcionario
+    form_class = FuncionarioForm
+    template_name = 'inventario/pages/agregar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nuevo Funcionario"
+        return context
+
+    def form_valid(self, form):
+        # Guardamos el objeto primero para que ejecute el clean() del modelo
+        response = super().form_valid(form)
+        # Notificamos con el nombre ya normalizado en mayúsculas
+        messages.success(self.request, f"Funcionario '{self.object.nombre}' registrado correctamente.")
+        return response
+
+
+
+
+class EditarFuncionarioView(UpdateView):
+    model = Funcionario
+    form_class = FuncionarioForm
+    template_name = 'inventario/pages/editar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Funcionario"
+        return context
+
+    def form_valid(self, form):
+        # Al guardar, el método clean() del modelo se ejecuta automáticamente
+        response = super().form_valid(form)
+        messages.success(self.request, f"Datos de '{self.object.nombre}' actualizados correctamente.")
+        return response
+
+
+class EliminarFuncionarioView(DeleteView):
+    model = Funcionario
+    template_name = 'inventario/pages/eliminar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Funcionario"
+        # Contamos cuántos activos vigentes tiene asignados este funcionario
+        context['cant_activos'] = self.object.activo_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_activos = self.object.activo_set.count()
+        
+        # Guardaparques de backend en caso de solicitudes post maliciosas o concurrentes
+        if cant_activos > 0:
+            messages.error(
+                request, 
+                f"Operación denegada: '{self.object.nombre}' mantiene {cant_activos} activo(s) a su cargo."
+            )
+            return redirect('lista_funcionarios')
+        
+        nombre_funcionario = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Funcionario '{nombre_funcionario}' eliminado correctamente de la nómina.")
+        return response
+
+
+class DetalleFuncionarioView(DetailView):
+    model = Funcionario
+    template_name = 'inventario/pages/ver_funcionario.html'
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_vista'] = "Ficha del Funcionario"
+        
+        # Optimizamos agregando 'catalogo__categoria' y 'catalogo__marca'
+        activos = self.object.activo_set.select_related(
+            'catalogo__categoria', 
+            'catalogo__marca', 
+            'estado', 
+            'ubicacion'
+        ).order_by('-created_at')
+        
+        context['activos_asignados'] = activos
+        context['cant_activos'] = activos.count()
+        return context
