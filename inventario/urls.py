@@ -37,6 +37,11 @@ from .views import (
     CrearAreaAdministrativaView,
     EditarAreaAdministrativaView,
     EliminarAreaAdministrativaView,
+
+    ListaCargoView,
+    CrearCargoView,
+    EditarCargoView,
+    EliminarCargoView,
 )
 
 
@@ -82,6 +87,12 @@ urlpatterns = [
     path('areas/<int:pk>/', ListaAreaAdministrativaView.as_view(), name='ver_area'),
     path('areas/<int:pk>/editar/', EditarAreaAdministrativaView.as_view(), name='editar_area'),
     path('areas/<int:pk>/eliminar/', EliminarAreaAdministrativaView.as_view(), name='eliminar_area'),
+
+    # Cargos de funcionarios
+    path('cargos/', ListaCargoView.as_view(), name='lista_cargos'),
+    path('cargos/nuevo/', CrearCargoView.as_view(), name='agregar_cargo'),
+    path('cargos/<int:pk>/editar/', EditarCargoView.as_view(), name='editar_cargo'),
+    path('cargos/<int:pk>/eliminar/', EliminarCargoView.as_view(), name='eliminar_cargo'),
 ]
 
 

@@ -17,7 +17,7 @@ from django.core.cache import cache
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm
 from .utils import _get_excel_val
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
@@ -1527,4 +1527,106 @@ class EliminarAreaAdministrativaView(DeleteView):
         nombre_area = self.object.nombre
         response = super().post(request, *args, **kwargs)
         messages.success(request, f"Área '{nombre_area}' eliminada con éxito.")
+        return response
+
+
+
+
+class ListaCargoView(ListView):
+    model = Cargo
+    template_name = 'inventario/pages/lista_cargos.html'
+    context_object_name = 'cargos'
+    paginate_by = 20
+
+    def get_queryset(self):
+        # Cargos ordenados alfabéticamente por nombre de forma ascendente
+        queryset = Cargo.objects.annotate(
+            funcionarios_count=Count('funcionario')
+        ).order_by('nombre')
+        
+        # Filtro de búsqueda por nombre de cargo
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_query = self.request.GET.get('search', '')
+        
+        context['titulo_lista'] = "Cargos de Funcionarios"
+        context['search_query'] = search_query
+        context['query_string'] = f"&search={search_query}" if search_query else ""
+        return context
+
+
+
+
+class CrearCargoView(CreateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'inventario/pages/agregar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nuevo Cargo"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Cargo '{form.instance.nombre}' creado correctamente.")
+        return super().form_valid(form)
+
+
+
+
+class EditarCargoView(UpdateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'inventario/pages/editar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+    context_object_name = 'cargo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Cargo"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Cargo '{form.instance.nombre}' actualizado correctamente.")
+        return super().form_valid(form)
+
+
+
+
+class EliminarCargoView(DeleteView):
+    model = Cargo
+    template_name = 'inventario/pages/eliminar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+    context_object_name = 'cargo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Cargo"
+        # Contamos cuántos funcionarios tienen este cargo asignado
+        context['cant_funcionarios'] = self.object.funcionario_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_funcionarios = self.object.funcionario_set.count()
+        
+        # Si un usuario malintencionado intenta forzar el POST por consola teniendo dependencias:
+        if cant_funcionarios > 0:
+            messages.error(
+                request, 
+                f"No se puede eliminar el cargo '{self.object.nombre}' porque tiene {cant_funcionarios} funcionario(s) asociado(s)."
+            )
+            return redirect('lista_cargos')
+        
+        # Si está libre de funcionarios, procedemos con la eliminación estándar
+        nombre_cargo = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Cargo '{nombre_cargo}' eliminado con éxito.")
         return response

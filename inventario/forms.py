@@ -188,3 +188,22 @@ class AreaAdministrativaForm(forms.ModelForm):
                 'autocomplete': 'off',
             })
         }
+
+
+
+
+class CargoForm(forms.ModelForm):
+    class Meta:
+        model = Cargo
+        fields = ['nombre', 'es_adr']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Encargado de Soporte Técnico, Docente...',
+                'autocomplete': 'off',
+            }),
+            'es_adr': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch',
+            })
+        }
