@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado
+from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -168,3 +168,73 @@ class CategoriaForm(ImageProcessingFormMixin, forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+
+
+class AreaAdministrativaForm(forms.ModelForm):
+    class Meta:
+        model = AreaAdministrativa
+        fields = ['nombre', 'sigla']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Dirección de Asuntos Estudiantiles',
+                'autocomplete': 'off',
+            }),
+            'sigla': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: DAE',
+                'autocomplete': 'off',
+            })
+        }
+
+
+
+
+class CargoForm(forms.ModelForm):
+    class Meta:
+        model = Cargo
+        fields = ['nombre', 'es_adr']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Encargado de Soporte Técnico, Docente...',
+                'autocomplete': 'off',
+            }),
+            'es_adr': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch',
+            })
+        }
+
+
+
+
+class FuncionarioForm(forms.ModelForm):
+    class Meta:
+        model = Funcionario
+        fields = ['nombre', 'email', 'telefono', 'cargo', 'area']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: Juan Castillo Lizama',
+                'autocomplete': 'off',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: juan.castillo@institucion.cl',
+                'autocomplete': 'off',
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ej: +56912345678',
+                'autocomplete': 'off',
+            }),
+            'cargo': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+            }),
+            'area': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+            }),
+        }

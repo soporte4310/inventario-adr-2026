@@ -1,0 +1,178 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_vista }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="mb-3">
+        <a href="{% url 'lista_funcionarios' %}" class="btn btn-link text-secondary p-0 small text-decoration-none">
+            <i class="fas fa-arrow-left me-1"></i> Volver a la nómina de funcionarios
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4 text-center">
+                    <div class="bg-light rounded-circle border d-flex align-items-center justify-content-center text-secondary shadow-sm mx-auto mb-3" style="width: 90px; height: 90px;">
+                        <i class="fas fa-user-tie fa-3x"></i>
+                    </div>
+                    
+                    <h3 class="h4 font-weight-bold text-dark mb-1">{{ funcionario.nombre }}</h3>
+                    <p class="text-muted small mb-3">ID Funcionario: #{{ funcionario.id }}</p>
+                    
+                    <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+                        {% if funcionario.area %}
+                            <span class="badge border border-dark text-dark px-3 py-2 text-uppercase" style="background-color: transparent;">
+                                <i class="fas fa-building me-1"></i> {% if funcionario.area.sigla %}{{ funcionario.area.sigla }}{% else %}{{ funcionario.area.nombre }}{% endif %}
+                            </span>
+                        {% endif %}
+                        {% if funcionario.cargo.es_adr %}
+                            <span class="badge bg-primary px-3 py-2 text-uppercase fw-bold shadow-sm" style="font-size: 0.75rem;">
+                                <i class="fas fa-shield-alt me-1"></i> Personal ADR
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <hr class="text-muted opacity-25 my-4">
+
+                    <div class="text-start space-y-3">
+                        <div class="mb-3">
+                            <span class="text-muted small text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Cargo</span>
+                            <span class="text-dark fw-bold small">{{ funcionario.cargo.nombre|default:"Sin cargo asignado" }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-muted small text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Área / Departamento</span>
+                            <span class="text-muted small d-block">{{ funcionario.area.nombre|default:"Sin área asociada" }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-muted small text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Correo Electrónico</span>
+                            {% if funcionario.email %}
+                                <a href="mailto:{{ funcionario.email }}" class="text-danger small text-break fw-bold">{{ funcionario.email }}</a>
+                            {% else %}
+                                <span class="text-muted small italic">No registrado</span>
+                            {% endif %}
+                        </div>
+                        <div class="mb-4">
+                            <span class="text-muted small text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Teléfono de Contacto</span>
+                            <span class="text-dark small">{{ funcionario.telefono|default:"No registrado" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'editar_funcionario' funcionario.id %}" class="btn btn-outline-primary btn-sm shadow-sm fw-bold">
+                            <i class="fas fa-edit me-1"></i> Editar Ficha
+                        </a>
+                        <a href="{% url 'eliminar_funcionario' funcionario.id %}" class="btn btn-outline-danger btn-sm border-0 small text-muted">
+                            <i class="fas fa-trash me-1"></i> Eliminar del Sistema
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="h5 font-weight-bold mb-1 text-white">Equipos asignados</h4>
+                        <p class="text-light opacity-75 small mb-0">Inventario de hardware y estaciones de trabajo asignadas a esta ficha</p>
+                    </div>
+                    <div class="text-center bg-white text-dark rounded px-4 py-2 shadow-sm border">
+                        <span class="text-muted small text-uppercase d-block fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total Activos</span>
+                        <span class="h2 font-weight-bold mb-0">{{ cant_activos }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h5 class="font-weight-bold text-dark mb-4">Detalle de Elementos Tecnológicos</h5>
+
+                    <div class="table-responsive rounded border">
+                        <table class="table table-striped table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                            <thead class="table-dark text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                <tr>
+                                    <th class="ps-3">Hardware / Catálogo</th>
+                                    <th>Identificadores (BDO/SN)</th>
+                                    <th>Ubicación y Conexión</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center" style="width: 120px; text-transform: none;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activo in activos_asignados %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="mb-1">
+                                            <span class="badge bg-danger text-white text-uppercase me-1 shadow-sm" style="font-size: 0.7rem; padding: 0.35em 0.6em;">
+                                                {{ activo.catalogo.categoria.nombre }}
+                                            </span>
+                                            <strong class="text-dark">{{ activo.catalogo.marca.nombre }}</strong>
+                                        </div>
+                                        <span class="text-muted small fw-bold">{{ activo.catalogo.modelo|default:"GENÉRICO" }}</span>
+                                        <div class="mt-1">
+                                            <span class="badge bg-secondary text-white p-1" style="font-size: 0.65rem;">
+                                                {{ activo.get_tipo_uso_display }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small mb-1">
+                                            <strong>BDO:</strong> 
+                                            {% if activo.bdo %}
+                                                <code class="text-danger fw-bold bg-white px-2 py-0.5 border rounded shadow-xs" style="font-size: 0.85rem;">{{ activo.bdo }}</code>
+                                            {% else %}
+                                                <span class="text-muted italic">---</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="small mb-1">
+                                            <strong>S/N:</strong> <code class="text-dark">{{ activo.numero_serie|default:"---" }}</code>
+                                        </div>
+                                        <div class="small">
+                                            <strong>Etiqueta:</strong> <span class="text-muted fw-semibold">{{ activo.etiqueta|default:"---" }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small text-dark fw-bold">
+                                            <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ activo.ubicacion.nombre|default:"No especificada" }}
+                                        </div>
+                                        <span class="text-muted small d-block mt-1" style="font-size: 0.75rem;">
+                                            <i class="fas fa-network-wired me-1 opacity-75"></i>{{ activo.get_tipo_red_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-white text-dark border border-secondary px-3 py-1.5 rounded-pill small fw-bold shadow-xs">
+                                            <i class="fas fa-circle text-success me-1" style="font-size: 0.6rem;"></i>{{ activo.estado.nombre }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-dark shadow-sm fw-bold w-100" style="font-size: 0.75rem;" title="Ver ficha técnica del equipo">
+                                            <i class="fas fa-laptop me-1"></i> Ver Equipo
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted bg-white">
+                                        <div class="py-4">
+                                            <i class="fas fa-box-open fa-2x mb-2 opacity-50 text-danger"></i>
+                                            <p class="mb-1 fw-bold text-dark">Sin activos a cargo</p>
+                                            <p class="small mb-0">Este funcionario no posee estaciones de trabajo ni periféricos registrados actualmente.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

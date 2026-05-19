@@ -9,6 +9,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 class AreaAdministrativa(models.Model):
     """Modelo para registrar áreas administrativas o departamentos dentro de la sede"""
     nombre = models.CharField(verbose_name="Nombre", max_length=100)
+    sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True)
 
     class Meta:
         verbose_name = "Departamento"

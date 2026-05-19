@@ -1,0 +1,65 @@
+{% extends "inventario/emails/base_email.html" %}
+
+{% block content %}
+    <h2 style="color: #2c3e50; margin-top: 0;">Reporte Semanal De Inventario</h2>
+    
+    <div style="background-color: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 25px;">
+        <span style="font-size: 12px; text-transform: uppercase; opacity: 0.8; display: block;">Total Activos en Sistema</span>
+        <span style="font-size: 42px; font-weight: bold;">{{ total_activos }}</span>
+    </div>
+
+    <h3 style="color: #2d3748; border-left: 4px solid #D32F2F; padding-left: 10px; margin-top: 30px;">Puntos de Control Críticos (ADR)</h3>
+    <p style="font-size: 13px; color: #718096; margin-bottom: 15px;">Estado de equipos en las ubicaciones estratégicas de la sede.</p>
+    
+    <table width="100%" style="border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
+        <thead>
+            <tr style="background-color: #f7fafc; color: #4a5568; text-transform: uppercase; font-size: 11px;">
+                <th align="left" style="padding: 10px; border-bottom: 2px solid #edf2f7;">Ubicación</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7; color: #38a169;">Operativos</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7; color: #d69e2e;">Dañados</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7; color: #718096;">De Baja</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ubi in resumen_ubicaciones %}
+            <tr>
+                <td style="padding: 12px 10px; border-bottom: 1px solid #edf2f7;">
+                    <strong>{{ ubi.nombre }}</strong>
+                </td>
+                <td align="center" style="padding: 12px 10px; border-bottom: 1px solid #edf2f7;">
+                    <span style="color: #38a169; font-weight: bold;">{{ ubi.total_operativos }}</span>
+                </td>
+                <td align="center" style="padding: 12px 10px; border-bottom: 1px solid #edf2f7;">
+                    <span style="color: #d69e2e; font-weight: bold;">{{ ubi.total_danados }}</span>
+                </td>
+                <td align="center" style="padding: 12px 10px; border-bottom: 1px solid #edf2f7;">
+                    <span style="color: #718096;">{{ ubi.total_baja }}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if alertas %}
+    <div style="background-color: #fff5f5; border-left: 4px solid #fc8181; padding: 15px; margin-bottom: 25px;">
+        <h4 style="color: #c53030; margin: 0 0 10px 0;">⚠️ ALERTAS DE PRÉSTAMO CRÍTICAS</h4>
+        <ul style="font-size: 13px; color: #742a2a; padding-left: 20px;">
+            {% for alerta in alertas %}
+                <li><strong>{{ alerta.item_prestado }}</strong> - {{ alerta.docente_nombre }} (Desde: {{ alerta.fecha_prestamo|date:"d/m" }})</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <h3 style="border-bottom: 2px solid #edf2f7; padding-bottom: 10px; color: #4a5568;">Resumen de Categorías</h3>
+    <table width="100%" style="border-collapse: collapse;">
+        {% for cat in categorias %}
+        {% if cat.total > 0 %}
+        <tr>
+            <td style="padding: 10px 0; border-bottom: 1px solid #edf2f7;">{{ cat.nombre }}</td>
+            <td align="right" style="font-weight: bold; color: #2d3748;">{{ cat.total }} uds.</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </table>
+{% endblock %}

@@ -17,9 +17,9 @@ from django.core.cache import cache
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm
 from .utils import _get_excel_val
-from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo
+from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
 
 
@@ -1310,8 +1310,6 @@ class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-
-
 class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Categoria
     form_class = CategoriaForm
@@ -1331,8 +1329,6 @@ class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudo crear la categoría. Revisa los errores en el formulario.')
         return super().form_invalid(form)
-
-
 
 
 class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
@@ -1356,8 +1352,6 @@ class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     def form_invalid(self, form):
         messages.error(self.request, 'No se pudieron guardar los cambios. Por favor, revisa el formulario.')
         return super().form_invalid(form)
-
-
 
 
 class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
@@ -1384,8 +1378,6 @@ class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         response = super().form_valid(form)
         messages.success(self.request, f'La categoría "{nombre_obj}" ha sido eliminada correctamente.')
         return response
-
-
 
 
 class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
@@ -1429,4 +1421,372 @@ class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
             'metricas_edificio': metricas_edificio,
             'catalogos': catalogos_relacionados,
         })
+        return context
+
+
+
+
+class ListaAreaAdministrativaView(ListView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/lista_areas.html'
+    context_object_name = 'areas'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = AreaAdministrativa.objects.annotate(
+            funcionarios_count=Count('funcionario')
+        ).order_by('nombre')
+        
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            # Busca coincidencias en nombre O en siglas
+            queryset = queryset.filter(
+                Q(nombre__icontains=search_query) | Q(siglas__icontains=search_query)
+            )
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_query = self.request.GET.get('search', '')
+        context['titulo_lista'] = "Áreas Administrativas"
+        context['search_query'] = search_query
+        context['query_string'] = f"&search={search_query}" if search_query else ""
+        return context
+
+
+class CrearAreaAdministrativaView(CreateView):
+    model = AreaAdministrativa
+    form_class = AreaAdministrativaForm
+    template_name = 'inventario/pages/agregar_area.html'
+    success_url = reverse_lazy('lista_areas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nueva Área Administrativa"
+        return context
+
+    def form_valid(self, form):
+        # Normalizamos la sigla a mayúsculas antes de guardar
+        if form.instance.sigla:
+            form.instance.sigla = form.instance.sigla.strip().upper()
+        
+        messages.success(self.request, f"Área '{form.instance.nombre}' creada correctamente.")
+        return super().form_valid(form)
+
+
+class EditarAreaAdministrativaView(UpdateView):
+    model = AreaAdministrativa
+    form_class = AreaAdministrativaForm
+    template_name = 'inventario/pages/editar_area.html'
+    success_url = reverse_lazy('lista_areas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Área Administrativa"
+        # Pasamos el objeto actual para mostrar el nombre antiguo en algún subtítulo
+        context['area'] = self.object 
+        return context
+
+    def form_valid(self, form):
+        # Mantenemos la normalización de la sigla en mayúsculas al editar
+        if form.instance.sigla:
+            form.instance.sigla = form.instance.sigla.strip().upper()
+        
+        messages.success(self.request, f"Área '{form.instance.nombre}' actualizada correctamente.")
+        return super().form_valid(form)
+
+
+class EliminarAreaAdministrativaView(DeleteView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/eliminar_area.html'
+    success_url = reverse_lazy('lista_areas')
+    context_object_name = 'area'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Área Administrativa"
+        
+        # Enviamos el conteo a la plantilla para adaptar la interfaz
+        context['cant_funcionarios'] = self.object.funcionario_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_funcionarios = self.object.funcionario_set.count()
+        
+        # Alerta de seguridad por si intentan saltarse la interfaz
+        if cant_funcionarios > 0:
+            messages.error(
+                request, 
+                f"No se puede eliminar '{self.object.nombre}' porque tiene {cant_funcionarios} funcionario(s) asociado(s)."
+            )
+            return redirect('lista_areas')
+        
+        # Si no tiene dependencias, procedemos con el flujo normal
+        nombre_area = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Área '{nombre_area}' eliminada con éxito.")
+        return response
+    
+
+class DetalleAreaAdministrativaView(DetailView):
+    model = AreaAdministrativa
+    template_name = 'inventario/pages/ver_area.html'
+    context_object_name = 'area'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_vista'] = "Detalle de Área Administrativa"
+        
+        # Recuperamos los funcionarios de esta área ordenados alfabéticamente
+        funcionarios = self.object.funcionario_set.select_related('cargo').order_by('nombre')
+        
+        context['funcionarios_asociados'] = funcionarios
+        context['cant_funcionarios'] = funcionarios.count()
+        return context
+
+
+
+
+class ListaCargoView(ListView):
+    model = Cargo
+    template_name = 'inventario/pages/lista_cargos.html'
+    context_object_name = 'cargos'
+    paginate_by = 20
+
+    def get_queryset(self):
+        # Cargos ordenados alfabéticamente por nombre de forma ascendente
+        queryset = Cargo.objects.annotate(
+            funcionarios_count=Count('funcionario')
+        ).order_by('nombre')
+        
+        # Filtro de búsqueda por nombre de cargo
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_query = self.request.GET.get('search', '')
+        
+        context['titulo_lista'] = "Cargos de Funcionarios"
+        context['search_query'] = search_query
+        context['query_string'] = f"&search={search_query}" if search_query else ""
+        return context
+
+
+class CrearCargoView(CreateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'inventario/pages/agregar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nuevo Cargo"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Cargo '{form.instance.nombre}' creado correctamente.")
+        return super().form_valid(form)
+
+
+class EditarCargoView(UpdateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'inventario/pages/editar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+    context_object_name = 'cargo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Cargo"
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Cargo '{form.instance.nombre}' actualizado correctamente.")
+        return super().form_valid(form)
+
+
+class EliminarCargoView(DeleteView):
+    model = Cargo
+    template_name = 'inventario/pages/eliminar_cargo.html'
+    success_url = reverse_lazy('lista_cargos')
+    context_object_name = 'cargo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Cargo"
+        # Contamos cuántos funcionarios tienen este cargo asignado
+        context['cant_funcionarios'] = self.object.funcionario_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_funcionarios = self.object.funcionario_set.count()
+        
+        # Si un usuario malintencionado intenta forzar el POST por consola teniendo dependencias:
+        if cant_funcionarios > 0:
+            messages.error(
+                request, 
+                f"No se puede eliminar el cargo '{self.object.nombre}' porque tiene {cant_funcionarios} funcionario(s) asociado(s)."
+            )
+            return redirect('lista_cargos')
+        
+        # Si está libre de funcionarios, procedemos con la eliminación estándar
+        nombre_cargo = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Cargo '{nombre_cargo}' eliminado con éxito.")
+        return response
+
+
+
+
+class ListaFuncionarioView(ListView):
+    model = Funcionario
+    template_name = 'inventario/pages/lista_funcionarios.html'
+    context_object_name = 'funcionarios'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Ordenamos los funcionarios alfabéticamente por nombre
+        queryset = Funcionario.objects.select_related('cargo', 'area').annotate(
+            activos_count=Count('activo')
+        ).order_by('nombre')
+        
+        # Captura de parámetros GET
+        search_query = self.request.GET.get('search', '')
+        area_filtrada = self.request.GET.get('area', '')
+        cargo_filtrado = self.request.GET.get('cargo', '')
+
+        # 1. Aplicar Búsqueda por Texto (Filtra por nombre del funcionario)
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+
+        # 2. Aplicar Filtro Avanzado por Área Administrativa
+        if area_filtrada:
+            queryset = queryset.filter(area_id=area_filtrada)
+
+        # 3. Aplicar Filtro Avanzado por Cargo
+        if cargo_filtrado:
+            queryset = queryset.filter(cargo_id=cargo_filtrado)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Datos estáticos para los dropdowns de los filtros
+        context['areas'] = AreaAdministrativa.objects.all().order_by('nombre')
+        context['cargos'] = Cargo.objects.all().order_by('nombre')
+        
+        # Mantener los estados de los filtros en la plantilla
+        context['titulo_lista'] = "Nómina de Funcionarios"
+        context['search_query'] = self.request.GET.get('search', '')
+        context['area_seleccionada'] = self.request.GET.get('area', '')
+        context['cargo_seleccionado'] = self.request.GET.get('cargo', '')
+        
+        # Reconstruir la query string para que la paginación no rompa los filtros
+        params = []
+        if context['search_query']: params.append(f"search={context['search_query']}")
+        if context['area_seleccionada']: params.append(f"area={context['area_seleccionada']}")
+        if context['cargo_seleccionado']: params.append(f"cargo={context['cargo_seleccionado']}")
+        
+        context['query_string'] = f"&{'&'.join(params)}" if params else ""
+        return context
+
+
+class CrearFuncionarioView(CreateView):
+    model = Funcionario
+    form_class = FuncionarioForm
+    template_name = 'inventario/pages/agregar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Nuevo Funcionario"
+        return context
+
+    def form_valid(self, form):
+        # Guardamos el objeto primero para que ejecute el clean() del modelo
+        response = super().form_valid(form)
+        # Notificamos con el nombre ya normalizado en mayúsculas
+        messages.success(self.request, f"Funcionario '{self.object.nombre}' registrado correctamente.")
+        return response
+
+
+
+
+class EditarFuncionarioView(UpdateView):
+    model = Funcionario
+    form_class = FuncionarioForm
+    template_name = 'inventario/pages/editar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Editar Funcionario"
+        return context
+
+    def form_valid(self, form):
+        # Al guardar, el método clean() del modelo se ejecuta automáticamente
+        response = super().form_valid(form)
+        messages.success(self.request, f"Datos de '{self.object.nombre}' actualizados correctamente.")
+        return response
+
+
+class EliminarFuncionarioView(DeleteView):
+    model = Funcionario
+    template_name = 'inventario/pages/eliminar_funcionario.html'
+    success_url = reverse_lazy('lista_funcionarios')
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = "Eliminar Funcionario"
+        # Contamos cuántos activos vigentes tiene asignados este funcionario
+        context['cant_activos'] = self.object.activo_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cant_activos = self.object.activo_set.count()
+        
+        # Guardaparques de backend en caso de solicitudes post maliciosas o concurrentes
+        if cant_activos > 0:
+            messages.error(
+                request, 
+                f"Operación denegada: '{self.object.nombre}' mantiene {cant_activos} activo(s) a su cargo."
+            )
+            return redirect('lista_funcionarios')
+        
+        nombre_funcionario = self.object.nombre
+        response = super().post(request, *args, **kwargs)
+        messages.success(request, f"Funcionario '{nombre_funcionario}' eliminado correctamente de la nómina.")
+        return response
+
+
+class DetalleFuncionarioView(DetailView):
+    model = Funcionario
+    template_name = 'inventario/pages/ver_funcionario.html'
+    context_object_name = 'funcionario'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_vista'] = "Ficha del Funcionario"
+        
+        # Optimizamos agregando 'catalogo__categoria' y 'catalogo__marca'
+        activos = self.object.activo_set.select_related(
+            'catalogo__categoria', 
+            'catalogo__marca', 
+            'estado', 
+            'ubicacion'
+        ).order_by('-created_at')
+        
+        context['activos_asignados'] = activos
+        context['cant_activos'] = activos.count()
         return context
