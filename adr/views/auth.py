@@ -88,4 +88,4 @@ class CustomPasswordResetView(PasswordResetView):
     def dispatch(self, request, *args, **kwargs):
         """Redirige a inicio con mensaje de éxito"""
         messages.success(request, "Tu contraseña fue cambiada correctamente.")
-        return redirect(reverse_lazy('inicio'))
+        return redirect(reverse_lazy('dashboard_inventario'))
