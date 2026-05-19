@@ -120,18 +120,6 @@ class IndexView(TemplateView):
 
 
 @add_group_name_to_context
-class ErrorView(TemplateView):
-    """Vista para mostrar errores"""
-    template_name = 'error.html'
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['error_image'] = os.path.join(settings.MEDIA_ROOT, 'error.png')
-        return context
-
-
-
-
-@add_group_name_to_context
 class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
     """Vista para agregar nuevos usuarios (solo ADR)"""
     model = User

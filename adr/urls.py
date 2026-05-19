@@ -2,8 +2,7 @@ from django.urls import path
 from django.contrib.auth.decorators import login_required
 from .views import (
     AddUserView, ProfileListView, ProfileUpdateView, ProfileDeleteView,
-    ProfilePasswordChangeView,
-    ErrorView, PrestamoListView, AddPrestamoView, DevolverPrestamoView
+    ProfilePasswordChangeView, PrestamoListView, AddPrestamoView, DevolverPrestamoView
 )
 
 from . import views
@@ -23,7 +22,6 @@ urlpatterns = [
     path("mi-perfil/", views.my_profile, name="my_profile"),
     path('profile_delete/<int:pk>/', login_required(ProfileDeleteView.as_view()), name='profile_delete'),
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
-    path('error/', ErrorView.as_view(), name="error"),
 
     # Gestión de Préstamos Diarios
     path('prestamos/', login_required(PrestamoListView.as_view()), name='prestamos'),
