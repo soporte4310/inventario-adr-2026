@@ -2,9 +2,8 @@ name: Reporte Diario ADR
 
 on:
   schedule:
-    # Se ejecuta a las 14:00 UTC (11:00 AM Chile Verano / 10:00 AM Chile Invierno)
-    # Todos los domingos (0)
-    - cron: '0 3 * * *'
+    # 04:00 UTC es la medianoche en Chile Continental (Horario de Invierno UTC-4)
+    - cron: '0 4 * * *'
   
   # Permite ejecutarlo manualmente desde la pestaña "Actions" para probar
   workflow_dispatch:
