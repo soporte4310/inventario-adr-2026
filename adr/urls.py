@@ -23,7 +23,7 @@ urlpatterns = [
     path('profile_delete/<int:pk>/', login_required(ProfileDeleteView.as_view()), name='profile_delete'),
     path("perfil/contraseña/cambiar/", UserPasswordChangeView.as_view(), name="password_change"),
 
-    # Gestión de Préstamos Diarios
+    # Gestión de Préstamos
     path('prestamos/', login_required(PrestamoListView.as_view()), name='prestamos'),
     path('add_prestamo/', login_required(AddPrestamoView.as_view()), name='add_prestamo'),
     path('prestamo/<int:pk>/devolver/', login_required(DevolverPrestamoView.as_view()), name='devolver_prestamo'),
