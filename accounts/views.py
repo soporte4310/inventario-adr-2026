@@ -1,90 +1,82 @@
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.views import LoginView
-from django.contrib.auth import get_user_model
+from django.contrib.auth.views import LoginView, PasswordChangeView
+from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
 
 from .forms import CustomAuthenticationForm
-from .models import LoginAttempt
+from .models import LoginAttempt, Profile
 from adr.decorators import add_group_name_to_context
 
 User = get_user_model()
 
 
-#class CustomLoginView(LoginView):
-#    authentication_form = CustomAuthenticationForm
-#    template_name = 'registration/login.html'
-#
-#    def form_invalid(self, form):
-#        username = form.cleaned_data.get('username')
-#        if username:
-#            try:
-#                user = User.objects.get(username=username)
-#                login_attempt, _ = LoginAttempt.objects.get_or_create(user=user)
-#
-#                if login_attempt.is_locked():
-#                    messages.error(self.request, "Tu cuenta está bloqueada. Inténtalo de nuevo más tarde.")
-#                    return super().form_invalid(form)
-#
-#                login_attempt.increment_failed_attempts()
-#
-#                if login_attempt.failed_attempts == 2:
-#                    subject = f"[Alerta] 2 intentos fallidos de {username}"
-#                    body = (
-#                        f"Usuario: {username}\n"
-#                        f"IP: {self.request.META.get('REMOTE_ADDR')}\n"
-#                        f"Hora: {timezone.localtime().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-#                        "Se han registrado 2 intentos fallidos de inicio de sesión."
-#                    )
-#                    send_mail(
-#                        subject,
-#                        body,
-#                        settings.DEFAULT_FROM_EMAIL,
-#                        getattr(settings, 'EMAIL_RECIPIENTS', []),
-#                        fail_silently=False,
-#                    )
-#                    messages.warning(
-#                        self.request,
-#                        "Contraseña incorrecta. Se ha enviado un aviso al equipo de seguridad."
-#                    )
-#
-#                if login_attempt.is_locked():
-#                    messages.error(
-#                        self.request,
-#                        "Demasiados intentos fallidos. Tu cuenta ha sido bloqueada por 5 minutos."
-#                    )
-#                elif login_attempt.failed_attempts == 1:
-#                    messages.error(self.request, "Contraseña incorrecta.")
-#
-#            except User.DoesNotExist:
-#                messages.error(self.request, "Usuario o contraseña incorrectos.")
-#            except Exception:
-#                messages.error(self.request, "Ocurrió un error durante el inicio de sesión.")
-#
-#        return super().form_invalid(form)
+@add_group_name_to_context
+class CustomLoginView(LoginView):
+    authentication_form = CustomAuthenticationForm
+    redirect_authenticated_user = True
+    
+    def form_invalid(self, form):
+        if form.non_field_errors():
+            for error in form.non_field_errors():
+                messages.error(self.request, error)
+        else:
+            messages.error(self.request, 'Usuario o contraseña incorrectos. Por favor, intente nuevamente.')
+            
+        return super().form_invalid(form)
+
+    def form_valid(self, form):
+        user = form.get_user()
+        
+        # Inicia la sesión formalmente en el navegador (creación de cookies de sesión)
+        login(self.request, user)
+        
+        profile = getattr(user, "profile", None)
+
+        # Si fue creado por la administración, lo forzamos a cambiar contraseña
+        if profile and profile.create_by_adr:
+            messages.warning(self.request, 'Bienvenido, debes cambiar tu contraseña ahora.')
+            return HttpResponseRedirect(reverse_lazy('profile_password_change'))
+
+        messages.success(self.request, 'Inicio de sesión exitoso.')
+        return HttpResponseRedirect(self.get_success_url())
 
 
 
 
 @add_group_name_to_context
-class CustomLoginView(LoginView):
-    redirect_authenticated_user = True
+class ProfilePasswordChangeView(LoginRequiredMixin, PasswordChangeView):
+    """Vista para cambio de contraseña de perfil"""
+    template_name = 'profiles/change_password.html'
+    success_url = reverse_lazy('home')
+
+    def get_context_data(self, **kwargs):
+        """Añade estado de cambio de contraseña al contexto"""
+        context = super().get_context_data(**kwargs)
+        context['password_changed'] = self.request.session.get('password_changed', False)
+        return context
+    
+    def form_valid(self, form):
+        """
+        Procesa el cambio de contraseña exitoso
+        - Actualiza el estado del perfil
+        - Establece mensajes de éxito
+        - Actualiza la sesión
+        """
+        profile = Profile.objects.get(user=self.request.user)
+        profile.create_by_adr = False
+        profile.save()
+
+        messages.success(self.request, 'Contraseña cambiada exitosamente')
+        update_session_auth_hash(self.request, form.user)
+        self.request.session['profile_password_changed'] = True
+        return super().form_valid(form)
     
     def form_invalid(self, form):
-        messages.error(self.request, 'Usuario o contraseña incorrectos. Por favor, intente nuevamente.')
+        """Manejo de formulario inválido con mensaje de error"""
+        messages.error(self.request, 'Las contraseñas no coinciden o no cumple el estándar de seguridad')
         return super().form_invalid(form)
-
-    def form_valid(self, form):
-        user = form.get_user()
-        profile = getattr(user, "profile", None)
-
-        if profile and profile.create_by_adr:
-            messages.warning(self.request, 'Bienvenido, debes cambiar tu contraseña ahora.')
-            return HttpResponseRedirect(reverse_lazy('profile_password_change'))
-
-        resp = super().form_valid(form)
-        messages.success(self.request, 'Inicio de sesión exitoso.')
-        return resp

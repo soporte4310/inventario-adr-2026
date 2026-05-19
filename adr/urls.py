@@ -12,9 +12,6 @@ from .views import UserPasswordChangeView
 
 
 urlpatterns = [
-    # Autenticación
-    path('password_change/', login_required(ProfilePasswordChangeView.as_view()), name="profile_password_change"),
-    
     # Gestión de Usuarios
     path('add_user/', login_required(AddUserView.as_view()), name="add_user"),
     path('profile_edit/<int:pk>/edit/', ProfileUpdateView.as_view(), name='profile_edit'),

@@ -1,9 +1,13 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from django.utils import timezone
-from .models import LoginAttempt
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.conf import settings
+
+from .models import LoginAttempt
+
 
 UserModel = get_user_model()
 
@@ -16,9 +20,6 @@ class CustomAuthenticationForm(AuthenticationForm):
             try:
                 user = UserModel._default_manager.get(username=username)
             except UserModel.DoesNotExist:
-                # No revelar si el usuario existe o no directamente
-                # Incrementar intento para un usuario 'fantasma' podría ser una opción,
-                # pero por simplicidad, solo lanzamos el error estándar.
                 raise ValidationError(
                     self.error_messages['invalid_login'],
                     code='invalid_login',
@@ -28,7 +29,7 @@ class CustomAuthenticationForm(AuthenticationForm):
             login_attempt, created = LoginAttempt.objects.get_or_create(user=user)
 
             if login_attempt.is_locked():
-                lockout_time_left = timezone.localtime(login_attempt.lockout_until) - timezone.localtime(timezone.now())
+                lockout_time_left = login_attempt.lockout_until - timezone.now()
                 minutes_left = int(lockout_time_left.total_seconds() // 60)
                 seconds_left = int(lockout_time_left.total_seconds() % 60)
                 
@@ -38,61 +39,57 @@ class CustomAuthenticationForm(AuthenticationForm):
                     code='account_locked',
                 )
 
-            if not self.user_cache.check_password(password):
+            user_autenticado = authenticate(username=username, password=password)
+
+            if user_autenticado is None:
                 login_attempt.increment_failed_attempts()
+                
+                # INTEGRACIÓN: Envío de correo electrónico al segundo intento fallido
+                if login_attempt.failed_attempts == 2:
+                    try:
+                        subject = f"[Alerta] 2 intentos fallidos de {username}"
+                        # Extraemos la IP del cliente usando el objeto request guardado nativamente por el formulario
+                        ip_address = self.request.META.get('REMOTE_ADDR') if self.request else 'Desconocida'
+                        body = (
+                            f"Usuario: {username}\n"
+                            f"IP: {ip_address}\n"
+                            f"Hora: {timezone.localtime().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            "Se han registrado 2 intentos fallidos de inicio de sesión."
+                        )
+                        send_mail(
+                            subject,
+                            body,
+                            settings.DEFAULT_FROM_EMAIL,
+                            getattr(settings, 'EMAIL_RECIPIENTS', []),
+                            fail_silently=False,
+                        )
+                    except Exception as email_err:
+                        # Evita que un fallo de configuración SMTP (ej. sin internet o credenciales de correo malas) 
+                        # rompa el flujo de la aplicación.
+                        print(f"[ERROR SMTP] No se pudo enviar el correo de alerta: {str(email_err)}")
+
                 if login_attempt.is_locked():
-                    # El bloqueo ocurrió en este intento
-                    lockout_time_left = timezone.localtime(login_attempt.lockout_until) - timezone.localtime(timezone.now())
+                    lockout_time_left = login_attempt.lockout_until - timezone.now()
                     minutes_left = int(lockout_time_left.total_seconds() // 60)
                     seconds_left = int(lockout_time_left.total_seconds() % 60)
                     raise ValidationError(
-                        f"Credenciales incorrectas. Su cuenta ha sido bloqueada temporalmente. "
-                        f"Por favor, inténtelo de nuevo en {minutes_left} minutos y {seconds_left} segundos.",
+                        f"Credenciales incorrectas. Su cuenta ha sido bloqueada temporalmente por 5 minutos.",
                         code='account_locked_now',
                     )
                 else:
-                    # Aún no está bloqueado, pero el intento falló
                     remaining_attempts = 3 - login_attempt.failed_attempts
-                    if remaining_attempts > 0:
+                    if login_attempt.failed_attempts == 2:
+                        raise ValidationError(
+                            "Contraseña incorrecta. Se ha enviado un aviso al equipo de seguridad. Le queda 1 intento.",
+                            code='invalid_login_warning_email',
+                        )
+                    else:
                         raise ValidationError(
                             f"Credenciales incorrectas. Le quedan {remaining_attempts} intentos.",
                             code='invalid_login_attempts_left',
                         )
-                    else: # Esto no debería ocurrir si is_locked() funciona bien arriba
-                         raise ValidationError(
-                            self.error_messages['invalid_login'],
-                            code='invalid_login',
-                            params={'username': self.username_field.verbose_name},
-                        )
             else:
-                # Inicio de sesión exitoso
                 login_attempt.reset_attempts()
+                self.user_cache = user_autenticado
         
         return self.cleaned_data
-
-# # # forms.py
-#
-# # from django import forms
-# # from django.contrib.auth.models import User
-# # from accounts.models import Profile
-#
-# # class UserForm(forms.ModelForm):
-# #     """Formulario para actualización de datos básicos del usuario"""
-# #     class Meta:
-# #         model = User
-# #         fields = ['username', 'first_name', 'last_name', 'email']
-# #         widgets = {
-# #             'username': forms.TextInput(attrs={'class': 'w-full p-2 rounded bg-white', 'readonly': 'readonly'}),
-# #             'first_name': forms.TextInput(attrs={'class': 'w-full p-2 rounded bg-white'}),
-# #             'last_name': forms.TextInput(attrs={'class': 'w-full p-2 rounded bg-white'}),
-# #             'email': forms.EmailInput(attrs={'class': 'w-full p-2 rounded bg-white'}),
-# #         }
-#
-# # class ProfileForm(forms.ModelForm):
-# #     """Formulario para el perfil de usuario"""
-# #     class Meta:
-# #         model = Profile
-# #         fields = ['image']
-# #         widgets = {
-# #             'image': forms.FileInput(attrs={'class': 'w-full p-2 rounded bg-white'}),
-# #         }
