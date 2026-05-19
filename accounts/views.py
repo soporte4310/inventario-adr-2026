@@ -52,7 +52,7 @@ class CustomLoginView(LoginView):
 class ProfilePasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     """Vista para cambio de contraseña de perfil"""
     template_name = 'profiles/change_password.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('dashboard_inventario')
 
     def get_context_data(self, **kwargs):
         """Añade estado de cambio de contraseña al contexto"""

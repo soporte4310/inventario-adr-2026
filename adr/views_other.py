@@ -105,14 +105,6 @@ class UserPasswordChangeView(LoginRequiredMixin, SuccessMessageMixin, PasswordCh
 
 
 # -------- VISTAS DE AUTENTICACIÓN Y PERFILES --------
-
-@add_group_name_to_context
-class Login(LoginView):
-    """Vista de inicio de sesión"""
-    template_name = 'index.html'
-    form_class = LoginForm
-    success_url = reverse_lazy('home')
-
 @add_group_name_to_context
 class IndexView(TemplateView):
     """Vista de la página principal"""
@@ -468,43 +460,6 @@ class ProfileDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def post(self, request, *args, **kwargs):
         # El botón del template hace POST, así que delegamos en delete()
         return self.delete(request, *args, **kwargs)
-
-
-
-
-
-@add_group_name_to_context
-class ProfilePasswordChangeView(PasswordChangeView):
-    """Vista para cambio de contraseña de perfil"""
-    template_name = 'profiles/change_password.html'
-    success_url = reverse_lazy('home')
-
-    def get_context_data(self, **kwargs):
-        """Añade estado de cambio de contraseña al contexto"""
-        context = super().get_context_data(**kwargs)
-        context['password_changed'] = self.request.session.get('password_changed', False)
-        return context
-    
-    def form_valid(self, form):
-        """
-        Procesa el cambio de contraseña exitoso
-        - Actualiza el estado del perfil
-        - Establece mensajes de éxito
-        - Actualiza la sesión
-        """
-        profile = Profile.objects.get(user=self.request.user)
-        profile.create_by_adr = False
-        profile.save()
-
-        messages.success(self.request, 'Contraseña cambiada exitosamente')
-        update_session_auth_hash(self.request, form.user)
-        self.request.session['profile_password_changed'] = True
-        return super().form_valid(form)
-    
-    def form_invalid(self, form):
-        """Manejo de formulario inválido con mensaje de error"""
-        messages.error(self.request, 'Las contraseñas no coinciden o no cumple el estándar de seguridad')
-        return super().form_invalid(form)
 
 
 
