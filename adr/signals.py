@@ -1,67 +1,13 @@
 # adr/signals.py
-from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from adr.models import (
-    HistorialCambios, AllInOne, Notebook, MiniPC, Proyectores,
-    BodegaADR, Azotea, AllInOneAdmins, EquiposIsla, SwitchDeRed,
-    Monitor, Audio, Tablet, Televisor,
-)
-from accounts.models import Profile
-from adr.middleware import get_current_user
 
 from django.conf import settings
-from django.core.mail import send_mail
 from django.contrib.auth.signals import user_login_failed, user_logged_in
 from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.dispatch import receiver
-
-
-# ---------------------------------------------------------------------
-# 1) HISTORIAL DE CAMBIOS
-# ---------------------------------------------------------------------
-@receiver(pre_save, sender=AllInOne)
-@receiver(pre_save, sender=AllInOneAdmins)
-@receiver(pre_save, sender=Notebook)
-@receiver(pre_save, sender=MiniPC)
-@receiver(pre_save, sender=Proyectores)
-@receiver(pre_save, sender=BodegaADR)
-@receiver(pre_save, sender=Azotea)
-@receiver(pre_save, sender=EquiposIsla)
-@receiver(pre_save, sender=SwitchDeRed)
-@receiver(pre_save, sender=Monitor)
-@receiver(pre_save, sender=Audio)
-@receiver(pre_save, sender=Tablet)
-@receiver(pre_save, sender=Televisor)
-def registrar_cambios(sender, instance, **kwargs):
-    try:
-        original_instance = sender.objects.get(pk=instance.pk)
-
-        for field in instance._meta.fields:
-            field_name = field.name
-            old_value = getattr(original_instance, field_name, None)
-            new_value = getattr(instance, field_name, None)
-
-            if old_value != new_value:
-                HistorialCambios.objects.create(
-                    modelo=sender.__name__,
-                    objeto_id=instance.pk,
-                    usuario=get_current_user(),
-                    campo_modificado=field.verbose_name,
-                    valor_anterior=old_value if old_value is not None else "N/A",
-                    valor_nuevo=new_value if new_value is not None else "N/A",
-                )
-    except sender.DoesNotExist:
-        HistorialCambios.objects.create(
-            modelo=sender.__name__,
-            objeto_id=instance.pk,
-            usuario=get_current_user(),
-            campo_modificado="Creación",
-            valor_anterior="N/A",
-            valor_nuevo=str(instance),
-        )
 
 # ---------------------------------------------------------------------
 # 2) ALERTA Y BLOQUEO EN LOGIN
