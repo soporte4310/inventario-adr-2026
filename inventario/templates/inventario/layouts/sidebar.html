@@ -40,6 +40,7 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
+                <a href="{% url 'lista_activos' %}">Ver todo</a>
                 <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ACA">AIO Académico</a>
                 <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ADM">AIO Administrativo</a>
                 <a href="{% url 'lista_activos' %}?tipo_red=ISLA">Equipos Isla</a>
@@ -59,8 +60,12 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
-                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR">Bodega ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Auditorio">Auditorio</a>
                 <a href="{% url 'lista_activos' %}?ubicacion_nombre=Azotea">Azotea</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR">Bodega ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega Central">Bodega Central</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Oficina ADR">Oficina ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega Patio ADR">Patio</a>
             </div>
         </details>
 
