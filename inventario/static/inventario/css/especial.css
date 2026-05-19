@@ -7,10 +7,9 @@
 .role-badge-xs {
     font-size: 12px; /* Tamaño mínimo legible */
     font-weight: 600;
-    padding: 0px 6px;
+    padding: 3px 6px;
     border-radius: 5px;
     color: white;
-    text-transform: uppercase;
     letter-spacing: 0.3px;
     display: inline-block;
     line-height: 12px; /* Controla la altura total del badge */
