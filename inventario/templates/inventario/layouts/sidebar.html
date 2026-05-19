@@ -16,7 +16,7 @@
             
             <a href="{% url 'prestamos' %}" class="nav-link {% if 'prestamos' in request.path %}active{% endif %}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-                <span>Préstamos Diarios</span>
+                <span>Préstamos</span>
             </a>
         </div>
 
@@ -65,7 +65,7 @@
         </details>
 
         {% if group_name_singular != 'Alumno en Práctica' %}
-        <details class="nav-dropdown" {% if 'catalogos' in request.path or 'categorias' in request.path %}open{% endif %}>
+        <details class="nav-dropdown" {% if 'catalogos' in request.path or 'categorias' in request.path or 'areas' in request.path or 'cargos' in request.path or 'funcionarios' in request.path %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -76,10 +76,32 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
-                <a href="{% url 'lista_catalogos' %}" class="{% if 'catalogos' in request.path %}active{% endif %}">Catálogo de Productos</a>
+                <a href="{% url 'lista_catalogos' %}" class="{% if 'catalogos' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    Catálogo de Productos
+                </a>
+                
                 {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
-                <a href="{% url 'lista_categorias' %}" class="{% if 'categorias' in request.path %}active{% endif %}">Gestión de Categorías</a>
+                <a href="{% url 'lista_categorias' %}" class="{% if 'categorias' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    Categorías
+                </a>
                 {% endif %}
+
+                <a href="{% url 'lista_areas' %}" class="{% if 'areas' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="9" y1="16" x2="15" y2="16"/><line x1="15" y1="16" x2="15" y2="22"/></svg>
+                    Áreas Administrativas
+                </a>
+
+                <a href="{% url 'lista_cargos' %}" class="{% if 'cargos' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    Cargos
+                </a>
+
+                <a href="{% url 'lista_funcionarios' %}" class="{% if 'funcionarios' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Funcionarios
+                </a>
             </div>
         </details>
         {% endif %}
@@ -98,14 +120,4 @@
             </div>
         </details>
     </nav>
-
-    <div class="sidebar-footer">
-        <form method="POST" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit" class="logout-link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                <span>Cerrar Sesión</span>
-            </button>
-        </form>
-    </div>
 </aside>
