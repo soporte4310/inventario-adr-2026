@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView, PasswordChangeView
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.mail import send_mail
 from django.db import transaction
@@ -22,6 +23,7 @@ from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from django.views.generic import ListView, TemplateView, DetailView, View
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.utils.crypto import get_random_string
 
 from accounts.models import Profile
 from adr.utils import enviar_notificacion_asunto
@@ -33,6 +35,7 @@ from .forms import (
 from .models import (
     Prestamo,
 )
+from .funciones import enviar_correo_activacion_nuevo_usuario
 
 
 @login_required
@@ -135,7 +138,7 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        """Crea el usuario, marca 'create_by_adr=True', asigna grupo y notifica"""
+        """Crea el usuario con una contraseña aleatoria inservible y le envía el correo de activación"""
         try:
             group_id = self.request.POST.get('group')
             if not group_id:
@@ -153,12 +156,11 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
                 user = form.save(commit=False)
                 user.first_name = form.cleaned_data.get('first_name', '')
                 user.last_name  = form.cleaned_data.get('last_name', '')
-                # Asegura setear una contraseña válida (viene de tu form password1)
-                raw_password = form.cleaned_data.get('password1', '')
-                user.set_password(raw_password)
+                
+                # Generamos una contraseña aleatoria larga e inútil para el admin.
+                # El usuario nunca la usará porque entrará directo por el token del correo.
+                user.set_password(get_random_string(32))
 
-                # (opcional) regla para is_staff según grupos
-                # ajusta a tu lógica real en lugar del id fijo '2'
                 if group.name in ['ADR', 'Operadores ADR']:
                     user.is_staff = True
 
@@ -168,39 +170,15 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
                 user.groups.clear()
                 user.groups.add(group)
 
-                # 3) Crear/actualizar Profile y marcar para cambio de password
+                # 3) Crear/actualizar Profile (Aquí ya no necesitas obligatoriamente 'create_by_adr' 
+                # para forzar el cambio, ya que el flujo de reset lo hace por diseño)
                 profile, _ = Profile.objects.get_or_create(user=user)
-                profile.create_by_adr = True   # ← clave para forzar cambio al primer login
-                profile.save(update_fields=['create_by_adr'])
+                profile.create_by_adr = False # O lo que dicte tu lógica de auditoría
+                profile.save()
 
-            # 4) Notificación por correo (opcional)
-            try:
-                from adr.email_template import notificacion_usuario
+                enviar_correo_activacion_nuevo_usuario(self.request, user)
 
-                ejecutor = self.request.user.get_full_name() or self.request.user.username
-                datos = [
-                    ('Nombre Completo', f'{user.first_name} {user.last_name}'.strip() or '-'),
-                    ('Nombre de Usuario', user.username),
-                    ('Grupo Asignado', group.name),
-                ]
-
-                html, plain = notificacion_usuario(
-                    accion='Creación — Nuevo Usuario Agregado',
-                    ejecutor_nombre=ejecutor,
-                    datos_usuario=datos,
-                )
-
-                enviar_notificacion_asunto(
-                    asunto='Nuevo Usuario Registrado en el Sistema',
-                    mensaje=plain,
-                    destinatarios=getattr(settings, 'EMAIL_RECIPIENTS', []),
-                    html_content=html,
-                )
-            except Exception as e:
-                # No detengas la creación por fallo de correo
-                messages.warning(self.request, f'Usuario creado, pero falló el envío de correo: {str(e)}')
-
-            messages.success(self.request, 'Usuario creado exitosamente.')
+            messages.success(self.request, 'Usuario creado exitosamente. Se ha enviado un correo para que establezca su contraseña.')
             return redirect(self.success_url)
 
         except Exception as e:

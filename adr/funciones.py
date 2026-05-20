@@ -1,5 +1,7 @@
 import re
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.conf import settings
+from django.contrib import messages
 
 # AQUÍ CREAREMOS DIFERENTES FUNCIONES QUE NOS VALIDEN CIERTOS ATRIBUTOS DE LOS MODELOS
 # VALIDAR LONGITUD DEL RUT Y EL DÍGITO VERIFICADOR
@@ -68,3 +70,48 @@ def filtrar_y_paginar(request, model_class, search_fields, paginate_by): # Cambi
     ubicaciones = queryset.values_list('ubicacion', flat=True).distinct()
     
     return page_obj, filter_ubicacion, ubicaciones
+
+
+def enviar_correo_activacion_nuevo_usuario(request, user):
+    try:
+        from django.core.mail import send_mail
+        from django.template.loader import render_to_string
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        from django.contrib.auth.tokens import default_token_generator
+        from django.contrib.sites.shortcuts import get_current_site
+
+        # Generamos los componentes seguros del token nativo de Django
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        current_site = get_current_site(request)
+                
+        # Contexto para las plantillas que ya tienes creadas
+        contexto_email = {
+            'email': user.email,
+            'domain': current_site.domain,
+            'site_name': current_site.name,
+            'uid': uid,
+            'user': user,
+            'token': token,
+            'protocol': 'https' if request.is_secure() else 'http',
+        }
+
+        # Cargamos tus plantillas existentes que están en 'templates/registration/'
+        asunto = render_to_string('registration/password_reset_subject.txt', contexto_email).strip()
+        cuerpo_txt = render_to_string('registration/password_reset_email.txt', contexto_email)
+        cuerpo_html = render_to_string('registration/password_reset_email.html', contexto_email)
+
+        # Enviamos el correo directamente usando el backend activo (Mailtrap o SendGrid)
+        send_mail(
+            subject=asunto,
+            message=cuerpo_txt,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'soporte4310@gmail.com'),
+            recipient_list=[user.email],
+            html_message=cuerpo_html,
+            fail_silently=False  # Cambiar a False ayuda a ver el error real si el SMTP falla
+        )
+
+    except Exception as e:
+        # Si hay un error real de conexión SMTP con Mailtrap, aquí sí lo atraparás en la consola
+        messages.warning(request, f'Usuario creado, pero falló el envío del correo de bienvenida: {str(e)}')
