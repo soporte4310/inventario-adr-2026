@@ -1292,7 +1292,7 @@ class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     template_name = 'inventario/pages/lista_categorias.html'
     context_object_name = 'categorias'
     paginate_by = 12  # Un grid de 3x4 o 4x3 funciona muy bien para imágenes
-    group_required = ['ADR', 'Operador ADR']
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         queryset = Categoria.objects.all().order_by('nombre')
@@ -1426,11 +1426,12 @@ class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 
 
 
-class ListaAreaAdministrativaView(ListView):
+class ListaAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/lista_areas.html'
     context_object_name = 'areas'
-    paginate_by = 10
+    paginate_by = 20
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         queryset = AreaAdministrativa.objects.annotate(
@@ -1455,11 +1456,12 @@ class ListaAreaAdministrativaView(ListView):
         return context
 
 
-class CrearAreaAdministrativaView(CreateView):
+class CrearAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = AreaAdministrativa
     form_class = AreaAdministrativaForm
     template_name = 'inventario/pages/agregar_area.html'
     success_url = reverse_lazy('lista_areas')
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1475,11 +1477,12 @@ class CrearAreaAdministrativaView(CreateView):
         return super().form_valid(form)
 
 
-class EditarAreaAdministrativaView(UpdateView):
+class EditarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     model = AreaAdministrativa
     form_class = AreaAdministrativaForm
     template_name = 'inventario/pages/editar_area.html'
     success_url = reverse_lazy('lista_areas')
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1497,11 +1500,12 @@ class EditarAreaAdministrativaView(UpdateView):
         return super().form_valid(form)
 
 
-class EliminarAreaAdministrativaView(DeleteView):
+class EliminarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/eliminar_area.html'
     success_url = reverse_lazy('lista_areas')
     context_object_name = 'area'
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1530,10 +1534,11 @@ class EliminarAreaAdministrativaView(DeleteView):
         return response
     
 
-class DetalleAreaAdministrativaView(DetailView):
+class DetalleAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/ver_area.html'
     context_object_name = 'area'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1549,11 +1554,12 @@ class DetalleAreaAdministrativaView(DetailView):
 
 
 
-class ListaCargoView(ListView):
+class ListaCargoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Cargo
     template_name = 'inventario/pages/lista_cargos.html'
     context_object_name = 'cargos'
     paginate_by = 20
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         # Cargos ordenados alfabéticamente por nombre de forma ascendente
@@ -1578,11 +1584,12 @@ class ListaCargoView(ListView):
         return context
 
 
-class CrearCargoView(CreateView):
+class CrearCargoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Cargo
     form_class = CargoForm
     template_name = 'inventario/pages/agregar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1594,12 +1601,13 @@ class CrearCargoView(CreateView):
         return super().form_valid(form)
 
 
-class EditarCargoView(UpdateView):
+class EditarCargoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     model = Cargo
     form_class = CargoForm
     template_name = 'inventario/pages/editar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
     context_object_name = 'cargo'
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1611,11 +1619,12 @@ class EditarCargoView(UpdateView):
         return super().form_valid(form)
 
 
-class EliminarCargoView(DeleteView):
+class EliminarCargoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     model = Cargo
     template_name = 'inventario/pages/eliminar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
     context_object_name = 'cargo'
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1645,11 +1654,12 @@ class EliminarCargoView(DeleteView):
 
 
 
-class ListaFuncionarioView(ListView):
+class ListaFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     model = Funcionario
     template_name = 'inventario/pages/lista_funcionarios.html'
     context_object_name = 'funcionarios'
     paginate_by = 10
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_queryset(self):
         # Ordenamos los funcionarios alfabéticamente por nombre
@@ -1699,11 +1709,12 @@ class ListaFuncionarioView(ListView):
         return context
 
 
-class CrearFuncionarioView(CreateView):
+class CrearFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
     model = Funcionario
     form_class = FuncionarioForm
     template_name = 'inventario/pages/agregar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1720,12 +1731,13 @@ class CrearFuncionarioView(CreateView):
 
 
 
-class EditarFuncionarioView(UpdateView):
+class EditarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     model = Funcionario
     form_class = FuncionarioForm
     template_name = 'inventario/pages/editar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
     context_object_name = 'funcionario'
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1739,11 +1751,12 @@ class EditarFuncionarioView(UpdateView):
         return response
 
 
-class EliminarFuncionarioView(DeleteView):
+class EliminarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     model = Funcionario
     template_name = 'inventario/pages/eliminar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
     context_object_name = 'funcionario'
+    group_required = ['ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1770,10 +1783,11 @@ class EliminarFuncionarioView(DeleteView):
         return response
 
 
-class DetalleFuncionarioView(DetailView):
+class DetalleFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
     model = Funcionario
     template_name = 'inventario/pages/ver_funcionario.html'
     context_object_name = 'funcionario'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
