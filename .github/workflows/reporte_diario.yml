@@ -2,8 +2,9 @@ name: Reporte Diario ADR
 
 on:
   schedule:
-    # 04:00 UTC es la medianoche en Chile Continental (Horario de Invierno UTC-4)
-    - cron: '0 4 * * *'
+    # HORARIO DE INVIERNO (Mayo a Agosto -> UTC-4): 
+    # Apunta a las 03:52 UTC (23:52 PM en Chile).
+    - cron: '52 3 * 5,6,7,8'
   
   # Permite ejecutarlo manualmente desde la pestaña "Actions" para probar
   workflow_dispatch:
