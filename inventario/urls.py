@@ -53,7 +53,8 @@ from .views import (
     ListaUbicacionesView,
     CrearUbicacionView,
     EditarUbicacionView,
-    DetalleUbicacionView
+    DetalleUbicacionView,
+    EliminarUbicacionView
 )
 
 
@@ -118,7 +119,7 @@ urlpatterns = [
     path('ubicaciones/nuevo/', CrearUbicacionView.as_view(), name='agregar_ubicacion'),
     path('ubicaciones/<int:pk>/', DetalleUbicacionView.as_view(), name='ver_ubicacion'),
     path('ubicaciones/<int:pk>/editar/', EditarUbicacionView.as_view(), name='editar_ubicacion'),
-    path('ubicaciones/<int:pk>/eliminar/', ListaUbicacionesView.as_view(), name='eliminar_ubicacion'),
+    path('ubicaciones/<int:pk>/eliminar/', EliminarUbicacionView.as_view(), name='eliminar_ubicacion'),
 ]
 
 

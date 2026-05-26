@@ -1922,3 +1922,33 @@ class DetalleUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
         ).order_by('-id')
         
         return context
+
+
+class EliminarUbicacionView(DeleteView):
+    model = Ubicacion
+    template_name = 'inventario/pages/eliminar_ubicacion.html'
+    success_url = reverse_lazy('lista_ubicaciones')
+
+    # En Django moderno, se debe sobreescribir form_valid en lugar de delete
+    def form_valid(self, form):
+        # self.object ya viene cargado con la ubicación a eliminar
+        
+        # Validación de seguridad en el backend
+        if self.object.activo_set.exists():
+            messages.error(
+                self.request, 
+                f"Operación cancelada: No se puede eliminar '{self.object.nombre}' porque tiene equipos tecnológicos asignados."
+            )
+            return HttpResponseRedirect(self.success_url)
+        
+        # Guardamos el nombre antes de borrar para poder mostrarlo en el SweetAlert
+        nombre_ubicacion = self.object.nombre
+        
+        # Eliminamos el registro físicamente
+        self.object.delete()
+        
+        # Generamos el mensaje de éxito
+        messages.success(self.request, f"La ubicación '{nombre_ubicacion}' fue eliminada correctamente.")
+        
+        # Redirigimos a la lista
+        return HttpResponseRedirect(self.get_success_url())
