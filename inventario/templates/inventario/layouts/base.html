@@ -56,41 +56,41 @@
 
   <!-- Manejo de mensajes con SweetAlert -->
   {% if messages %}
-  {% for message in messages %}
-  {% if message.tags == 'success' %}
-  <script>
-    Swal.fire({
-      title: "¡Excelente!",
-      text: "{{ message }}",
-      icon: "success",
-    });
-  </script>
-  {% elif message.tags == 'error' %}
-  <script>
-    Swal.fire({
-      title: "Error",
-      text: "{{ message }}",
-      icon: "error",
-    });
-  </script>
-  {% elif message.tags == 'warning' %}
-  <script>
-    Swal.fire({
-      title: "Advertencia",
-      text: "{{ message }}",
-      icon: "warning",
-    });
-  </script>
-  {% elif message.tags == 'info' %}
-  <script>
-    Swal.fire({
-      title: "Información",
-      text: "{{ message }}",
-      icon: "info",
-    });
-  </script>
-  {% endif %}
-  {% endfor %}
+      {% for message in messages %}
+          {% if message.tags == 'success' %}
+          <script>
+            Swal.fire({
+              title: "¡Excelente!",
+              text: "{{ message|escapejs }}",
+              icon: "success",
+            });
+          </script>
+          {% elif message.tags == 'error' or message.tags == 'danger' %}
+          <script>
+            Swal.fire({
+              title: "Error",
+              text: "{{ message|escapejs }}",
+              icon: "error",
+            });
+          </script>
+          {% elif message.tags == 'warning' %}
+          <script>
+            Swal.fire({
+              title: "Advertencia",
+              text: "{{ message|escapejs }}",
+              icon: "warning",
+            });
+          </script>
+          {% else %}
+          <script>
+            Swal.fire({
+              title: "Información",
+              text: "{{ message|escapejs }}",
+              icon: "info",
+            });
+          </script>
+          {% endif %}
+      {% endfor %}
   {% endif %}
 
 </body>
