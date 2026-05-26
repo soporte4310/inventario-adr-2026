@@ -51,6 +51,7 @@ from .views import (
     DetalleFuncionarioView,
 
     ListaUbicacionesView,
+    CrearUbicacionView
 )
 
 
@@ -112,7 +113,7 @@ urlpatterns = [
 
     # Ubicaciones
     path('ubicaciones/', ListaUbicacionesView.as_view(), name='lista_ubicaciones'),
-    path('ubicaciones/nuevo/', ListaUbicacionesView.as_view(), name='agregar_ubicacion'),
+    path('ubicaciones/nuevo/', CrearUbicacionView.as_view(), name='agregar_ubicacion'),
     path('ubicaciones/<int:pk>/', ListaUbicacionesView.as_view(), name='ver_ubicacion'),
     path('ubicaciones/<int:pk>/editar/', ListaUbicacionesView.as_view(), name='editar_ubicacion'),
     path('ubicaciones/<int:pk>/eliminar/', ListaUbicacionesView.as_view(), name='eliminar_ubicacion'),

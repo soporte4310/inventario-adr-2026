@@ -1868,3 +1868,17 @@ class ListaUbicacionesView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
             
         return context
+
+
+class CrearUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageMixin,  CreateView):
+    model = Ubicacion
+    form_class = UbicacionForm
+    template_name = 'inventario/pages/agregar_ubicacion.html'
+    success_url = reverse_lazy('lista_ubicaciones')
+    success_message = "La ubicación '%(nombre)s' fue registrada exitosamente."
+    group_required = ['ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = 'Nueva Ubicación'
+        return context

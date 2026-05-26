@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
+from .models import Activo, Piso, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
 from common.mixins import ImageProcessingFormMixin
 
 
@@ -238,3 +238,35 @@ class FuncionarioForm(forms.ModelForm):
                 'class': 'form-select form-select-sm',
             }),
         }
+
+
+
+
+class UbicacionForm(forms.ModelForm):
+    class Meta:
+        model = Ubicacion
+        fields = ['nombre', 'piso', 'descripcion', 'imagen']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control shadow-none',
+                'placeholder': 'Ej: Sala 204, Laboratorio de Computación, Bodega Central'
+            }),
+            'piso': forms.Select(attrs={
+                'class': 'form-select shadow-none'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control shadow-none',
+                'placeholder': 'Ingrese detalles u observaciones adicionales sobre este espacio físico...',
+                'rows': 3
+            }),
+            'imagen': forms.ClearableFileInput(attrs={
+                'class': 'form-control shadow-none'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Optimizamos el query de selección de pisos trayendo sus edificios correspondientes
+        # para evitar consultas redundantes en el desplegable
+        self.fields['piso'].queryset = Piso.objects.select_related('edificio').order_by('edificio__nombre', 'nombre')
+        self.fields['piso'].empty_label = "--- Seleccione un Piso / Nivel ---"
