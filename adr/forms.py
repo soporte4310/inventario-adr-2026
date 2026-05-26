@@ -204,7 +204,7 @@ class PrestamoForm(forms.ModelForm):
             }),
             'sala': forms.TextInput(attrs={
                 'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
-                'placeholder': 'Ej. Sala 205'
+                'placeholder': 'Ej. 601c'
             }),
             'item_prestado': forms.Select(attrs={
                 'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-white'

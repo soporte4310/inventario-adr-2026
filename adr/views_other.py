@@ -449,20 +449,22 @@ class PrestamoListView(ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Optimizamos con select_related para traer los datos del usuario en una sola consulta
+        queryset = super().get_queryset().select_related('creado_por')
         
         # Filtro por estado
         estado = self.request.GET.get('estado')
         if estado:
             queryset = queryset.filter(estado=estado)
             
-        # Búsqueda por texto (Nombre o RUT o Sala)
+        # Búsqueda por texto (Nombre, RUT, Sala o Tipo de Objeto Prestado)
         query = self.request.GET.get('q')
         if query:
             queryset = queryset.filter(
                 Q(docente_nombre__icontains=query) |
                 Q(docente_rut__icontains=query) |
-                Q(sala__icontains=query)
+                Q(sala__icontains=query) |
+                Q(item_prestado__icontains=query)  # <-- NUEVA MEJORA: Filtro por objeto prestado
             )
             
         return queryset

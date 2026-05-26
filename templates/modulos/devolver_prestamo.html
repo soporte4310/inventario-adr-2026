@@ -1,83 +1,82 @@
 {% extends 'inventario/layouts/base.html' %}
-{% block title %}Devolver Ítem{% endblock %}
+{% load static %}
+
+{% block title %}Devolver Préstamo{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-6 col-lg-8">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4 p-md-5">
+                    
+                    <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+                        <div class="bg-info text-white rounded p-3 me-3 shadow-sm">
+                            <i class="fas fa-undo-alt fa-2x"></i>
+                        </div>
+                        <div>
+                            <h2 class="h3 mb-1 font-weight-bold text-dark">Registrar Devolución</h2>
+                            <p class="text-muted small mb-0">Confirmación de retorno del accesorio a soporte ADR.</p>
+                        </div>
+                    </div>
 
-        <div class="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-5 flex items-center gap-3">
-            <i data-lucide="corner-down-left" class="w-7 h-7 text-white"></i>
-            <div>
-                <h2 class="text-xl font-bold text-white">Recibir Ítem Prestado</h2>
-                <p class="text-amber-100 text-sm mt-0.5">Proceso de revisión y devolución al pañol ADR</p>
+                    <div class="bg-light p-3 rounded border mb-4">
+                        <h6 class="font-weight-bold text-dark mb-3"><i class="fas fa-info-circle me-1"></i> Resumen del Préstamo Activo</h6>
+                        <div class="row small">
+                            <div class="col-sm-6 mb-2">
+                                <span class="text-muted d-block">Ítem Prestado:</span>
+                                <span class="font-weight-bold text-primary">{{ object.item_prestado }}</span>
+                            </div>
+                            <div class="col-sm-6 mb-2">
+                                <span class="text-muted d-block">Funcionario:</span>
+                                <span class="font-weight-bold">{{ object.docente_nombre }}</span>
+                            </div>
+                            <div class="col-sm-6 mb-2">
+                                <span class="text-muted d-block">Ubicación:</span>
+                                <span class="font-weight-bold">{{ object.sala }}</span>
+                            </div>
+                            <div class="col-sm-6 mb-2">
+                                <span class="text-muted d-block">Fecha de Entrega original:</span>
+                                <span class="font-weight-bold">{{ object.fecha_prestamo|date:"d/m/Y H:i" }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="form-group mb-4">
+                            <label class="form-label font-weight-bold text-secondary small text-uppercase">Observaciones al Devolver</label>
+                            <p class="text-muted small mb-2">Indique si el equipo presenta algún daño, o si se devuelve en perfectas condiciones.</p>
+                            {{ form.observaciones }}
+                            {% if form.observaciones.errors %}<div class="text-danger small mt-1">{{ form.observaciones.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                            <a href="{% url 'prestamos' %}" class="btn btn-light border px-4">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-info px-4 shadow-sm font-weight-bold text-white">
+                                <i class="fas fa-check-circle me-1"></i> Confirmar Devolución
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
-
-        <div class="p-8">
-            <div class="mb-8 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                <div class="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="info" class="w-4 h-4"></i> Información del Préstamo Activo
-                    </h3>
-                </div>
-                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-white rounded-lg border border-gray-200 shadow-sm"><i data-lucide="user" class="w-5 h-5 text-gray-500"></i></div>
-                        <div>
-                            <p class="text-xs text-gray-500 font-semibold uppercase">Docente / Funcionario</p>
-                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ object.docente_nombre }}</p>
-                            <p class="text-xs text-gray-500">{{ object.docente_rut }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-white rounded-lg border border-gray-200 shadow-sm"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i></div>
-                        <div>
-                            <p class="text-xs text-gray-500 font-semibold uppercase">Ubicación Destino</p>
-                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ object.sala }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-white rounded-lg border border-gray-200 shadow-sm"><i data-lucide="monitor-speaker" class="w-5 h-5 text-red-500"></i></div>
-                        <div>
-                            <p class="text-xs text-gray-500 font-semibold uppercase">Accesorio</p>
-                            <p class="text-sm font-bold text-red-600 mt-0.5">{{ object.item_prestado }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-white rounded-lg border border-gray-200 shadow-sm"><i data-lucide="clock" class="w-5 h-5 text-gray-500"></i></div>
-                        <div>
-                            <p class="text-xs text-gray-500 font-semibold uppercase">Fecha de Salida</p>
-                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ object.fecha_prestamo|date:"d/m/Y" }}</p>
-                            <p class="text-xs text-gray-500">{{ object.fecha_prestamo|time:"H:i" }} hrs</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex gap-3 text-blue-800">
-                <i data-lucide="shield-alert" class="w-6 h-6 flex-shrink-0 text-blue-600"></i>
-                <p class="text-sm"><strong>Inspección visual:</strong> Por favor, verifica el estado físico del <strong>{{ object.item_prestado }}</strong> antes de ingresarlo al sistema.</p>
-            </div>
-
-            <form method="POST">
-                {% csrf_token %}
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Observaciones de la Devolución (Opcional)</label>
-                    <textarea name="observaciones" rows="3" class="form-control w-full p-3 rounded-lg border border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 text-sm" placeholder="Ej: Se devuelve con el cable ligeramente doblado, pero funcional..."></textarea>
-                    <p class="text-xs text-gray-500 mt-2">Detalla si el equipo volvió dañado, en mal estado o si todo se encuentra en orden.</p>
-                </div>
-
-                <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-100">
-                    <a href="{% url 'prestamos' %}" class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-all">
-                        Cancelar
-                    </a>
-                    <button type="submit" class="px-8 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md font-bold flex items-center gap-2 transform active:scale-95 transition-all">
-                        <i data-lucide="check-square" class="w-5 h-5"></i>
-                        Confirmar Devolución
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formElements = document.querySelectorAll('textarea, input[type="text"]');
+        formElements.forEach(el => {
+            el.classList.add('form-control');
+            if (el.tagName === 'TEXTAREA') {
+                el.setAttribute('rows', '4');
+                el.setAttribute('placeholder', 'Ej: Todo en orden.');
+            }
+        });
+    });
+</script>
 {% endblock %}
