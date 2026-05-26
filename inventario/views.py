@@ -1,23 +1,24 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.contrib import messages
+from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Q, Count, ProtectedError
 from django.views.generic import TemplateView, ListView, UpdateView, DetailView, CreateView, DeleteView, View
-from django.http import HttpResponse
-from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
+from django.http import HttpResponse, HttpResponseRedirect
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.datavalidation import DataValidation
-from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
-from django.core.cache import cache
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm
+from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm, UbicacionForm
 from .utils import _get_excel_val
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
@@ -1803,4 +1804,67 @@ class DetalleFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DetailView)
         
         context['activos_asignados'] = activos
         context['cant_activos'] = activos.count()
+        return context
+
+
+
+
+class ListaUbicacionesView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    model = Ubicacion
+    template_name = 'inventario/pages/lista_ubicaciones.html'
+    context_object_name = 'ubicaciones'
+    paginate_by = 20
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        # Usamos select_related para traer los datos del piso y del edificio en una sola consulta SQL
+        queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
+            activos_count=Count('activo')
+        )
+        
+        # 1. Obtener parámetros GET
+        search_query = self.request.GET.get('search', '')
+        edificio_id = self.request.GET.get('edificio', '')
+        piso_nombre = self.request.GET.get('piso', '')
+
+        # 2. Aplicar filtros dinámicamente
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+        
+        if edificio_id:
+            # Filtramos cruzando la relación hacia el edificio
+            queryset = queryset.filter(piso__edificio_id=edificio_id)
+            
+        if piso_nombre:
+            # Filtramos exactamente por el nombre del string del piso
+            queryset = queryset.filter(piso__nombre=piso_nombre)
+        
+        return queryset.order_by('-id')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_lista'] = 'Lista de Ubicaciones'
+        
+        # Guardar valores actuales para mantenerlos en el HTML (formularios y paginación)
+        search_query = self.request.GET.get('search', '')
+        edificio_id = self.request.GET.get('edificio', '')
+        piso_nombre = self.request.GET.get('piso', '')
+        
+        context['search_query'] = search_query
+        context['edificio_id'] = edificio_id
+        context['piso_nombre'] = piso_nombre
+        
+        # Listas para poblar los elementos <select> del filtro
+        context['edificios'] = Edificio.objects.all()
+        # Traemos solo los nombres de los pisos, descartamos los repetidos y los ordenamos
+        context['pisos'] = Piso.objects.values_list('nombre', flat=True).distinct().order_by('nombre')
+        
+        # Reconstruir query_string dinámicamente para la paginación
+        query_params = []
+        if search_query: query_params.append(f'search={search_query}')
+        if edificio_id: query_params.append(f'edificio={edificio_id}')
+        if piso_nombre: query_params.append(f'piso={piso_nombre}')
+        
+        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
+            
         return context
