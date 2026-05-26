@@ -1,0 +1,157 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_detalle }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="d-md-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-1 font-weight-bold text-dark">{{ ubicacion.nombre }}</h2>
+            <p class="text-muted small mb-0">Estructura física y activos tecnológicos asociados</p>
+        </div>
+        <div class="d-flex gap-2 mt-2 mt-md-0">
+            <a href="{% url 'lista_ubicaciones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <a href="{% url 'editar_ubicacion' ubicacion.id %}" class="btn btn-dark btn-sm px-3 shadow-sm">
+                <i class="fas fa-edit"></i> Editar Ubicación
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="card-title font-weight-bold text-dark mb-0">Ficha de Espacio Físico</h5>
+                </div>
+                
+                {% if ubicacion.imagen %}
+                    <div class="border-bottom text-center bg-light" style="max-height: 240px; overflow: hidden;">
+                        <img src="{{ ubicacion.imagen.url }}" alt="{{ ubicacion.nombre }}" class="img-fluid w-100" style="object-fit: cover; max-height: 240px;">
+                    </div>
+                {% else %}
+                    <div class="border-bottom text-center bg-light py-5 text-muted">
+                        <i class="fas fa-map-marked-alt fa-4x opacity-25"></i>
+                        <p class="small mt-2 mb-0">Sin imagen referencial registrada</p>
+                    </div>
+                {% endif %}
+
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label x-small text-uppercase text-muted fw-bold mb-1">Edificio</label>
+                        <div class="text-dark font-weight-bold">
+                            <i class="far fa-building text-secondary me-2"></i>{{ ubicacion.piso.edificio.nombre }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label x-small text-uppercase text-muted fw-bold mb-1">Piso / Nivel</label>
+                        <div>
+                            <span class="badge bg-light text-dark border font-weight-normal text-uppercase px-2 py-1.5">
+                                {{ ubicacion.piso.nombre }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label x-small text-uppercase text-muted fw-bold mb-1">Descripción / Observaciones</label>
+                        <div class="text-muted small">
+                            {{ ubicacion.descripcion|default:"No se han ingresado detalles adicionales para este espacio físico."|linebreaks }}
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-3 mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted fw-bold">Total Equipos en Sala:</span>
+                            <span class="badge bg-danger rounded-pill px-3 shadow-sm font-weight-bold">{{ activos.count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="card-title font-weight-bold text-dark mb-0">Equipos Físicos y Activos Registrados</h5>
+                </div>
+                <div class="card-body p-0">
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                            <thead class="bg-light text-secondary text-uppercase small">
+                                <tr>
+                                    <th style="width: 140px;" class="ps-4">Códigos / Placa</th>
+                                    <th>Descripción del Activo</th>
+                                    <th>Estado</th>
+                                    <th>Responsable</th>
+                                    <th class="text-center" style="width: 80px; padding-right: 1.5rem;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in activos %}
+                                <tr>
+                                    <td class="ps-4">
+                                        {% if item.bdo %}
+                                            <div class="small font-weight-bold text-dark" title="Número BDO">BDO: {{ item.bdo }}</div>
+                                        {% endif %}
+                                        {% if item.numero_serie %}
+                                            <div class="x-small text-muted" title="Número de Serie">S/N: {{ item.numero_serie }}</div>
+                                        {% endif %}
+                                        {% if item.etiqueta %}
+                                            <div class="x-small text-secondary" title="Etiqueta Interna">ETIQ: {{ item.etiqueta }}</div>
+                                        {% endif %}
+                                        {% if not item.bdo and not item.numero_serie and not item.etiqueta %}
+                                            <span class="text-muted x-small">Sin Códigos</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="font-weight-bold text-dark mb-0">
+                                            {{ item.catalogo.marca.nombre }} - {{ item.catalogo.modelo|default:"Genérico" }}
+                                        </div>
+                                        <div class="text-muted x-small text-uppercase">
+                                            {{ item.catalogo.categoria.nombre }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border font-weight-normal px-2">
+                                            {{ item.estado.nombre }}
+                                        </span>
+                                    </td>
+                                    <td class="small">
+                                        {% if item.asignado_a %}
+                                            <i class="far fa-user text-muted me-1"></i> {{ item.asignado_a.nombre }}
+                                        {% else %}
+                                            <span class="text-muted italic">No Asignado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <a href="{% url 'ver_activo' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle del equipo">
+                                            <i class="fas fa-eye text-dark"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <div class="py-4">
+                                            <i class="fas fa-box-open fa-3x mb-3 opacity-20"></i>
+                                            <p class="h6 text-secondary mb-1">No hay equipos físicos en este lugar</p>
+                                            <p class="small text-muted mb-0">Todos los activos vinculados a este espacio aparecerán listados aquí de forma automática.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

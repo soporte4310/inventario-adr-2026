@@ -1896,3 +1896,29 @@ class EditarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessage
         context = super().get_context_data(**kwargs)
         context['titulo_formulario'] = 'Editar Ubicación'
         return context
+
+
+class DetalleUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+    model = Ubicacion
+    template_name = 'inventario/pages/ver_ubicacion.html'
+    context_object_name = 'ubicacion'
+    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+
+    def get_queryset(self):
+        # Optimizamos la consulta de la ubicación trayendo el piso y el edificio de una sola vez
+        return super().get_queryset().select_related('piso', 'piso__edificio')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_detalle'] = 'Detalle de la Ubicación'
+        
+        # Obtenemos los activos asociados a esta ubicación específica.
+        # Al usar el manager por defecto, automáticamente omitimos los activos marcados como is_deleted.
+        context['activos'] = self.object.activo_set.select_related(
+            'catalogo__categoria',
+            'catalogo__marca',
+            'estado',
+            'asignado_a'
+        ).order_by('-id')
+        
+        return context
