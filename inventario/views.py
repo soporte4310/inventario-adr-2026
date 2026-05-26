@@ -1882,3 +1882,17 @@ class CrearUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageM
         context = super().get_context_data(**kwargs)
         context['titulo_formulario'] = 'Nueva Ubicación'
         return context
+
+
+class EditarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Ubicacion
+    form_class = UbicacionForm
+    template_name = 'inventario/pages/editar_ubicacion.html'
+    success_url = reverse_lazy('lista_ubicaciones')
+    success_message = "La ubicación '%(nombre)s' fue actualizada exitosamente."
+    group_required = ['ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = 'Editar Ubicación'
+        return context
