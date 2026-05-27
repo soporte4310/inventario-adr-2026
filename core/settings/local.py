@@ -1,6 +1,7 @@
 """
 Configuración para DESARROLLO LOCAL con MySQL y Mailtrap.
 """
+import sys
 from .base import *
 
 DEBUG = True
@@ -18,6 +19,14 @@ DATABASES = {
         'PORT': config('DB_PORT', default='3306'),
     }
 }
+# Si se corren los tests, la base de datos es SQLite
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # 2. Almacenamiento Local (Carpeta media/)
 STORAGES = {
