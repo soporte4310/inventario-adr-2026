@@ -30,11 +30,11 @@ STORAGES = {
 }
 
 # 3. Email (Mailtrap)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = config('MAILTRAP_HOST', default='sandbox.smtp.mailtrap.io')
 EMAIL_PORT = config('MAILTRAP_PORT', default=2525, cast=int)
-EMAIL_HOST_USER = config('MAILTRAP_USER')
-EMAIL_HOST_PASSWORD = config('MAILTRAP_PASSWORD')
+EMAIL_HOST_USER = config('MAILTRAP_USER', default='dummy_user_local')
+EMAIL_HOST_PASSWORD = config('MAILTRAP_PASSWORD', default='')
 EMAIL_USE_TLS = True
 
 EMAIL_RECIPIENTS = [

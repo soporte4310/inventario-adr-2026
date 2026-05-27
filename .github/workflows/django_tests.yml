@@ -28,5 +28,6 @@ jobs:
       env:
         DJANGO_SETTINGS_MODULE: core.settings.local
         SECRET_KEY: 'una-llave-secreta-temporal-para-tests'
+        EMAIL_BACKEND: 'django.core.mail.backends.locmem.EmailBackend'
       run: |
         python manage.py test
