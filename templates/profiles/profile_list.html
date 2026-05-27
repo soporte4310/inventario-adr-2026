@@ -65,9 +65,9 @@
           {% if p.profile.image and p.profile.image.name %}
             <img src="{{ p.profile.image.url }}" alt="{{ p.profile.user.username }}"
                  class="w-9 h-9 rounded-full object-cover ring-2 ring-white/40"
-                 onerror='this.onerror=null; this.src="{% get_media_prefix %}default.png"'>
+                 onerror='this.onerror=null; this.src="{% static 'imagenes/default_avatar.png' %}"'>
           {% else %}
-            <img src="{% get_media_prefix %}default.png" alt="{{ p.profile.user.username }}"
+            <img src="{% static 'imagenes/default_avatar.png' %}" alt="{{ p.profile.user.username }}"
                  class="w-9 h-9 rounded-full object-cover ring-2 ring-white/40">
           {% endif %}
 
@@ -125,9 +125,9 @@
               {% if r.profile.image and r.profile.image.name %}
                 <img src="{{ r.profile.image.url }}" alt="{{ r.profile.user.username }}"
                      class="w-9 h-9 object-cover rounded-full mx-auto ring-2 ring-white/40"
-                     onerror='this.onerror=null; this.src="{% get_media_prefix %}default.png"'>
+                     onerror='this.onerror=null; this.src="{% static 'imagenes/default_avatar.png' %}"'>
               {% else %}
-                <img src="{% get_media_prefix %}default.png" alt="{{ r.profile.user.username }}"
+                <img src="{% static 'imagenes/default_avatar.png' %}" alt="{{ r.profile.user.username }}"
                      class="w-9 h-9 object-cover rounded-full mx-auto ring-2 ring-white/40">
               {% endif %}
             </td>
