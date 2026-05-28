@@ -120,6 +120,104 @@
                     </div>
                 </div>
             </div>
+
+            <!-- NUEVA SECCIÓN 3: CONTROL DE ACTAS Y DOCUMENTACIÓN -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                        <i class="fas fa-folder-open mr-1 text-warning"></i> Control de Actas y Auditoría
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        
+                        <!-- PANEL: ACTA DE ENTREGA -->
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="p-3 border rounded bg-light d-flex flex-column h-100 justify-content-between shadow-sm">
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-file-pdf fa-2x text-danger mr-3"></i>
+                                        <div>
+                                            <h6 class="font-weight-bold text-dark mb-0">Acta de Entrega</h6>
+                                            <small class="text-muted">Asignación al funcionario</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        {% if activo.acta_entrega %}
+                                            <span class="badge bg-success text-white p-2" style="background-color: #28a745 !important;">
+                                                <i class="fas fa-check-circle mr-1"></i> Cargado en sistema
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary text-white p-2" style="background-color: #6c757d !important;">
+                                                <i class="fas fa-times-circle mr-1"></i> No registrado
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    {% if activo.acta_entrega %}
+                                        <div class="btn-group w-100">
+                                            <a href="{{ activo.acta_entrega.url }}" target="_blank" class="btn btn-sm btn-outline-primary font-weight-bold">
+                                                <i class="fas fa-eye mr-1"></i> Ver PDF
+                                            </a>
+                                            <a href="{{ activo.acta_entrega.url }}" download class="btn btn-sm btn-primary" title="Descargar copia">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-secondary w-100 font-weight-bold">
+                                            <i class="fas fa-upload mr-1"></i> Subir Documento
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL: ACTA DE DEVOLUCIÓN -->
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light d-flex flex-column h-100 justify-content-between shadow-sm">
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-file-pdf fa-2x text-danger mr-3"></i>
+                                        <div>
+                                            <h6 class="font-weight-bold text-dark mb-0">Acta de Devolución</h6>
+                                            <small class="text-muted">Retorno / Liberación de cargo</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        {% if activo.acta_devolucion %}
+                                            <span class="badge bg-success text-white p-2" style="background-color: #28a745 !important;">
+                                                <i class="fas fa-check-circle mr-1"></i> Cargado en sistema
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary text-white p-2" style="background-color: #6c757d !important;">
+                                                <i class="fas fa-times-circle mr-1"></i> No registrado
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    {% if activo.acta_devolucion %}
+                                        <div class="btn-group w-100">
+                                            <a href="{{ activo.acta_devolucion.url }}" target="_blank" class="btn btn-sm btn-outline-primary font-weight-bold">
+                                                <i class="fas fa-eye mr-1"></i> Ver PDF
+                                            </a>
+                                            <a href="{{ activo.acta_devolucion.url }}" download class="btn btn-sm btn-primary" title="Descargar copia">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-secondary w-100 font-weight-bold">
+                                            <i class="fas fa-upload mr-1"></i> Subir Documento
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- COLUMNA DERECHA -->
@@ -134,7 +232,6 @@
                 <div class="card-body">
                     {% if activo.ubicacion %}
                         {% if activo.ubicacion.imagen %}
-                            <!-- Si la ubicación tiene foto (ej. Foto de la Sala), la mostramos -->
                             <img src="{{ activo.ubicacion.imagen.url }}" alt="Foto Ubicación" class="img-fluid rounded mb-3 shadow-sm" style="max-height: 150px; width: 100%; object-fit: cover;">
                         {% endif %}
                         <h5 class="font-weight-bold text-dark mb-1">{{ activo.ubicacion.nombre }}</h5>
