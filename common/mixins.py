@@ -1,3 +1,4 @@
+import os
 import uuid
 from PIL import Image
 from .utils import procesar_imagen_en_memoria, generar_thumbnail_en_memoria, MAX_PIXELS, MAX_UPLOAD_SIZE_MB
@@ -75,3 +76,41 @@ class ImageProcessingFormMixin:
                     new_filename=small_name
                 )
                 setattr(instance, field_small_name, thumb_small)
+
+
+
+
+class DocumentProcessingFormMixin:
+    """
+    Mixin para procesar y renombrar documentos (PDF) dentro del método save() de un ModelForm.
+    Garantiza nombres de archivo únicos mediante UUID.
+    """
+
+    def process_document_upload(self, instance, field_name, prefix=''):
+        """
+        Procesa el archivo subido, valida extensión y genera un nombre único con UUID.
+        """
+        doc_file = self.cleaned_data.get(field_name)
+
+        # Si no hay un nuevo archivo, no hacemos nada
+        if not doc_file:
+            return
+
+        # Validar extensión en el backend del Form por seguridad
+        ext = os.path.splitext(doc_file.name)[1].lower()
+        if ext != '.pdf':
+            self.add_error(field_name, "El archivo debe ser estrictamente un formato PDF.")
+            return
+
+        # Generar nombre único con UUID
+        uuid_str = str(uuid.uuid4())
+        if prefix:
+            new_filename = f"{prefix}_{uuid_str}{ext}"
+        else:
+            new_filename = f"{uuid_str}{ext}"
+
+        # Sobrescribimos el nombre del archivo en memoria antes de guardarlo
+        doc_file.name = new_filename
+
+        # Asignamos dinámicamente el archivo procesado al campo de la instancia
+        setattr(instance, field_name, doc_file)
