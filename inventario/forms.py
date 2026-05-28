@@ -1,6 +1,6 @@
 from django import forms
 from .models import Activo, Piso, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
-from common.mixins import ImageProcessingFormMixin
+from common.mixins import ImageProcessingFormMixin, DocumentProcessingFormMixin
 
 
 class UbicacionChoiceField(forms.ModelChoiceField):
@@ -16,7 +16,7 @@ class UbicacionChoiceField(forms.ModelChoiceField):
 
 
 
-class ActivoForm(forms.ModelForm):
+class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
     ubicacion = UbicacionChoiceField(
         queryset=Ubicacion.objects.select_related('piso__edificio').all(),
         widget=forms.Select(attrs={'class': 'form-control select2-ubicacion'}),
@@ -30,7 +30,8 @@ class ActivoForm(forms.ModelForm):
             'catalogo', 'estado', 
             'numero_serie', 'etiqueta', 'bdo', 
             'tipo_red', 'netbios', 'tipo_uso', 
-            'ubicacion', 'asignado_a'
+            'ubicacion', 'asignado_a',
+            'acta_entrega', 'acta_devolucion'
         ]
         widgets = {
             'catalogo': forms.Select(attrs={'class': 'form-control select2'}),
@@ -45,6 +46,9 @@ class ActivoForm(forms.ModelForm):
             'tipo_uso': forms.Select(attrs={'class': 'form-control'}),
             
             'asignado_a': forms.Select(attrs={'class': 'form-control select2'}),
+
+            'acta_entrega': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'}),
+            'acta_devolucion': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -81,6 +85,18 @@ class ActivoForm(forms.ModelForm):
             self.fields['catalogo'].queryset = qs_filtrado
             self.fields['catalogo'].empty_label = f"-- Seleccione un modelo de {categoria_nombre} --"
             self.fields['catalogo'].help_text = f"💡 Mostrando únicamente productos de la categoría '{categoria_nombre}'."
+    
+    def save(self, commit=True):
+        # Obtenemos la instancia sin guardar en la BD aún
+        instance = super().save(commit=False)
+        
+        # Procesamos las actas de forma limpia gracias al Mixin
+        self.process_document_upload(instance, 'acta_entrega', prefix='acta_entrega')
+        self.process_document_upload(instance, 'acta_devolucion', prefix='acta_devolucion')
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 

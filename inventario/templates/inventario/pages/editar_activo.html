@@ -4,7 +4,6 @@
 {% block title %}Editar Activo | {{ activo }}{% endblock %}
 
 {% block content %}
-<!-- IMPORTAMOS CSS DE SELECT2 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     /* Pequeño ajuste para que Select2 se vea bien con Bootstrap */
@@ -59,7 +58,7 @@
                 </div>
             {% endif %}
 
-            <form method="POST" class="needs-validation" novalidate>
+            <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                 {% csrf_token %}
                 
                 <!-- SECCIÓN 1: IDENTIFICACIÓN PRINCIPAL -->
@@ -166,7 +165,30 @@
                     </div>
                 </div>
 
-                <!-- BOTONES DE ACCIÓN -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-file-pdf mr-1"></i> Documentación y Actas
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.acta_entrega.label }}</label>
+                                {{ form.acta_entrega }}
+                                {% if form.acta_entrega.errors %}<div class="text-danger small mt-1">{{ form.acta_entrega.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.acta_entrega.help_text }}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.acta_devolucion.label }}</label>
+                                {{ form.acta_devolucion }}
+                                {% if form.acta_devolucion.errors %}<div class="text-danger small mt-1">{{ form.acta_devolucion.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.acta_devolucion.help_text }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card shadow-sm border-0 mb-5 bg-light">
                     <div class="card-body text-right">
                         <a href="{% url 'lista_activos' %}?{{ request.GET.urlencode }}" class="btn btn-secondary px-4 mr-2">Cancelar</a>
@@ -181,7 +203,6 @@
     </div>
 </div>
 
-<!-- IMPORTAMOS JS DE SELECT2 LUEGO DE JQUERY -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
