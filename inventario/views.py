@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Count, ProtectedError
@@ -26,7 +26,7 @@ from adr.models import Prestamo
 
 class DashboardInventario(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
     template_name = 'inventario/pages/dashboard.html'
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR', 'Visitante']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -63,7 +63,7 @@ class DashboardInventario(LoginRequiredMixin, GroupRequiredMixin, TemplateView):
 
 
 
-class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaActivosView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """
     Vista unificada para listar activos con filtros avanzados por Query Params.
     Reemplaza a activo_list.
@@ -72,7 +72,7 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
     template_name = 'inventario/pages/lista_activos.html'
     paginate_by = 30
     context_object_name = 'activos'
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_activo'
     
     def get_queryset(self):
         # 1. Optimización de la consulta con select_related
@@ -263,7 +263,7 @@ class ListaActivosView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
 
 
-class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarActivoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """
     Vista unificada para editar cualquier tipo de activo.
     """
@@ -271,7 +271,7 @@ class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
     form_class = ActivoForm
     template_name = 'inventario/pages/editar_activo.html'
     context_object_name = 'activo'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.change_activo'
     success_url = reverse_lazy('lista_activos')
 
     def get_context_data(self, **kwargs):
@@ -300,16 +300,14 @@ class EditarActivoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return url
 
 
-
-
-class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleActivoView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
     Vista para mostrar el detalle completo de un activo.
     """
     model = Activo
     template_name = 'inventario/pages/ver_activo.html'
     context_object_name = 'activo'
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_activo'
 
     def get_queryset(self):
         # Pre-cargamos todas las relaciones para que la vista sea rápida y eficiente
@@ -325,13 +323,11 @@ class DetalleActivoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
         return context
 
 
-
-
-class AgregarActivoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearActivoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Activo
     form_class = ActivoForm
     template_name = 'inventario/pages/agregar_activo.html'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.add_activo'
     success_url = reverse_lazy('lista_activos')
 
     def get_context_data(self, **kwargs):
@@ -388,7 +384,7 @@ class AgregarActivoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
         return response
 
 
-class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarActivoView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """
     Vista para procesar la eliminación (soft-delete) de un activo.
     """
@@ -396,7 +392,7 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     template_name = 'inventario/pages/eliminar_activo.html'
     context_object_name = 'activo'
     success_url = reverse_lazy('lista_activos')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_activo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -422,11 +418,11 @@ class EliminarActivoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
 
 
 
-class EliminarActivosMasivoView(LoginRequiredMixin, GroupRequiredMixin, View):
+class EliminarActivosMasivoView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Vista para procesar la eliminación masiva (soft-delete) mediante checkboxes.
     """
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_activo'
 
     def post(self, request, *args, **kwargs):
         # 'activos_seleccionados' será el atributo 'name' de nuestros checkboxes en el HTML
@@ -461,13 +457,13 @@ class EliminarActivosMasivoView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
+class SubirExcelActivosView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Vista para importar activos masivamente mediante Excel.
     Aplica reglas estrictas, mapea etiquetas legibles y registra al usuario en auditoría.
     """
     template_name = 'inventario/pages/subir_excel_activos.html'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = ['inventario.add_activo', 'inventario.change_activo']
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template_name)
@@ -667,12 +663,12 @@ class SubirExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class DescargarPlantillaExcelView(LoginRequiredMixin, GroupRequiredMixin, View):
+class DescargarPlantillaExcelView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Genera un archivo Excel (.xlsx) con las cabeceras correctas y listas desplegables
     basadas en los datos actuales del sistema (incluyendo etiquetas legibles para choices).
     """
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_activo'
 
     def get(self, request, *args, **kwargs):
         wb = openpyxl.Workbook()
@@ -756,12 +752,12 @@ class DescargarPlantillaExcelView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class DescargarExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
+class DescargarExcelActivosView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Vista para exportar los activos registrados en el sistema a un archivo Excel.
     Aplica de manera dinámica los mismos filtros que la vista de listado.
     """
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_activo'
 
     def get(self, request, *args, **kwargs):
         # 1. Obtenemos todos los activos optimizando las relaciones
@@ -907,12 +903,12 @@ class DescargarExcelActivosView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class DescargarExcelFiltradoView(LoginRequiredMixin, GroupRequiredMixin, View):
+class DescargarExcelFiltradoView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Vista inteligente para exportar a Excel aplicando EXACTAMENTE los mismos 
     filtros y orden que el usuario tiene activos en la vista de lista.
     """
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_activo'
 
     def get(self, request, *args, **kwargs):
         # 1. Obtenemos todos los activos optimizando las relaciones
@@ -1016,12 +1012,12 @@ class DescargarExcelFiltradoView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class AuditoriaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class AuditoriaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = AuditoriaActivo
     template_name = 'inventario/pages/auditoria_lista.html'
     context_object_name = 'registros'
     paginate_by = 30
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.view_auditoriaactivo'
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related('usuario', 'content_type')
@@ -1046,12 +1042,12 @@ class AuditoriaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
 
 
-class ActivosEliminadosListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ActivosEliminadosListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Activo
     template_name = 'inventario/pages/lista_eliminados.html'
     context_object_name = 'activos'
     paginate_by = 15
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_auditoriaactivo'
 
     def get_queryset(self):
         # Filtramos solo los que tienen el soft-delete activo
@@ -1077,11 +1073,11 @@ class ActivosEliminadosListView(LoginRequiredMixin, GroupRequiredMixin, ListView
 
 
 
-class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
+class RestaurarActivoView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Vista para restaurar un activo eliminado (Soft Delete) y registrar la auditoría.
     """
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.deactivate_activo'
 
     def post(self, request, pk):
         # 1. Obtener el activo usando el manager que incluye eliminados
@@ -1114,12 +1110,12 @@ class RestaurarActivoView(LoginRequiredMixin, GroupRequiredMixin, View):
 
 
 
-class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaCatalogoView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Catalogo
     template_name = 'inventario/pages/lista_catalogos.html'
     context_object_name = 'catalogos'
     paginate_by = 20
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_catalogo'
 
     def get_queryset(self):
         # 1. Anotamos el conteo de activos vinculados que NO están eliminados (is_deleted=False)
@@ -1180,12 +1176,12 @@ class ListaCatalogoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
 
 
 
-class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarCatalogoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Catalogo
     form_class = CatalogoForm
     template_name = 'inventario/pages/editar_catalogo.html'
     context_object_name = 'catalogo'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.change_catalogo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1207,11 +1203,11 @@ class EditarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
 
 
 
-class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearCatalogoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Catalogo
     form_class = CatalogoForm
     template_name = 'inventario/pages/agregar_catalogo.html'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.add_catalogo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1234,11 +1230,11 @@ class CrearCatalogoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
 
 
 
-class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleCatalogoView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Catalogo
     template_name = 'inventario/pages/ver_catalogo.html'
     context_object_name = 'catalogo'
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_catalogo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1259,11 +1255,11 @@ class DetalleCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 
 
 
-class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarCatalogoView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Catalogo
     template_name = 'inventario/pages/eliminar_catalogo.html'
     success_url = reverse_lazy('lista_catalogos')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_catalogo'
 
     def post(self, request, *args, **kwargs):
         try:
@@ -1288,12 +1284,12 @@ class EliminarCatalogoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
 
 
 
-class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaCategoriaView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Categoria
     template_name = 'inventario/pages/lista_categorias.html'
     context_object_name = 'categorias'
     paginate_by = 12  # Un grid de 3x4 o 4x3 funciona muy bien para imágenes
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_categoria'
 
     def get_queryset(self):
         queryset = Categoria.objects.all().order_by('nombre')
@@ -1311,11 +1307,11 @@ class ListaCategoriaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearCategoriaView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Categoria
     form_class = CategoriaForm
     template_name = 'inventario/pages/agregar_categoria.html'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.add_categoria'
     success_url = reverse_lazy('lista_categorias')
 
     def get_context_data(self, **kwargs):
@@ -1332,11 +1328,11 @@ class CrearCategoriaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
         return super().form_invalid(form)
 
 
-class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarCategoriaView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Categoria
     form_class = CategoriaForm
     template_name = 'inventario/pages/editar_categoria.html'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.change_categoria'
     success_url = reverse_lazy('lista_categorias')
 
     def get_context_data(self, **kwargs):
@@ -1355,11 +1351,11 @@ class EditarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
-class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarCategoriaView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Categoria
     template_name = 'inventario/pages/eliminar_categoria.html'
     success_url = reverse_lazy('lista_categorias')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_categoria'
 
     def post(self, request, *args, **kwargs):
         try:
@@ -1381,11 +1377,11 @@ class EliminarCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
         return response
 
 
-class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleCategoriaView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Categoria
     template_name = 'inventario/pages/ver_categoria.html'
     context_object_name = 'categoria'
-    group_required = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_categoria'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1427,12 +1423,12 @@ class DetalleCategoriaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
 
 
 
-class ListaAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaAreaAdministrativaView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/lista_areas.html'
     context_object_name = 'areas'
     paginate_by = 20
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_areaadministrativa'
 
     def get_queryset(self):
         queryset = AreaAdministrativa.objects.annotate(
@@ -1457,12 +1453,12 @@ class ListaAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, ListVi
         return context
 
 
-class CrearAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearAreaAdministrativaView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = AreaAdministrativa
     form_class = AreaAdministrativaForm
     template_name = 'inventario/pages/agregar_area.html'
     success_url = reverse_lazy('lista_areas')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.add_areaadministrativa'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1478,12 +1474,12 @@ class CrearAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, Create
         return super().form_valid(form)
 
 
-class EditarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarAreaAdministrativaView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = AreaAdministrativa
     form_class = AreaAdministrativaForm
     template_name = 'inventario/pages/editar_area.html'
     success_url = reverse_lazy('lista_areas')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.change_areaadministrativa'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1501,12 +1497,12 @@ class EditarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, Updat
         return super().form_valid(form)
 
 
-class EliminarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarAreaAdministrativaView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/eliminar_area.html'
     success_url = reverse_lazy('lista_areas')
     context_object_name = 'area'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_areaadministrativa'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1535,11 +1531,11 @@ class EliminarAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, Del
         return response
     
 
-class DetalleAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleAreaAdministrativaView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = AreaAdministrativa
     template_name = 'inventario/pages/ver_area.html'
     context_object_name = 'area'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_areaadministrativa'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1555,12 +1551,12 @@ class DetalleAreaAdministrativaView(LoginRequiredMixin, GroupRequiredMixin, Deta
 
 
 
-class ListaCargoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaCargoView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Cargo
     template_name = 'inventario/pages/lista_cargos.html'
     context_object_name = 'cargos'
     paginate_by = 20
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_cargo'
 
     def get_queryset(self):
         # Cargos ordenados alfabéticamente por nombre de forma ascendente
@@ -1585,12 +1581,12 @@ class ListaCargoView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class CrearCargoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearCargoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Cargo
     form_class = CargoForm
     template_name = 'inventario/pages/agregar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.add_cargo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1602,13 +1598,13 @@ class CrearCargoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class EditarCargoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarCargoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Cargo
     form_class = CargoForm
     template_name = 'inventario/pages/editar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
     context_object_name = 'cargo'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.change_cargo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1620,12 +1616,12 @@ class EditarCargoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class EliminarCargoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarCargoView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Cargo
     template_name = 'inventario/pages/eliminar_cargo.html'
     success_url = reverse_lazy('lista_cargos')
     context_object_name = 'cargo'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_cargo'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1655,12 +1651,12 @@ class EliminarCargoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
 
 
 
-class ListaFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaFuncionarioView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Funcionario
     template_name = 'inventario/pages/lista_funcionarios.html'
     context_object_name = 'funcionarios'
     paginate_by = 10
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_funcionario'
 
     def get_queryset(self):
         # Ordenamos los funcionarios alfabéticamente por nombre
@@ -1710,12 +1706,12 @@ class ListaFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class CrearFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearFuncionarioView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Funcionario
     form_class = FuncionarioForm
     template_name = 'inventario/pages/agregar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.add_funcionario'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1732,13 +1728,13 @@ class CrearFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
 
 
 
-class EditarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarFuncionarioView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Funcionario
     form_class = FuncionarioForm
     template_name = 'inventario/pages/editar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
     context_object_name = 'funcionario'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.change_funcionario'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1752,12 +1748,12 @@ class EditarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return response
 
 
-class EliminarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarFuncionarioView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Funcionario
     template_name = 'inventario/pages/eliminar_funcionario.html'
     success_url = reverse_lazy('lista_funcionarios')
     context_object_name = 'funcionario'
-    group_required = ['ADR', 'Operador ADR']
+    permission_required = 'inventario.delete_funcionario'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1784,11 +1780,11 @@ class EliminarFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DeleteView
         return response
 
 
-class DetalleFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleFuncionarioView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Funcionario
     template_name = 'inventario/pages/ver_funcionario.html'
     context_object_name = 'funcionario'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_funcionario'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1809,12 +1805,12 @@ class DetalleFuncionarioView(LoginRequiredMixin, GroupRequiredMixin, DetailView)
 
 
 
-class ListaUbicacionesView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Ubicacion
     template_name = 'inventario/pages/lista_ubicaciones.html'
     context_object_name = 'ubicaciones'
     paginate_by = 20
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_ubicacion'
 
     def get_queryset(self):
         # Usamos select_related para traer los datos del piso y del edificio en una sola consulta SQL
@@ -1870,13 +1866,13 @@ class ListaUbicacionesView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class CrearUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageMixin,  CreateView):
+class CrearUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin,  CreateView):
     model = Ubicacion
     form_class = UbicacionForm
     template_name = 'inventario/pages/agregar_ubicacion.html'
     success_url = reverse_lazy('lista_ubicaciones')
-    success_message = "La ubicación '%(nombre)s' fue registrada exitosamente."
-    group_required = ['ADR']
+    success_message = 'La ubicación "%(nombre)s" fue registrada exitosamente.'
+    permission_required = 'inventario.add_ubicacion'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1884,13 +1880,13 @@ class CrearUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageM
         return context
 
 
-class EditarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessageMixin, UpdateView):
+class EditarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Ubicacion
     form_class = UbicacionForm
     template_name = 'inventario/pages/editar_ubicacion.html'
     success_url = reverse_lazy('lista_ubicaciones')
     success_message = "La ubicación '%(nombre)s' fue actualizada exitosamente."
-    group_required = ['ADR']
+    permission_required = 'inventario.change_ubicacion'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1898,11 +1894,11 @@ class EditarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, SuccessMessage
         return context
 
 
-class DetalleUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
+class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Ubicacion
     template_name = 'inventario/pages/ver_ubicacion.html'
     context_object_name = 'ubicacion'
-    group_required = ['ADR', 'Auxiliar Operador ADR', 'Operador ADR']
+    permission_required = 'inventario.view_ubicacion'
 
     def get_queryset(self):
         # Optimizamos la consulta de la ubicación trayendo el piso y el edificio de una sola vez
@@ -1924,11 +1920,11 @@ class DetalleUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
         return context
 
 
-class EliminarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Ubicacion
     template_name = 'inventario/pages/eliminar_ubicacion.html'
     success_url = reverse_lazy('lista_ubicaciones')
-    group_required = ['ADR']
+    permission_required = 'inventario.delete_ubicacion'
 
     # En Django moderno, se debe sobreescribir form_valid en lugar de delete
     def form_valid(self, form):

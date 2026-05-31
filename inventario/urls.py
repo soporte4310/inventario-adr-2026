@@ -6,7 +6,7 @@ from .views import (
     DashboardInventario, 
 
     ListaActivosView, 
-    AgregarActivoView, 
+    CrearActivoView, 
     EditarActivoView, 
     DetalleActivoView, 
     EliminarActivoView, 
@@ -63,7 +63,7 @@ urlpatterns = [
 
     # Activos
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
-    path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
+    path('activos/nuevo/', CrearActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
     path('activos/<int:pk>/', DetalleActivoView.as_view(), name='ver_activo'),
     path('activos/<int:pk>/eliminar/', EliminarActivoView.as_view(), name='eliminar_activo'),

@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
+from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.contrib.auth.forms import PasswordResetForm
@@ -442,11 +442,12 @@ class ProfileDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 
 
-class PrestamoListView(ListView):
+class PrestamoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Prestamo
     template_name = 'modulos/lista_prestamos.html'
     context_object_name = 'prestamos'
     paginate_by = 20
+    permission_required = 'adr.view_prestamo'
 
     def get_queryset(self):
         # Optimizamos con select_related para traer los datos del usuario en una sola consulta
@@ -469,22 +470,24 @@ class PrestamoListView(ListView):
             
         return queryset
 
-class AddPrestamoView(CreateView):
+class AddPrestamoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Prestamo
     form_class = PrestamoForm
     template_name = 'modulos/add_prestamo.html'
     success_url = reverse_lazy('prestamos')
+    permission_required = 'adr.add_prestamo'
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
         messages.success(self.request, "Préstamo registrado exitosamente.")
         return super().form_valid(form)
 
-class DevolverPrestamoView(UpdateView):
+class DevolverPrestamoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Prestamo
     fields = ['observaciones'] # Permite actualizar observaciones al devolver si hay daño
     template_name = 'modulos/devolver_prestamo.html'
     success_url = reverse_lazy('prestamos')
+    permission_required = 'adr.change_prestamo'
 
     def form_valid(self, form):
         form.instance.estado = 'Devuelto'

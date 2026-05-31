@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.db.models import Count, Q
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import Group, Permission
 from collections import defaultdict
 
@@ -11,12 +11,12 @@ from accounts.mixins import GroupRequiredMixin
 from .forms import GroupCreateForm, GroupUpdateForm
 
 
-class ListaGruposView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class ListaGruposView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Group
     template_name = 'usuarios/pages/lista_grupos.html'
     context_object_name = 'grupos'
     paginate_by = 20
-    group_required = ['ADR']
+    permission_required = 'auth.view_group'
 
     def get_queryset(self):
         # user_set y permissions son las relaciones nativas del modelo Group de Django
@@ -52,13 +52,13 @@ class ListaGruposView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class CrearGrupoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class CrearGrupoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Group
     form_class = GroupCreateForm
     template_name = 'usuarios/pages/agregar_grupo.html'
     success_url = reverse_lazy('lista_grupos')
     # Restricción de seguridad perimetral
-    group_required = ['ADR']
+    permission_required = 'auth.add_group'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -66,12 +66,12 @@ class CrearGrupoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
         return context
 
 
-class EditarGrupoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class EditarGrupoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Group
     form_class = GroupUpdateForm
     template_name = 'usuarios/pages/editar_grupo.html'
     success_url = reverse_lazy('lista_grupos')
-    group_required = ['ADR'] # Restricción estricta de seguridad
+    permission_required = 'auth.change_group'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -131,11 +131,11 @@ class EditarGrupoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class EliminarGrupoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class EliminarGrupoView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Group
     template_name = 'usuarios/pages/eliminar_grupo.html'
     success_url = reverse_lazy('lista_grupos')
-    group_required = ['ADR'] # Solo el grupo raíz puede borrar roles
+    permission_required = 'auth.delete_group'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
