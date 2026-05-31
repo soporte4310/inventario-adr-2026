@@ -6,6 +6,7 @@ from .views import (
     ListaGruposView, 
     CrearGrupoView,
     EditarGrupoView,
+    EliminarGrupoView,
 )
 
 
@@ -14,7 +15,7 @@ urlpatterns = [
     path('grupos/', ListaGruposView.as_view(), name='lista_grupos'),
     path('grupos/nuevo/', CrearGrupoView.as_view(), name='agregar_grupo'),
     path('grupos/<int:pk>/editar/', EditarGrupoView.as_view(), name='editar_grupo'),
-    path('grupos/<int:pk>/eliminar/', ListaGruposView.as_view(), name='eliminar_grupo'),
+    path('grupos/<int:pk>/eliminar/', EliminarGrupoView.as_view(), name='eliminar_grupo'),
     path('grupos/<int:pk>/', ListaGruposView.as_view(), name='ver_grupo'),
 
 ]

@@ -1,0 +1,55 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_confirmacion }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4 text-center">
+            
+            <div class="mb-4">
+                <i class="fas fa-exclamation-triangle fa-4x text-danger opacity-75"></i>
+            </div>
+
+            <h2 class="h4 mb-2 font-weight-bold text-dark">{{ titulo_confirmacion }}</h2>
+            <p class="text-muted small mb-4">
+                Está a punto de eliminar permanentemente el rol <strong class="text-dark">"{{ object.name }}"</strong> del sistema.
+            </p>
+
+            {% if usuarios_count > 0 %}
+                <div class="alert alert-warning border shadow-sm text-start p-3 mb-4" style="font-size: 0.9rem;">
+                    <h5 class="alert-heading fw-bold h6 text-dark"><i class="fas fa-ban me-2"></i>Acción Bloqueada</h5>
+                    <p class="mb-0 text-secondary">
+                        Este grupo contiene actualmente <strong class="text-dark">{{ usuarios_count }} usuario(s)</strong> asociado(s). 
+                        Para proteger la integridad de los accesos del sistema, no se permite la eliminación de roles activos.
+                    </p>
+                </div>
+            {% else %}
+                <div class="alert alert-light border text-start p-3 mb-4" style="font-size: 0.9rem;">
+                    <p class="mb-0 text-muted">
+                        <i class="fas fa-info-circle me-2 text-primary"></i> Este grupo no tiene usuarios asociados. Puede proceder con la eliminación de forma segura.
+                    </p>
+                </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="d-flex justify-content-center gap-2 mt-2">
+                    <a href="{% url 'lista_grupos' %}" class="btn btn-outline-secondary btn-sm px-4 shadow-sm">
+                        Volver al Listado
+                    </a>
+                    
+                    <button type="submit" 
+                            class="btn btn-danger btn-sm px-4 shadow-sm font-weight-bold"
+                            {% if usuarios_count > 0 %} disabled {% endif %}>
+                        <i class="fas fa-trash-alt me-1"></i> Eliminar Grupo
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

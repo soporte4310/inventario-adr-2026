@@ -1,5 +1,7 @@
-from django.views.generic import ListView, CreateView, UpdateView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
+from django.contrib import messages
+from django.shortcuts import redirect
 from django.db.models import Count, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import Group, Permission
@@ -48,8 +50,6 @@ class ListaGruposView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
         
         return context
-
-
 
 
 class CrearGrupoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
@@ -129,3 +129,35 @@ class EditarGrupoView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         grupo.permissions.set(permisos_seleccionados)
         
         return super().form_valid(form)
+
+
+class EliminarGrupoView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+    model = Group
+    template_name = 'usuarios/pages/eliminar_grupo.html'
+    success_url = reverse_lazy('lista_grupos')
+    group_required = ['ADR'] # Solo el grupo raíz puede borrar roles
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_confirmacion'] = 'Confirmar Eliminación de Rol'
+        # Contamos los usuarios totales asociados (activos o no) para advertir en el HTML
+        context['usuarios_count'] = self.object.user_set.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        usuarios_count = self.object.user_set.count()
+
+        # Control perimetral: Si hay usuarios, detenemos la eliminación
+        if usuarios_count > 0:
+            messages.error(
+                request, 
+                f"No es posible eliminar el grupo '{self.object.name}'. "
+                f"Actualmente existen {usuarios_count} usuarios asignados a este rol. "
+                f"Por favor, reasigna a estos usuarios a otro grupo antes de proceder."
+            )
+            return redirect('lista_grupos')
+
+        # Si el grupo está vacío, procedemos con la eliminación nativa
+        messages.success(request, f"El grupo '{self.object.name}' fue eliminado exitosamente.")
+        return super().post(request, *args, **kwargs)
