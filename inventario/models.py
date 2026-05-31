@@ -13,8 +13,8 @@ class AreaAdministrativa(models.Model):
     sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True)
 
     class Meta:
-        verbose_name = "Departamento"
-        verbose_name_plural = "Departamentos"
+        verbose_name = "Área Administrativa"
+        verbose_name_plural = "Áreas Administrativas"
 
     def __str__(self):
         return self.nombre
