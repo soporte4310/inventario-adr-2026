@@ -1924,10 +1924,11 @@ class DetalleUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DetailView):
         return context
 
 
-class EliminarUbicacionView(DeleteView):
+class EliminarUbicacionView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
     model = Ubicacion
     template_name = 'inventario/pages/eliminar_ubicacion.html'
     success_url = reverse_lazy('lista_ubicaciones')
+    group_required = ['ADR']
 
     # En Django moderno, se debe sobreescribir form_valid en lugar de delete
     def form_valid(self, form):

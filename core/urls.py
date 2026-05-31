@@ -8,15 +8,14 @@ from django.views.generic.base import RedirectView
 urlpatterns = [
     path('', RedirectView.as_view(url='inventario/', permanent=False), name='index_redirect'),
     path('admin/', admin.site.urls),
-    path("__reload__/", include("django_browser_reload.urls")), # RECARGA LA PAGINA EN TIEMPO REAL CUANDO SE REALIZAN CAMBIOS
-    # path("accounts/", include("accounts.urls")), # RUTAS DE AUTENTICACIÓN (login personalizado)
-    # Para otras funcionalidades de auth (logout, password reset, etc.) que no estén en accounts.urls:
-    # path("accounts/", include("django.contrib.auth.urls")), # Asegúrate de que no haya conflictos de nombres
     path('accounts/', include('accounts.urls')),
     path('adr/', include('adr.urls')),
+    path("__reload__/", include("django_browser_reload.urls")), # RECARGA LA PAGINA EN TIEMPO REAL CUANDO SE REALIZAN CAMBIOS
     
-    # Rutas nuevas para el inventario
+    # Rutas de Gestión de inventario
     path('inventario/', include('inventario.urls')),
+    # Rutas de Gestión de Usuarios y Permisos
+    path('usuarios/', include('usuarios.urls')),
     # Django Debug Toolbar
     path("__debug__/", include("debug_toolbar.urls")),
 ]

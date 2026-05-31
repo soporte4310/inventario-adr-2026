@@ -30,6 +30,7 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     'adr',
+    'usuarios',
     'inventario',
     'accounts.apps.AccountsConfig',
     'core',
