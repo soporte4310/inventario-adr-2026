@@ -1,8 +1,11 @@
-from django.views.generic import ListView
+from django.views.generic import ListView, CreateView
+from django.urls import reverse_lazy
+from django.db.models import Count, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import Group
-from django.db.models import Count, Q
-from accounts.mixins import GroupRequiredMixin 
+
+from accounts.mixins import GroupRequiredMixin
+from .forms import GroupCreateForm
 
 
 class ListaGruposView(LoginRequiredMixin, GroupRequiredMixin, ListView):
@@ -43,4 +46,20 @@ class ListaGruposView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         
         context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
         
+        return context
+
+
+
+
+class CrearGrupoView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+    model = Group
+    form_class = GroupCreateForm
+    template_name = 'usuarios/pages/agregar_grupo.html'
+    success_url = reverse_lazy('lista_grupos')
+    # Restricción de seguridad perimetral
+    group_required = ['ADR']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_formulario'] = 'Nuevo Rol / Grupo'
         return context
