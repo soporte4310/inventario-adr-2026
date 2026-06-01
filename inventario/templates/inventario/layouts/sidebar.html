@@ -20,7 +20,6 @@
             </a>
         </div>
 
-        {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
         <details class="nav-dropdown" {% if 'profile_list' in request.path %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -28,10 +27,10 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
-                <a href="{% url 'profile_list' %}">Lista de Usuarios</a>
+                <a href="{% url 'profile_list' %}">Usuarios</a>
+                <a href="{% url 'lista_grupos' %}">Grupos</a>
             </div>
         </details>
-        {% endif %}
 
         <details class="nav-dropdown" {% if 'lista_activos' in request.path and not request.GET.ubicacion_nombre %}open{% endif %}>
             <summary class="nav-link">
@@ -40,6 +39,7 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
+                <a href="{% url 'lista_activos' %}">Ver todo</a>
                 <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ACA">AIO Académico</a>
                 <a href="{% url 'lista_activos' %}?categoria_nombre=All In One&tipo_uso=ADM">AIO Administrativo</a>
                 <a href="{% url 'lista_activos' %}?tipo_red=ISLA">Equipos Isla</a>
@@ -59,12 +59,15 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
-                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR">Bodega ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Auditorio">Auditorio</a>
                 <a href="{% url 'lista_activos' %}?ubicacion_nombre=Azotea">Azotea</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega ADR">Bodega ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega Central">Bodega Central</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Oficina ADR">Oficina ADR</a>
+                <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega Patio ADR">Patio</a>
             </div>
         </details>
 
-        {% if group_name_singular != 'Alumno en Práctica' %}
         <details class="nav-dropdown" {% if 'catalogos' in request.path or 'categorias' in request.path or 'areas' in request.path or 'cargos' in request.path or 'funcionarios' in request.path %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -81,12 +84,10 @@
                     Catálogo de Productos
                 </a>
                 
-                {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
                 <a href="{% url 'lista_categorias' %}" class="{% if 'categorias' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     Categorías
                 </a>
-                {% endif %}
 
                 <a href="{% url 'lista_areas' %}" class="{% if 'areas' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="9" y1="16" x2="15" y2="16"/><line x1="15" y1="16" x2="15" y2="22"/></svg>
@@ -102,9 +103,13 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Funcionarios
                 </a>
+
+                <a href="{% url 'lista_ubicaciones' %}" class="{% if 'ubicaciones' in request.path %}active{% endif %} d-flex align-items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Ubicaciones
+                </a>
             </div>
         </details>
-        {% endif %}
 
         <details class="nav-dropdown" {% if 'auditoria' in request.path or 'historial' in request.path or 'lista_eliminados' in request.path %}open{% endif %}>
             <summary class="nav-link">
@@ -113,9 +118,7 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
-                {% if group_name_singular == 'ADR' or group_name_singular == 'Operador ADR' %}
                 <a href="{% url 'lista_auditoria' %}">Auditoría</a>
-                {% endif %}
                 <a href="{% url 'lista_eliminados' %}">Papelera de Equipos</a>
             </div>
         </details>

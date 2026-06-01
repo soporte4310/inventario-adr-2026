@@ -1,132 +1,179 @@
 {% extends 'inventario/layouts/base.html' %}
-{% block title %}Préstamos Diarios ADR{% endblock %}
+{% load static %}
+
+{% block title %}Gestión de Préstamos{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
-        <div>
-            <h1 class="text-3xl font-extrabold text-gray-800 flex items-center gap-3">
-                <i data-lucide="arrow-right-left" class="w-8 h-8 text-red-600"></i>
-                Gestión de Préstamos Diarios
-            </h1>
-            <p class="text-gray-500 mt-2 font-medium">Control operativo de accesorios para docentes y funcionarios de INACAP.</p>
-        </div>
-        
-        <a href="{% url 'add_prestamo' %}" class="w-full lg:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95">
-            <i data-lucide="plus-circle" class="w-5 h-5"></i>
-            Registrar Nuevo Préstamo
-        </a>
-    </div>
-
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <form method="GET" class="relative w-full md:w-96">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1 font-weight-bold text-dark">Gestión de Préstamos</h2>
+                    <p class="text-muted small">Control de accesorios entregados a docentes y funcionarios</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'prestamos' %}" class="btn btn-outline-secondary btn-sm shadow-sm" title="Limpiar Filtros">
+                        <i class="fas fa-sync-alt"></i> Limpiar
+                    </a>
+                    <a href="{% url 'add_prestamo' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
+                        <i class="fas fa-plus"></i> Nuevo Préstamo
+                    </a>
+                </div>
             </div>
-            <input type="text" name="q" value="{{ request.GET.q }}" 
-                   class="form-control block w-full pl-10 h-11 rounded-lg border-gray-300 shadow-sm focus:ring-red-500 focus:border-red-500 text-sm" 
-                   placeholder="Buscar por nombre, RUT o sala...">
-            {% if request.GET.estado %}
-                <input type="hidden" name="estado" value="{{ request.GET.estado }}">
-            {% endif %}
-        </form>
 
-        <div class="flex p-1 bg-gray-100 rounded-lg w-full md:w-auto">
-            <a href="{% url 'prestamos' %}" 
-               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if not request.GET.estado %}bg-white shadow-sm text-red-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Todos
-            </a>
-            <a href="{% url 'prestamos' %}?estado=En Préstamo" 
-               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if request.GET.estado == 'En Préstamo' %}bg-white shadow-sm text-amber-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Pendientes
-            </a>
-            <a href="{% url 'prestamos' %}?estado=Devuelto" 
-               class="flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all {% if request.GET.estado == 'Devuelto' %}bg-white shadow-sm text-green-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Devueltos
-            </a>
-        </div>
-    </div>
+            <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
+                <div class="row g-2">
+                    <div class="col-md-7">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" name="q" class="form-control border-start-0" 
+                                   placeholder="Buscar por Docente, RUT, Sala o Tipo de Ítem..." 
+                                   value="{{ request.GET.q }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted">
+                                <i class="fas fa-tasks"></i>
+                            </span>
+                            <select name="estado" class="form-select text-secondary">
+                                <option value="">-- Todos los Estados --</option>
+                                <option value="En Préstamo" {% if request.GET.estado == 'En Préstamo' %}selected{% endif %}>En Préstamo</option>
+                                <option value="Devuelto" {% if request.GET.estado == 'Devuelto' %}selected{% endif %}>Devuelto</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-dark w-100 font-weight-bold shadow-sm">
+                            <i class="fas fa-filter"></i> Aplicar
+                        </button>
+                    </div>
+                </div>
+            </form>
 
-    <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Docente / RUT</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ubicación</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Accesorio</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Salida</th>
-                        <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-100">
-                    {% for prestamo in prestamos %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if prestamo.estado == 'En Préstamo' %}
-                                <span class="flex items-center gap-1.5 w-fit px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Pendiente
-                                </span>
-                            {% else %}
-                                <span class="flex items-center gap-1.5 w-fit px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-                                    <i data-lucide="check" class="w-3 h-3"></i>
-                                    Finalizado
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-gray-900">{{ prestamo.docente_nombre }}</div>
-                            <div class="text-xs text-gray-500">{{ prestamo.docente_rut }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-2 text-sm text-gray-700 font-medium">
-                                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i>
-                                {{ prestamo.sala }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-semibold text-gray-800">{{ prestamo.item_prestado }}</div>
-                            {% if prestamo.observaciones %}
-                                <div class="text-xs text-gray-400 italic truncate max-w-xs">{{ prestamo.observaciones }}</div>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-900 font-medium">{{ prestamo.fecha_prestamo|date:"d/m/Y" }}</div>
-                            <div class="text-xs text-gray-500">{{ prestamo.fecha_prestamo|time:"H:i" }} hrs</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            {% if prestamo.estado == 'En Préstamo' %}
-                                <a href="{% url 'devolver_prestamo' prestamo.id %}" 
-                                   class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm transition-all">
-                                    <i data-lucide="log-in" class="w-4 h-4"></i>
-                                    Recibir
-                                </a>
-                            {% else %}
-                                <div class="text-gray-400 text-xs text-right">
-                                    <p class="font-bold">Devuelto el:</p>
-                                    <p>{{ prestamo.fecha_devolucion|date:"d/m/Y H:i" }}</p>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
+                    <thead class="bg-light text-secondary text-uppercase small">
+                        <tr>
+                            <th>Ítem Prestado</th>
+                            <th>Funcionario</th>
+                            <th>Ubicación</th>
+                            <th>Fechas</th>
+                            <th>Operador</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prestamo in prestamos %}
+                        <tr>
+                            <td class="align-middle">
+                                <div class="font-weight-bold text-primary">{{ prestamo.item_prestado }}</div>
+                                {% if prestamo.observaciones %}
+                                    <small class="text-muted text-truncate d-block mt-1" style="max-width: 150px;" title="{{ prestamo.observaciones }}">
+                                        <i class="fas fa-comment-dots text-secondary"></i> {{ prestamo.observaciones }}
+                                    </small>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="align-middle">
+                                <div class="font-weight-bold text-dark">{{ prestamo.docente_nombre }}</div>
+                                <div class="text-muted small">{{ prestamo.docente_rut }}</div>
+                            </td>
+                            
+                            <td class="align-middle">
+                                <div class="font-weight-bold text-dark">
+                                    <i class="fas fa-map-marker-alt text-danger me-1"></i> {{ prestamo.sala }}
                                 </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
-                            <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
-                            <p class="text-lg font-medium">No se encontraron registros de préstamos</p>
-                            <p class="text-sm">Intenta ajustar los filtros o realiza una nueva búsqueda.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+                            </td>
+                            
+                            <td class="align-middle">
+                                <div class="small"><b>Salida:</b> <span class="text-secondary">{{ prestamo.fecha_prestamo|date:"d/m/Y H:i" }}</span></div>
+                                <div class="small mt-1"><b>Retorno:</b> 
+                                    {% if prestamo.fecha_devolucion %}
+                                        <span class="text-success font-weight-bold">{{ prestamo.fecha_devolucion|date:"d/m/Y H:i" }}</span>
+                                    {% else %}
+                                        <span class="text-warning font-weight-bold">Pendiente</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            
+                            <td class="align-middle">
+                                <div class="font-weight-bold text-dark" style="font-size: 0.8rem;">
+                                    <i class="fas fa-user-edit text-muted me-1"></i> 
+                                    {% if prestamo.creado_por %}
+                                        {{ prestamo.creado_por.get_full_name|default:prestamo.creado_por.username }}
+                                    {% else %}
+                                        SISTEMA
+                                    {% endif %}
+                                </div>
+                            </td>
+                            
+                            <td class="align-middle text-center">
+                                {% if prestamo.estado == 'En Préstamo' %}
+                                    <span class="badge w-100 text-uppercase shadow-sm bg-warning text-dark p-2" style="min-width: 90px; background-color: #ffc107 !important;">
+                                        {{ prestamo.estado }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge w-100 text-uppercase shadow-sm bg-success text-white p-2" style="min-width: 90px; background-color: #28a745 !important;">
+                                        {{ prestamo.estado }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="align-middle text-center">
+                                <div class="btn-group shadow-sm">
+                                    {% if prestamo.estado == 'En Préstamo' %}
+                                        <a href="{% url 'devolver_prestamo' prestamo.pk %}" class="btn btn-sm btn-light border" title="Registrar Devolución">
+                                            <i class="fas fa-undo-alt text-info me-1"></i> Devolver
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-light border text-muted" disabled title="Ítem ya devuelto a soporte">
+                                            <i class="fas fa-check-circle text-success me-1"></i> Completado
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="fas fa-box-open fa-3x mb-3"></i>
+                                    <p class="h5">No se encontraron préstamos</p>
+                                    <p class="small">Intenta ajustar o limpiar los filtros de búsqueda</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-    <div class="mt-6">
-        {% include 'partials/pagination.html' %}
+            {% if is_paginated %}
+            <div class="mt-4 d-flex justify-content-center">
+                <nav aria-label="Navegación de páginas">
+                    <ul class="pagination pagination-sm shadow-sm">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link text-dark" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">&laquo; Primero</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Anterior</a></li>
+                        {% endif %}
+
+                        <li class="page-item active"><span class="page-link bg-dark border-dark">Pág. {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Siguiente</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Último &raquo;</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+        </div>
     </div>
 </div>
 {% endblock %}

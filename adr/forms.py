@@ -144,16 +144,7 @@ class RegisterUserForm(forms.ModelForm):
     # Campos adicionales requeridos
     first_name = forms.CharField(label='Nombres', required=True)
     last_name = forms.CharField(label='Apellidos', required=True)
-    password1 = forms.CharField(
-        label='Contraseña', 
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Contraseña'}),
-        required=True
-    )
-    password2 = forms.CharField(
-        label='Confirmar Contraseña', 
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirmar Contraseña'}),
-        required=True
-    )
+    email = forms.EmailInput(attrs={'placeholder': 'Correo Electrónico'})
 
     class Meta:
         model = User
@@ -165,6 +156,11 @@ class RegisterUserForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'placeholder': 'Correo Electrónico'}),
         }
 
+    def __init__(self, *select, **kwargs):
+        super().__init__(*select, **kwargs)
+        # Aseguramos a nivel de formulario que Django exija el correo
+        self.fields['email'].required = True
+
     def clean_email(self):
         """Validación personalizada para email único"""
         email_field = self.cleaned_data.get('email')
@@ -175,20 +171,6 @@ class RegisterUserForm(forms.ModelForm):
     def clean(self):
         """Validación personalizada para verificar que las contraseñas coincidan"""
         cleaned_data = super().clean()
-        password1 = cleaned_data.get("password1")
-        password2 = cleaned_data.get("password2")
-
-        if password1 and password2 and password1 != password2:
-            self.add_error("password2", "Las contraseñas no coinciden")
-
-        # Validación de fortaleza de contraseña (opcional)
-        if password1:
-            if len(password1) < 8:
-                self.add_error("password1", "La contraseña debe tener al menos 8 caracteres")
-            if not any(char.isdigit() for char in password1):
-                self.add_error("password1", "La contraseña debe contener al menos un número")
-            if not any(char.isalpha() for char in password1):
-                self.add_error("password1", "La contraseña debe contener al menos una letra")
 
         return cleaned_data
 
@@ -222,7 +204,7 @@ class PrestamoForm(forms.ModelForm):
             }),
             'sala': forms.TextInput(attrs={
                 'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500', 
-                'placeholder': 'Ej. Sala 205'
+                'placeholder': 'Ej. 601c'
             }),
             'item_prestado': forms.Select(attrs={
                 'class': 'w-full h-10 px-3 rounded-md border border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-white'

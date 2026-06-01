@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Q
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 
@@ -12,8 +13,8 @@ class AreaAdministrativa(models.Model):
     sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True)
 
     class Meta:
-        verbose_name = "Departamento"
-        verbose_name_plural = "Departamentos"
+        verbose_name = "Área Administrativa"
+        verbose_name_plural = "Áreas Administrativas"
 
     def __str__(self):
         return self.nombre
@@ -259,6 +260,8 @@ class Activo(models.Model):
     asignado_a = models.ForeignKey(Funcionario, on_delete=models.PROTECT, verbose_name="Asignatario", help_text="Seleccionar persona responsable del equipo", null=True, blank=True)
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, verbose_name="Registrado por", null=True, blank=True)
     is_deleted = models.BooleanField(default=False, verbose_name="Eliminado")
+    acta_entrega = models.FileField(upload_to='documentos/actas/entregas/', validators=[FileExtensionValidator(allowed_extensions=['pdf'])], verbose_name="Acta de Entrega", help_text="Suba el acta de entrega escaneada en formato PDF", null=True, blank=True)
+    acta_devolucion = models.FileField(upload_to='documentos/actas/devoluciones/', validators=[FileExtensionValidator(allowed_extensions=['pdf'])], verbose_name="Acta de Devolución", help_text="Suba el acta de devolución escaneada en formato PDF", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

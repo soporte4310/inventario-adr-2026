@@ -6,7 +6,7 @@ from .views import (
     DashboardInventario, 
 
     ListaActivosView, 
-    AgregarActivoView, 
+    CrearActivoView, 
     EditarActivoView, 
     DetalleActivoView, 
     EliminarActivoView, 
@@ -49,6 +49,12 @@ from .views import (
     EditarFuncionarioView,
     EliminarFuncionarioView,
     DetalleFuncionarioView,
+
+    ListaUbicacionesView,
+    CrearUbicacionView,
+    EditarUbicacionView,
+    DetalleUbicacionView,
+    EliminarUbicacionView
 )
 
 
@@ -57,7 +63,7 @@ urlpatterns = [
 
     # Activos
     path('activos/', ListaActivosView.as_view(), name='lista_activos'),
-    path('activos/nuevo/', AgregarActivoView.as_view(), name='agregar_activo'),
+    path('activos/nuevo/', CrearActivoView.as_view(), name='agregar_activo'),
     path('activos/<int:pk>/editar/', EditarActivoView.as_view(), name='editar_activo'),
     path('activos/<int:pk>/', DetalleActivoView.as_view(), name='ver_activo'),
     path('activos/<int:pk>/eliminar/', EliminarActivoView.as_view(), name='eliminar_activo'),
@@ -107,6 +113,13 @@ urlpatterns = [
     path('funcionarios/<int:pk>/', DetalleFuncionarioView.as_view(), name='ver_funcionario'),
     path('funcionarios/<int:pk>/editar/', EditarFuncionarioView.as_view(), name='editar_funcionario'),
     path('funcionarios/<int:pk>/eliminar/', EliminarFuncionarioView.as_view(), name='eliminar_funcionario'),
+
+    # Ubicaciones
+    path('ubicaciones/', ListaUbicacionesView.as_view(), name='lista_ubicaciones'),
+    path('ubicaciones/nuevo/', CrearUbicacionView.as_view(), name='agregar_ubicacion'),
+    path('ubicaciones/<int:pk>/', DetalleUbicacionView.as_view(), name='ver_ubicacion'),
+    path('ubicaciones/<int:pk>/editar/', EditarUbicacionView.as_view(), name='editar_ubicacion'),
+    path('ubicaciones/<int:pk>/eliminar/', EliminarUbicacionView.as_view(), name='eliminar_ubicacion'),
 ]
 
 

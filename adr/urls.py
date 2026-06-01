@@ -12,7 +12,7 @@ from .views import UserPasswordChangeView
 
 urlpatterns = [
     # Gestión de Usuarios
-    path('add_user/', login_required(AddUserView.as_view()), name="add_user"),
+    path('add_user/', AddUserView.as_view(), name="add_user"),
     path('profile_edit/<int:pk>/edit/', ProfileUpdateView.as_view(), name='profile_edit'),
     path('profile_list/', login_required(ProfileListView.as_view()), name="profile_list"),
     path("mi-perfil/", views.my_profile, name="my_profile"),

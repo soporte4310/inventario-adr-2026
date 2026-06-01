@@ -25,8 +25,8 @@ class Profile(models.Model):
     )
 
     class Meta:
-        verbose_name = 'perfil'
-        verbose_name_plural = 'perfiles'
+        verbose_name = 'Perfil de Usuario'
+        verbose_name_plural = 'Perfiles de Usuario'
         ordering = ['-id']
 
     def __str__(self):

@@ -1,0 +1,33 @@
+name: Django CI Tests
+
+on:
+  push:
+    branches: [ "main", "desarrollo" ]
+  pull_request:
+    branches: [ "main", "desarrollo" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        
+    - name: Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Ejecutar pruebas
+      # Pasa variables de entorno básicas para que Django logre arrancar en el test
+      env:
+        DJANGO_SETTINGS_MODULE: core.settings.local
+        SECRET_KEY: 'una-llave-secreta-temporal-para-tests'
+        EMAIL_BACKEND: 'django.core.mail.backends.locmem.EmailBackend'
+      run: |
+        python manage.py test
