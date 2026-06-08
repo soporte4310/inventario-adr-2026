@@ -20,9 +20,12 @@
             </div>
         </div>
         <div class="btn-group shadow-sm">
+            {# Editar categoría #}
+            {% if perms.inventario.change_categoria %}
             <a href="{% url 'editar_categoria' categoria.id %}" class="btn btn-warning btn-sm px-4 text-dark font-weight-bold">
                 <i class="fas fa-edit mr-1"></i> Editar Configuración
             </a>
+            {% endif %}
         </div>
     </div>
 

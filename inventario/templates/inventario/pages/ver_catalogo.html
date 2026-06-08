@@ -16,9 +16,12 @@
             <a href="{% url 'lista_catalogos' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
+            {# Editar catálogo #}
+            {% if perms.inventario.change_catalogo %}
             <a href="{% url 'editar_catalogo' catalogo.id %}" class="btn btn-primary btn-sm px-3">
                 <i class="fas fa-edit"></i> Editar
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -106,9 +109,12 @@
                                         {% endwith %}
                                     </td>
                                     <td class="text-center pe-3">
+                                        {# Ver detalle de activo #}
+                                        {% if perms.inventario.view_activo %}
                                         <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-light border text-primary shadow-sm" title="Ver detalle completo del equipo">
                                             <i class="fas fa-eye"></i> Ver
                                         </a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

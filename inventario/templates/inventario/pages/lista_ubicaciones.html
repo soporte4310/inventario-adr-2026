@@ -16,9 +16,12 @@
                     <a href="{% url 'lista_ubicaciones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
+                    {# Crear ubicación #}
+                    {% if perms.inventario.add_ubicacion %}
                     <a href="{% url 'agregar_ubicacion' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                         <i class="fas fa-plus"></i> Nueva Ubicación
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -105,15 +108,26 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm">
+                                    {# Ver detalle ubicación #}
+                                    {% if perms.inventario.view_ubicacion %}
                                     <a href="{% url 'ver_ubicacion' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle">
                                         <i class="fas fa-eye text-dark"></i>
                                     </a>
+                                    {% endif %}
+
+                                    {# Editar ubicación #}
+                                    {% if perms.inventario.change_ubicacion %}
                                     <a href="{% url 'editar_ubicacion' item.id %}" class="btn btn-sm btn-light border" title="Editar">
                                         <i class="fas fa-edit text-primary"></i>
                                     </a>
+                                    {% endif %}
+
+                                    {# Eliminar ubicación #}
+                                    {% if perms.inventario.delete_ubicacion %}
                                     <a href="{% url 'eliminar_ubicacion' item.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

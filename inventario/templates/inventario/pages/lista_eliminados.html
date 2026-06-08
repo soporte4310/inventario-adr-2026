@@ -42,12 +42,17 @@
                             <td><i class="fas fa-map-marker-alt text-muted me-1"></i>{{ activo.ubicacion|default:"Desconocida" }}</td>
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm">
+
+                                    {# Restaurar equipo #}
+                                    {% if perms.inventario.deactivate_activo %}
                                     <form action="{% url 'restaurar_activo' activo.pk %}" method="post" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-success" title="Restaurar Equipo">
                                             <i class="fas fa-undo"></i>
                                         </button>
                                     </form>
+                                    {% endif %}
+                                    
                                     <a href="{% url 'lista_auditoria' %}?object_id={{ activo.pk }}" class="btn btn-outline-info" title="Ver motivo de eliminación">
                                         <i class="fas fa-search"></i>
                                     </a>

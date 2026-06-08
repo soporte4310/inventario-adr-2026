@@ -27,9 +27,13 @@
                     <a href="{% url 'lista_funcionarios' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
+
+                    {# Crear funcionario #}
+                    {% if perms.inventario.add_funcionario %}
                     <a href="{% url 'agregar_funcionario' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                         <i class="fas fa-plus"></i> Nuevo Funcionario
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -141,15 +145,26 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm">
+                                    {# Ver detalle funcionario #}
+                                    {% if perms.inventario.view_funcionario %}
                                     <a href="{% url 'ver_funcionario' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle">
                                         <i class="fas fa-eye text-dark"></i>
                                     </a>
+                                    {% endif %}
+
+                                    {# Editar funcionario #}
+                                    {% if perms.inventario.change_funcionario %}
                                     <a href="{% url 'editar_funcionario' item.id %}" class="btn btn-sm btn-light border" title="Editar">
                                         <i class="fas fa-edit text-primary"></i>
                                     </a>
+                                    {% endif %}
+
+                                    {# Eliminar funcionario #}
+                                    {% if perms.inventario.delete_funcionario %}
                                     <a href="{% url 'eliminar_funcionario' item.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
