@@ -15,9 +15,13 @@
             <a href="{% url 'lista_ubicaciones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
+
+            {# Editar ubicación #}
+            {% if perms.inventario.change_ubicacion %}
             <a href="{% url 'editar_ubicacion' ubicacion.id %}" class="btn btn-dark btn-sm px-3 shadow-sm">
                 <i class="fas fa-edit"></i> Editar Ubicación
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -129,9 +133,12 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center pe-4">
+                                        {# Ver detalle de activo asociado a ubicación #}
+                                        {% if perms.inventario.view_activo %}
                                         <a href="{% url 'ver_activo' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle del equipo">
                                             <i class="fas fa-eye text-dark"></i>
                                         </a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

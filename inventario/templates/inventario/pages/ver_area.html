@@ -32,12 +32,19 @@
                     <hr class="text-muted opacity-25 my-4">
 
                     <div class="d-grid gap-2">
+                        {# Editar área #}
+                        {% if perms.inventario.change_area %}
                         <a href="{% url 'editar_area' area.id %}" class="btn btn-outline-primary btn-sm shadow-sm fw-bold">
                             <i class="fas fa-edit me-1"></i> Editar Área
                         </a>
+                        {% endif %}
+
+                        {# Eliminar área #}
+                        {% if perms.inventario.delete_area %}
                         <a href="{% url 'eliminar_area' area.id %}" class="btn btn-outline-danger btn-sm border-0 small text-muted">
                             <i class="fas fa-trash me-1"></i> Eliminar del Sistema
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -90,9 +97,12 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center pe-3">
+                                        {# Ver funcionario #}
+                                        {% if perms.inventario.view_funcionario %}
                                         <a href="{% url 'ver_funcionario' funcionario.id %}" class="btn btn-sm btn-dark shadow-sm fw-bold w-100" style="font-size: 0.75rem;" title="Ver ficha completa del funcionario">
-                                            <i class="fas fa-user me-1"></i> Ver Usuario
+                                            <i class="fas fa-user me-1"></i> Ver Funcionario
                                         </a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

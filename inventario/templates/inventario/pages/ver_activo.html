@@ -20,12 +20,20 @@
             <a href="{% url 'lista_activos' %}?{{ request.GET.urlencode }}" class="btn btn-light border" title="Volver">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
+
+            {# Editar activo #}
+            {% if perms.inventario.change_activo %}
             <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-light border text-primary" title="Editar">
                 <i class="fas fa-edit"></i> Editar
             </a>
+            {% endif %}
+
+            {# Eliminar activo #}
+            {% if perms.inventario.delete_activo %}
             <a href="{% url 'eliminar_activo' activo.id %}?{{ request.GET.urlencode }}" type="button" class="btn btn-light border text-danger" title="Eliminar">
                 <i class="fas fa-trash"></i>
             </a>
+            {% endif %}
         </div>
     </div>
 

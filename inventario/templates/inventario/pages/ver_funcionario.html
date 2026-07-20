@@ -62,12 +62,19 @@
                     </div>
 
                     <div class="d-grid gap-2">
+                        {# Editar funcionario #}
+                        {% if perms.inventario.change_funcionario %}
                         <a href="{% url 'editar_funcionario' funcionario.id %}" class="btn btn-outline-primary btn-sm shadow-sm fw-bold">
                             <i class="fas fa-edit me-1"></i> Editar Ficha
                         </a>
+                        {% endif %}
+
+                        {# Eliminar funcionario #}
+                        {% if perms.inventario.delete_funcionario %}
                         <a href="{% url 'eliminar_funcionario' funcionario.id %}" class="btn btn-outline-danger btn-sm border-0 small text-muted">
                             <i class="fas fa-trash me-1"></i> Eliminar del Sistema
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -149,9 +156,12 @@
                                         </span>
                                     </td>
                                     <td class="text-center pe-3">
+                                        {# Ver activo del funcionario #}
+                                        {% if perms.inventario.view_activo %}
                                         <a href="{% url 'ver_activo' activo.id %}" class="btn btn-sm btn-dark shadow-sm fw-bold w-100" style="font-size: 0.75rem;" title="Ver ficha técnica del equipo">
                                             <i class="fas fa-laptop me-1"></i> Ver Equipo
                                         </a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

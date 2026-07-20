@@ -14,9 +14,13 @@
             <a href="{% url 'lista_categorias' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                 <i class="fas fa-sync-alt"></i>
             </a>
+
+            {# Crear categoría #}
+            {% if perms.inventario.add_categoria %}
             <a href="{% url 'agregar_categoria' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                 <i class="fas fa-plus"></i> Nueva Categoría
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -75,11 +79,22 @@
                 <div class="card-footer bg-white border-top-0 pb-3">
                     <div class="d-grid gap-2">
                         <div class="btn-group w-100 shadow-sm">
+                            {# Ver detalle categoría #}
+                            {% if perms.inventario.view_categoria %}
                             <a href="{% url 'ver_categoria' cat.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            {% endif %}
+
+                            {# Editar categoría #}
+                            {% if perms.inventario.change_categoria %}
                             <a href="{% url 'editar_categoria' cat.id %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Editar</a>
+                            {% endif %}
+
+                            {# Eliminar categoría #}
+                            {% if perms.inventario.delete_categoria %}
                             <a href="{% url 'eliminar_categoria' cat.id %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

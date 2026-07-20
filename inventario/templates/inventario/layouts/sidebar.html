@@ -14,12 +14,17 @@
                 <span>Inicio</span>
             </a>
             
+            {# Préstamos #}
+            {% if perms.inventario.view_prestamo %}
             <a href="{% url 'prestamos' %}" class="nav-link {% if 'prestamos' in request.path %}active{% endif %}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
                 <span>Préstamos</span>
             </a>
+            {% endif %}
         </div>
 
+        {# Gestión de usuarios #}
+        {% if perms.account.view_usuario or perms.auth.view_group %}
         <details class="nav-dropdown" {% if 'profile_list' in request.path %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -27,11 +32,21 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
+                {# Lista de usuarios #}
+                {% if perms.auth.view_user %}
                 <a href="{% url 'profile_list' %}">Usuarios</a>
+                {% endif %}
+
+                {# Lista de grupos #}
+                {% if perms.auth.view_group %}
                 <a href="{% url 'lista_grupos' %}">Grupos</a>
+                {% endif %}
             </div>
         </details>
+        {% endif %}
 
+        {# Gestión de activos/equipos #}
+        {% if perms.inventario.view_activo %}
         <details class="nav-dropdown" {% if 'lista_activos' in request.path and not request.GET.ubicacion_nombre %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
@@ -67,6 +82,7 @@
                 <a href="{% url 'lista_activos' %}?ubicacion_nombre=Bodega Patio ADR">Patio</a>
             </div>
         </details>
+        {% endif %}
 
         <details class="nav-dropdown" {% if 'catalogos' in request.path or 'categorias' in request.path or 'areas' in request.path or 'cargos' in request.path or 'funcionarios' in request.path %}open{% endif %}>
             <summary class="nav-link">
@@ -79,38 +95,59 @@
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="dropdown-content">
+
+                {# Lista de catálogos de productos #}
+                {% if perms.inventario.view_catalogo %}
                 <a href="{% url 'lista_catalogos' %}" class="{% if 'catalogos' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     Catálogo de Productos
                 </a>
+                {% endif %}
                 
+                {# Lista de categorías #}
+                {% if perms.inventario.view_categoria %}
                 <a href="{% url 'lista_categorias' %}" class="{% if 'categorias' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     Categorías
                 </a>
+                {% endif %}
 
+                {# Lista de áreas #}
+                {% if perms.inventario.view_areaadministrativa %}
                 <a href="{% url 'lista_areas' %}" class="{% if 'areas' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="9" y1="16" x2="15" y2="16"/><line x1="15" y1="16" x2="15" y2="22"/></svg>
                     Áreas Administrativas
                 </a>
+                {% endif %}
 
+                {# Lista de cargos #}
+                {% if perms.inventario.view_cargo %}
                 <a href="{% url 'lista_cargos' %}" class="{% if 'cargos' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                     Cargos
                 </a>
+                {% endif %}
 
+                {# Lista de funcionarios #}
+                {% if perms.inventario.view_funcionario %}
                 <a href="{% url 'lista_funcionarios' %}" class="{% if 'funcionarios' in request.path %}active{% endif %} d-flex align-items-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Funcionarios
                 </a>
+                {% endif %}
 
+                {# Lista de ubicaciones #}
+                {% if perms.inventario.view_ubicacion %}
                 <a href="{% url 'lista_ubicaciones' %}" class="{% if 'ubicaciones' in request.path %}active{% endif %} d-flex align-items-center gap-2">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; min-width: 16px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     Ubicaciones
                 </a>
+                {% endif %}
             </div>
         </details>
 
+        {# Auditoría / activos eliminados #}
+        {% if perms.inventario.auditoriaactivo %}
         <details class="nav-dropdown" {% if 'auditoria' in request.path or 'historial' in request.path or 'lista_eliminados' in request.path %}open{% endif %}>
             <summary class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
@@ -122,5 +159,6 @@
                 <a href="{% url 'lista_eliminados' %}">Papelera de Equipos</a>
             </div>
         </details>
+        {% endif %}
     </nav>
 </aside>
