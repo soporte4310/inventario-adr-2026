@@ -1,0 +1,19 @@
+{% load admin_interface_tags %}
+
+{% if set_language_url %}
+<div class="language-chooser {% if theme.language_chooser_control == 'minimal-select' %}minimal {% endif %}">
+    <form class="language-chooser-select-form" action="{{ set_language_url }}" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <select name="language">
+            {% for code, language in LANGUAGES %}
+            <option value="{{ code }}" {% if code == LANGUAGE_CODE %}selected{% endif %}>
+                {% if theme.language_chooser_display == 'code' %}{{ code|upper }}{% elif theme.language_chooser_display == 'name' %}{{ language|upper }}{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<script id="admin-interface-language-chooser" src="{% get_admin_interface_static 'admin_interface/language-chooser/language-chooser.js' %}"></script>
+{% endif %}

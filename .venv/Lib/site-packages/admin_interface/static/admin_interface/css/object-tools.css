@@ -1,0 +1,38 @@
+/* top-right buttons color on hover -> just a lighten grey */
+@media (min-width:768px) {
+    .admin-interface .object-tools {
+        margin-top: -45px;
+        width: 55%;
+        float: right;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+}
+@media (min-width:1024px) {
+    .admin-interface .object-tools {
+        width: 60%;
+    }
+}
+@media (min-width:1280px) {
+    .admin-interface .object-tools {
+        width: 70%;
+    }
+}
+.admin-interface .object-tools li {
+    margin-bottom: 4px;
+}
+.admin-interface .object-tools li + li {
+    margin-left: 6px;
+}
+.admin-interface .object-tools a {
+    color: #FFFFFF;
+    white-space: nowrap;
+}
+.admin-interface .object-tools a:focus,
+.admin-interface .object-tools a:hover,
+.admin-interface .object-tools li:focus a,
+.admin-interface .object-tools li:hover a {
+    background-color: #AAAAAA;
+}
