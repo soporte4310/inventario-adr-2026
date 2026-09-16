@@ -83,17 +83,22 @@
             </div>
           </div>
 
-          {# --- TITULO + ELIMINAR USUARIO (admin) --- #}
+          {# --- TITULO + ACTIVAR/DESACTIVAR USUARIO (ADR) --- #}
           <div class="hidden lg:flex items-start justify-between mb-6">
-            <h2 class="text-2xl font-semibold text-gray-900">Editar Usuario</h2>
-            {% if request.user.is_superuser and user_profile.pk != request.user.pk %}
+            <div class="flex items-center gap-3">
+              <h2 class="text-2xl font-semibold text-gray-900">Editar Usuario</h2>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold {% if user_profile.is_active %}bg-green-100 text-green-800{% else %}bg-gray-200 text-gray-600{% endif %}">
+                {% if user_profile.is_active %}Activo{% else %}Inactivo{% endif %}
+              </span>
+            </div>
+            {% if group_name_singular == 'ADR' and user_profile.pk != request.user.pk %}
             <form method="post"
-                  action="{% url 'profile_delete' user_profile.pk %}"
-                  onsubmit="return confirm('¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.');">
+                  action="{% url 'profile_toggle_active' user_profile.pk %}"
+                  onsubmit="return confirm('{% if user_profile.is_active %}¿Seguro que deseas desactivar esta cuenta? El usuario no podrá volver a iniciar sesión, pero su registro se conserva.{% else %}¿Seguro que deseas reactivar esta cuenta?{% endif %}');">
               {% csrf_token %}
               <button type="submit"
-                      class="px-4 py-2 rounded-lg bg-red-700 text-white font-semibold shadow hover:bg-red-800">
-                Eliminar usuario
+                      class="px-4 py-2 rounded-lg font-semibold shadow text-white {% if user_profile.is_active %}bg-red-700 hover:bg-red-800{% else %}bg-emerald-700 hover:bg-emerald-800{% endif %}">
+                {% if user_profile.is_active %}Desactivar usuario{% else %}Reactivar usuario{% endif %}
               </button>
             </form>
             {% endif %}
