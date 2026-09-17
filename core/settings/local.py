@@ -48,6 +48,7 @@ EMAIL_USE_TLS = True
 
 EMAIL_RECIPIENTS = [
         'jcastillol@inacap.cl',
+        'cescalantea@inacap.cl',
     ]
 
 # 4. Logging de Desarrollo

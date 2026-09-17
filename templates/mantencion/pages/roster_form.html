@@ -1,0 +1,11 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% block title %}Agregar proyector{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Agregar proyector a mantención</h1>
+<form method="post" class="max-w-md space-y-4">
+  {% csrf_token %}
+  {% include 'mantencion/partials/campos_formulario.html' %}
+  <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Guardar</button>
+</form>
+{% endblock %}

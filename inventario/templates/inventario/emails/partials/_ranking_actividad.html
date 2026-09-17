@@ -1,0 +1,18 @@
+{# Partial reutilizado por reporte_diario.html y reporte_semanal.html. #}
+{# Espera 'stats_usuarios' (lista de {nombre, cantidad, porcentaje}) y opcionalmente 'titulo_ranking'. #}
+{% if stats_usuarios %}
+<div style="margin-bottom: 35px; padding: 20px; background-color: #ffffff; border: 1px solid #edf2f7; border-radius: 8px;">
+    <h3 style="font-size: 14px; color: #2d3748; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">📊 {{ titulo_ranking|default:"Ranking de Actividad" }}</h3>
+    {% for user in stats_usuarios %}
+    <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+            <span style="font-weight: 600; color: #4a5568;">{{ user.nombre }}</span>
+            <span style="color: #a0aec0;">{{ user.cantidad }} cambios</span>
+        </div>
+        <div style="width: 100%; background-color: #edf2f7; height: 8px; border-radius: 4px;">
+            <div style="width: {{ user.porcentaje }}%; background-color: #D32F2F; height: 8px; border-radius: 4px;"></div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

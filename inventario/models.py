@@ -5,12 +5,13 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from common.validators import validador_solo_letras, validador_alfanumerico_estricto
 
 
 class AreaAdministrativa(models.Model):
     """Modelo para registrar áreas administrativas o departamentos dentro de la sede"""
-    nombre = models.CharField(verbose_name="Nombre", max_length=100)
-    sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True)
+    nombre = models.CharField(verbose_name="Nombre", max_length=100, validators=[validador_solo_letras])
+    sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True, validators=[validador_alfanumerico_estricto])
 
     class Meta:
         verbose_name = "Área Administrativa"

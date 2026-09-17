@@ -26,6 +26,14 @@ class CustomAuthenticationForm(AuthenticationForm):
                     params={'username': self.username_field.verbose_name},
                 )
 
+            # Cuenta desactivada por ADR: se corta aquí, ANTES de contar como intento fallido
+            # (si no, el usuario vería "contraseña incorrecta" y se ganaría bloqueos injustos).
+            if not user.is_active:
+                raise ValidationError(
+                    'Esta cuenta ha sido desactivada. Contacte al administrador.',
+                    code='inactive',
+                )
+
             login_attempt, created = LoginAttempt.objects.get_or_create(user=user)
 
             if login_attempt.is_locked():
