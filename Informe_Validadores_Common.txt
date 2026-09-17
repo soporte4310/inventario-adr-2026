@@ -1,0 +1,128 @@
+========================================================================
+INFORME TECNICO - ANALISIS DE VALIDADORES DE CAMPOS DE TEXTO
+Proyecto: inventario-adr-2026
+========================================================================
+
+Fecha del analisis: 15-09-2026
+Rama analizada: practicantes-rama
+Archivo evaluado: common/validators.py
+
+------------------------------------------------------------------------
+1. CONTEXTO / OBJETIVO
+------------------------------------------------------------------------
+
+Actualmente la validacion de formato depende de los ajustes basicos.
+El desafio es implementar validaciones informativas directas en los
+formularios de Django (a nivel de backend) para todos los campos de
+todas las tablas. Por ejemplo, garantizar que en campos de texto (tipo
+cadena) como las patentes, el sistema bloquee el ingreso de caracteres
+especiales (como hashtags) y obligue al usuario a introducir
+estrictamente la combinacion correcta de letras y numeros.
+
+Este informe responde a la pregunta: "¿Los validadores que existen hoy
+en la carpeta common/ son suficientes para cumplir ese objetivo?"
+
+------------------------------------------------------------------------
+2. RESPUESTA CORTA
+------------------------------------------------------------------------
+
+NO. Los validadores existentes estan bien diseñados y funcionan
+correctamente, pero es un trabajo a medio hacer: cubren solo 2 de
+aproximadamente 20 campos de texto candidatos en todo el proyecto.
+
+------------------------------------------------------------------------
+3. VALIDADORES EXISTENTES HOY (common/validators.py)
+------------------------------------------------------------------------
+
+a) validador_solo_letras
+   Regex: ^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$
+   Uso: solo admite letras y espacios (pensado para nombres de
+   personas, areas, cargos).
+   Aplicado actualmente en: AreaAdministrativa.nombre
+
+b) validador_alfanumerico_estricto
+   Regex: ^[a-zA-Z0-9\-]+$
+   Uso: solo admite letras, numeros y guiones medios (pensado para
+   codigos tipo BDO, NetBIOS, N° de Serie).
+   Aplicado actualmente en: AreaAdministrativa.sigla
+
+CONCLUSION: de todo el proyecto, estos dos validadores SOLO se usan
+en el modelo AreaAdministrativa (2 campos). Ningun otro modelo de las
+apps "inventario", "adr", "accounts" o "usuarios" los importa ni los
+aplica.
+
+------------------------------------------------------------------------
+4. CAMPOS TIPO "CODIGO" SIN VALIDADOR (equivalentes al caso "patente")
+------------------------------------------------------------------------
+
+Modelo Activo (inventario/models.py):
+  - numero_serie  -> SIN validador. Texto libre, admite '#', '@', '!',
+    etc. Solo se le recortan espacios y se pasa a mayusculas en
+    clean(), pero no se bloquean caracteres especiales.
+  - etiqueta      -> SIN validador. Mismo caso que numero_serie.
+  - netbios       -> SIN validador. Mismo caso.
+  - bdo           -> Tiene una validacion manual dentro de clean()
+    que exige que el valor sea solo digitos (usa el metodo
+    str.isdigit()), pero es logica escrita a mano dentro del modelo,
+    no usa common/validators.py. Funciona, pero duplica lo que un
+    RegexValidator declarativo haria de forma mas reutilizable y
+    mas facil de mantener.
+
+Modelo Prestamo (adr/models.py):
+  - docente_rut   -> EL CASO MAS CRITICO. En el formulario
+    (PrestamoForm.clean_docente_rut) solo se le quitan los puntos y
+    se pasa a mayusculas, pero no hay ninguna validacion de formato
+    real (digitos + guion + digito verificador o "K"). Hoy el sistema
+    aceptaria un valor como "#hola" como si fuera un RUT valido.
+  - docente_nombre -> SIN validador (deberia usar
+    validador_solo_letras).
+  - sala           -> SIN validador alfanumerico (ej: "601c").
+
+------------------------------------------------------------------------
+5. CAMPOS "NOMBRE" DE CATALOGOS SIN VALIDADOR
+------------------------------------------------------------------------
+
+Ninguno de los siguientes campos usa validador_solo_letras ni
+validador_alfanumerico_estricto:
+
+  - Cargo.nombre
+  - Funcionario.nombre
+  - Edificio.nombre
+  - Piso.nombre
+  - Ubicacion.nombre
+  - Marca.nombre
+  - Categoria.nombre
+  - Catalogo.modelo
+
+Nota: Marca.nombre y Catalogo.modelo no podrian usar
+validador_solo_letras tal cual esta, porque llevan numeros legitimos
+(ej: marca "3M", modelo "LATITUDE 5420"). Para estos casos se
+necesitaria una variante alfanumerica que tambien permita espacios.
+
+------------------------------------------------------------------------
+6. RECOMENDACIONES / PROXIMOS PASOS
+------------------------------------------------------------------------
+
+1. Aplicar validador_solo_letras a los campos "nombre" de personas y
+   cargos (Cargo.nombre, Funcionario.nombre) donde corresponda.
+
+2. Aplicar validador_alfanumerico_estricto (o una variante que permita
+   espacios) a: etiqueta, netbios, sala, Catalogo.modelo.
+
+3. Crear un validador especifico de RUT chileno para docente_rut,
+   que valide formato y digito verificador. Ninguno de los dos
+   validadores actuales sirve para este caso.
+
+4. Definir junto al equipo si numero_serie necesita un validador
+   propio: los numeros de serie de fabrica a veces incluyen "/" o
+   espacios, por lo que "alfanumerico estricto" tal como esta podria
+   ser demasiado restrictivo. Requiere una decision de negocio antes
+   de implementarlo.
+
+5. Crear una variante de validador alfanumerico que permita espacios,
+   para usar en Marca.nombre, Categoria.nombre, Edificio.nombre,
+   Piso.nombre, Ubicacion.nombre y Catalogo.modelo.
+
+------------------------------------------------------------------------
+FIN DEL INFORME
+========================================================================

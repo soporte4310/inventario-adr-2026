@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; color: #111; margin:0; padding: 16px;">
+  <h2 style="color:#C8102E; margin-bottom: 4px;">Revisión mensual de {{ tipo }}</h2>
+  <p style="color:#555; margin-top: 0;">Ciclo {{ ciclo }}</p>
+
+  <table cellpadding="8" cellspacing="0" style="margin: 12px 0;">
+    <tr>
+      <td style="background:#f2f2f2; border-radius:6px;"><strong>Total equipos:</strong> {{ total }}</td>
+    </tr>
+    <tr><td>&nbsp;</td></tr>
+    <tr>
+      <td style="background:#e8f5e9; border-radius:6px;"><strong>OK:</strong> {{ ok }}</td>
+    </tr>
+    <tr><td>&nbsp;</td></tr>
+    <tr>
+      <td style="background:#f2f2f2; border-radius:6px;"><strong>Pendientes:</strong> {{ pendientes }}</td>
+    </tr>
+    <tr><td>&nbsp;</td></tr>
+    <tr>
+      <td style="background:#fdecea; border-radius:6px;"><strong>Con novedad:</strong> {{ novedades|length }}</td>
+    </tr>
+  </table>
+
+  {% if novedades %}
+  <h3 style="color:#C8102E;">Novedades reportadas</h3>
+  <table cellpadding="8" cellspacing="0" border="1" style="border-collapse: collapse; width:100%; font-size: 14px;">
+    <thead style="background:#111; color:#fff;">
+      <tr>
+        <th align="left">Equipo</th>
+        <th align="left">Ubicación</th>
+        <th align="left">Comentario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in novedades %}
+      <tr>
+        <td>{{ n.equipo.equipo_real }}</td>
+        <td>
+          {% if n.ubicacion_en_revision %}{{ n.ubicacion_en_revision.piso.edificio.nombre }} - {{ n.ubicacion_en_revision.nombre }}{% else %}—{% endif %}
+        </td>
+        <td>{{ n.comentario }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No se registraron novedades en este ciclo.</p>
+  {% endif %}
+
+  <p style="margin-top:24px; font-size:12px; color:#888;">
+    Sistema de Gestión ADR — Módulo de Mantención de Equipos.
+  </p>
+</body>
+</html>

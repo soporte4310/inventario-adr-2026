@@ -1,0 +1,63 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Mantención de Equipos</h1>
+
+<div class="grid gap-4 md:grid-cols-2 mb-8">
+  <div class="rounded-xl border border-black/10 dark:border-white/10 p-4">
+    <div class="flex items-center gap-2 mb-3">
+      <i class="fas fa-video text-red-600"></i>
+      <h2 class="font-semibold text-lg">Proyectores</h2>
+    </div>
+    <p class="text-xs text-black/50 dark:text-white/50 mb-1">
+      {% if proyectores_ciclo %}{{ proyectores_ciclo }}{% else %}Sin ciclos todavía{% endif %}
+    </p>
+    <p class="text-sm mb-3">
+      Última revisión:
+      {% if proyectores_ultima_revision %}{{ proyectores_ultima_revision|date:"d/m/Y H:i" }}{% else %}Sin registros aún{% endif %}
+    </p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/10">Pendientes: {{ proyectores_pendientes }}</span>
+      <span class="px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">OK: {{ proyectores_ok }}</span>
+      <span class="px-2 py-1 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">Novedad: {{ proyectores_novedad }}</span>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-black/10 dark:border-white/10 p-4">
+    <div class="flex items-center gap-2 mb-3">
+      <i class="fas fa-print text-red-600"></i>
+      <h2 class="font-semibold text-lg">Impresoras</h2>
+    </div>
+    <p class="text-xs text-black/50 dark:text-white/50 mb-1">
+      {% if impresoras_ciclo %}{{ impresoras_ciclo }}{% else %}Sin ciclos todavía{% endif %}
+    </p>
+    <p class="text-sm mb-3">
+      Última revisión:
+      {% if impresoras_ultima_revision %}{{ impresoras_ultima_revision|date:"d/m/Y H:i" }}{% else %}Sin registros aún{% endif %}
+    </p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/10">Pendientes: {{ impresoras_pendientes }}</span>
+      <span class="px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">OK: {{ impresoras_ok }}</span>
+      <span class="px-2 py-1 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">Novedad: {{ impresoras_novedad }}</span>
+    </div>
+  </div>
+</div>
+
+<h2 class="font-semibold text-lg mb-3">Últimas novedades</h2>
+{% if ultimas_novedades %}
+<div class="space-y-2">
+  {% for n in ultimas_novedades %}
+  <div class="rounded-lg border border-black/10 dark:border-white/10 p-3 text-sm">
+    <div class="font-medium">{{ n.equipo.equipo_real }}</div>
+    <div class="text-black/60 dark:text-white/60">{{ n.comentario }}</div>
+    <div class="text-xs text-black/40 dark:text-white/40 mt-1">
+      {{ n.revisado_por }} · {{ n.fecha_revision|date:"d/m/Y H:i" }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-black/50 dark:text-white/50">No hay novedades registradas todavía.</p>
+{% endif %}
+{% endblock %}
