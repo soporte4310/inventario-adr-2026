@@ -10,19 +10,34 @@
 
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
 
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    // Configuración de Tailwind (Play CDN). El módulo se muestra siempre en
-    // claro (más simple y liviano para el celular); dejamos darkMode:'class'
-    // sin ningún switch que agregue la clase 'dark', así nunca se activa
-    // aunque el sistema operativo del usuario esté en modo oscuro.
-    tailwind = {
-      config: {
-        darkMode: 'class',
-        theme: { extend: {} }
-      }
+    // Configuración de Tailwind (Play CDN) con soporte de modo oscuro manual.
+    // IMPORTANTE: esto va DESPUÉS de cargar el <script src> del CDN, no antes.
+    // Declarar 'tailwind' como variable global previa no sirve: el propio
+    // script del CDN la pisa al inicializarse, y la config se pierde en
+    // silencio (nos pasó: tailwind.config quedaba {} pese a estar bien
+    // escrito acá). Asignando tailwind.config ya con el objeto real creado sí
+    // dispara la regeneración con darkMode:'class', que hace que las clases
+    // 'dark:*' solo se activen cuando el <html> tenga la clase 'dark' puesta
+    // a mano (con el botón del navbar), nunca por el modo oscuro del sistema
+    // operativo.
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {} }
     };
   </script>
-  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    // Aplica el tema guardado ANTES de pintar la página (evita el parpadeo de
+    // cargar en claro y saltar a oscuro un instante después). A propósito NO
+    // seguimos prefers-color-scheme del sistema operativo: así el modo oscuro
+    // es siempre una elección explícita de la persona con el botón del
+    // navbar, nunca algo que "aparece solo" según la config de Windows.
+    if (localStorage.getItem('mantencion-theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
 
   <link rel="stylesheet" href="{% static 'css/mantencion.css' %}?v=2">
 </head>
@@ -45,11 +60,19 @@
         <i class="fas fa-tools text-red-600 text-xl"></i>
         <span class="font-bold text-lg">Mantención ADR</span>
       </div>
-      <button type="button" id="mnt-navbar-close"
-        class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
-        aria-label="Cerrar menú">
-        <i class="fas fa-times"></i>
-      </button>
+      <div class="flex items-center gap-1">
+        <!-- Alterna el modo oscuro del contenido (el sidebar ya es negro siempre) -->
+        <button type="button" id="mnt-theme-toggle"
+          class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cambiar a modo oscuro">
+          <i class="fas fa-moon" id="mnt-theme-icon"></i>
+        </button>
+        <button type="button" id="mnt-navbar-close"
+          class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cerrar menú">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
     </div>
 
     <div class="flex-1 overflow-y-auto py-2">
@@ -140,7 +163,7 @@
   </div>
   {% endif %}
 
-  <script src="{% static 'js/mantencion_navbar.js' %}?v=2"></script>
+  <script src="{% static 'js/mantencion_navbar.js' %}?v=3"></script>
   <script src="{% static 'js/mantencion_toasts.js' %}"></script>
   {% block js %}{% endblock %}
 </body>

@@ -51,4 +51,28 @@ document.addEventListener('DOMContentLoaded', function () {
       submenuIcon.classList.toggle('rotate-180');
     });
   }
+
+  // Modo oscuro del módulo: solo se activa si la persona lo pide con este
+  // botón (nunca solo porque Windows/el navegador esté en oscuro; ver el
+  // script inline en base_mantencion.html que evita el parpadeo). Se guarda
+  // en localStorage, por navegador, igual patrón que usa el Debug Toolbar.
+  const themeToggle = document.getElementById('mnt-theme-toggle');
+  const themeIcon = document.getElementById('mnt-theme-icon');
+
+  if (themeToggle && themeIcon) {
+    function actualizarIconoTema() {
+      const esOscuro = document.documentElement.classList.contains('dark');
+      themeIcon.className = esOscuro ? 'fas fa-sun' : 'fas fa-moon';
+      themeToggle.setAttribute('aria-label', esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    }
+
+    actualizarIconoTema();
+
+    themeToggle.addEventListener('click', function () {
+      document.documentElement.classList.toggle('dark');
+      const nuevoTema = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      localStorage.setItem('mantencion-theme', nuevoTema);
+      actualizarIconoTema();
+    });
+  }
 });
