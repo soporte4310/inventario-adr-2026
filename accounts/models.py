@@ -15,6 +15,7 @@ class Profile(models.Model):
     image = models.ImageField(
         default='default.png',
         upload_to='users/',
+        #Sin el blank=True, el campo es obligatorio y no permite valores nulos, generando el error de Emilio/Herna
         blank=True,
         verbose_name='Imagen de perfil'
     )
