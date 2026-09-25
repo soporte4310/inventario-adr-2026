@@ -5,7 +5,7 @@ Contiene todas las vistas para manejar las diferentes funcionalidades del sistem
 
 import os
 
-from django.db.models import Q, F
+from django.db.models import Q, F, Case, When, Value, IntegerField
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash, SESSION_KEY
@@ -208,9 +208,20 @@ class ProfileListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(user__is_active=False)
         elif estado != 'todos':
             queryset = queryset.filter(user__is_active=True)
+        # Orden por jerarquía de rol (no alfabético): ADR primero, Usuario al final.
+        orden_por_rol = Case(
+            When(user__groups__name='ADR', then=Value(0)),
+            When(user__groups__name='Operadores ADR', then=Value(1)),
+            When(user__groups__name='Auxiliares Operadores ADR', then=Value(2)),
+            When(user__groups__name='Alumnos en Práctica', then=Value(3)),
+            When(user__groups__name='Usuario', then=Value(4)),
+            default=Value(5),
+            output_field=IntegerField(),
+        )
         queryset = queryset.annotate(
-            group_name=F('user__groups__name')
-        ).order_by('-group_name', 'user__username')
+            group_name=F('user__groups__name'),
+            orden_rol=orden_por_rol,
+        ).order_by('orden_rol', 'user__username')
         return queryset
 
     def get_context_data(self, **kwargs):
