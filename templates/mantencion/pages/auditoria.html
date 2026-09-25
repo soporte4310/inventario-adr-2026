@@ -1,0 +1,88 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% block title %}Auditoría{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <h1 class="text-2xl font-bold">Auditoría</h1>
+  <p class="text-xs text-black/50 dark:text-white/50">Bitácora de solo lectura: no se puede editar ni borrar nada desde acá.</p>
+</div>
+
+<form method="get" class="flex flex-wrap items-center gap-3 mb-4">
+  <div class="flex items-center gap-2">
+    <label for="mnt-filtro-tipo" class="text-sm text-black/60 dark:text-white/60">Tipo:</label>
+    <select id="mnt-filtro-tipo" name="tipo" class="form-control" onchange="this.form.submit()">
+      <option value="" {% if not tipo_filtro %}selected{% endif %}>Todos</option>
+      <option value="PROY" {% if tipo_filtro == 'PROY' %}selected{% endif %}>Proyectores</option>
+      <option value="IMPR" {% if tipo_filtro == 'IMPR' %}selected{% endif %}>Impresoras</option>
+    </select>
+  </div>
+  <div class="flex items-center gap-2">
+    <label for="mnt-filtro-accion" class="text-sm text-black/60 dark:text-white/60">Acción:</label>
+    <select id="mnt-filtro-accion" name="accion" class="form-control" onchange="this.form.submit()">
+      <option value="" {% if not accion_filtro %}selected{% endif %}>Todas</option>
+      {% for valor, etiqueta in acciones %}
+      <option value="{{ valor }}" {% if accion_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if tipo_filtro or accion_filtro %}
+  <a href="{% url 'mantencion_auditoria' %}" class="text-sm text-black/50 dark:text-white/50 hover:underline">Limpiar filtros</a>
+  {% endif %}
+</form>
+
+<div class="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
+  <table class="min-w-full text-sm">
+    <thead class="bg-black/5 dark:bg-white/10 text-left">
+      <tr>
+        <th class="px-3 py-2">Fecha y hora</th>
+        <th class="px-3 py-2">Usuario</th>
+        <th class="px-3 py-2">Acción</th>
+        <th class="px-3 py-2">Equipo</th>
+        <th class="px-3 py-2">Detalle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for registro in registros %}
+      <tr class="border-t border-black/5 dark:border-white/5 align-top">
+        <td class="px-3 py-2 whitespace-nowrap">{{ registro.fecha|date:"d/m/Y H:i" }}</td>
+        <td class="px-3 py-2">{{ registro.usuario.get_full_name|default:registro.usuario.username|default:"—" }}</td>
+        <td class="px-3 py-2">
+          <span class="text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap
+            {% if registro.accion == 'REV_OK' %} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100
+            {% elif registro.accion == 'REV_NOV' %} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100
+            {% elif registro.accion == 'ENROQUE' %} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100
+            {% elif registro.accion == 'EQ_ALTA' or registro.accion == 'IMP_ALTA' %} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100
+            {% else %} bg-black/10 text-black/70 dark:bg-white/10 dark:text-white/70 {% endif %}">
+            {{ registro.get_accion_display }}
+          </span>
+        </td>
+        <td class="px-3 py-2">{{ registro.equipo_descripcion }}</td>
+        <td class="px-3 py-2 text-black/70 dark:text-white/70">{{ registro.detalle|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="px-3 py-6 text-center text-black/50 dark:text-white/50">Todavía no hay registros de auditoría.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if is_paginated %}
+<div class="flex items-center justify-between mt-4 text-sm">
+  <div class="text-black/50 dark:text-white/50">
+    Página {{ page_obj.number }} de {{ paginator.num_pages }}
+  </div>
+  <div class="flex gap-2">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}{% if accion_filtro %}&accion={{ accion_filtro }}{% endif %}"
+       class="px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Anterior</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}{% if accion_filtro %}&accion={{ accion_filtro }}{% endif %}"
+       class="px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Siguiente</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

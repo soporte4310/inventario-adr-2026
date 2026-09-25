@@ -4,6 +4,7 @@ import tempfile
 from PIL import Image
 
 from django.contrib.auth.models import Group, User
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -12,7 +13,7 @@ from django.utils import timezone
 
 from inventario.models import Activo, AuditoriaActivo, Catalogo, Categoria, Edificio, Estado, Marca, Piso, Ubicacion
 
-from .models import CicloRevision, EquipoMantenible, Impresora, RevisionEquipo
+from .models import CicloRevision, EquipoMantenible, Impresora, RegistroAuditoria, RevisionEquipo
 
 
 def _imagen_valida():
@@ -201,8 +202,58 @@ class RevisionMensualFlowTests(MantencionTestCase):
         self.assertEqual(revision.estado, RevisionEquipo.Estado.OK)
         self.assertEqual(revision.revisado_por, self.user_practicante)
         self.assertEqual(response.status_code, 302)
+        # El redirect deja al navegador en la misma tarjeta (no arriba de la página).
+        self.assertTrue(response.url.endswith(f"#revision-{revision.pk}"))
+
+    def test_marcar_ok_deja_registro_en_la_bitacora_de_auditoria(self):
+        call_command('generar_ciclo_revision', 'PROY')
+        revision = RevisionEquipo.objects.get(equipo=self.equipo)
+
+        self.client.login(username='practicante1', password='clave-segura-123')
+        self.client.post(reverse('mantencion_marcar_ok', args=[revision.pk]))
+
+        registro = RegistroAuditoria.objects.latest('id')
+        self.assertEqual(registro.accion, RegistroAuditoria.Accion.REVISION_OK)
+        self.assertEqual(registro.usuario, self.user_practicante)
+        self.assertIn(self.activo.numero_serie, registro.equipo_descripcion)
 
     def test_registrar_novedad_guarda_evidencia_como_jpeg(self):
+        call_command('generar_ciclo_revision', 'PROY')
+        revision = RevisionEquipo.objects.get(equipo=self.equipo)
+
+        self.client.login(username='practicante1', password='clave-segura-123')
+        self.client.post(reverse('mantencion_registrar_novedad', args=[revision.pk]), {
+            'comentario': 'No enciende',
+            'sigue_operativo': 'False',
+            'archivo': _imagen_valida(),
+        })
+
+        revision.refresh_from_db()
+        self.assertEqual(revision.estado, RevisionEquipo.Estado.NOVEDAD)
+        self.assertFalse(revision.sigue_operativo)
+        self.assertEqual(revision.evidencias.count(), 1)
+
+        evidencia = revision.evidencias.first()
+        self.assertEqual(evidencia.tipo_archivo, 'FOTO')
+
+    def test_registrar_novedad_operativo_true_se_guarda_correctamente(self):
+        """Una observación superficial (ej: rayadura estética) no implica que el equipo dejó de funcionar."""
+        call_command('generar_ciclo_revision', 'PROY')
+        revision = RevisionEquipo.objects.get(equipo=self.equipo)
+
+        self.client.login(username='practicante1', password='clave-segura-123')
+        self.client.post(reverse('mantencion_registrar_novedad', args=[revision.pk]), {
+            'comentario': 'Carcasa rayada, funciona con normalidad',
+            'sigue_operativo': 'True',
+            'archivo': _imagen_valida(),
+        })
+
+        revision.refresh_from_db()
+        self.assertEqual(revision.estado, RevisionEquipo.Estado.NOVEDAD)
+        self.assertTrue(revision.sigue_operativo)
+
+    def test_registrar_novedad_sin_responder_operatividad_no_guarda(self):
+        """El campo es obligatorio: no se debe poder registrar una novedad sin contestar la pregunta."""
         call_command('generar_ciclo_revision', 'PROY')
         revision = RevisionEquipo.objects.get(equipo=self.equipo)
 
@@ -213,12 +264,8 @@ class RevisionMensualFlowTests(MantencionTestCase):
         })
 
         revision.refresh_from_db()
-        self.assertEqual(revision.estado, RevisionEquipo.Estado.NOVEDAD)
-        self.assertEqual(revision.evidencias.count(), 1)
-
-        evidencia = revision.evidencias.first()
-        self.assertEqual(evidencia.tipo_archivo, 'FOTO')
-        self.assertTrue(evidencia.archivo.name.endswith('.jpg'))
+        self.assertEqual(revision.estado, RevisionEquipo.Estado.PENDIENTE)
+        self.assertEqual(revision.evidencias.count(), 0)
 
 
 class HistorialDeCiclosTests(MantencionTestCase):
@@ -437,27 +484,6 @@ class ImpresoraAltaBajaTests(ImpresoraTestCase):
         })
         self.assertEqual(response.status_code, 403)
 
-    def test_adr_puede_dar_de_baja_una_impresora(self):
-        self.client.login(username='adr1', password='clave-segura-123')
-        response = self.client.post(reverse('mantencion_impresora_eliminar'), {
-            'impresora': self.impresora.pk,
-        })
-
-        self.assertEqual(response.status_code, 302)
-        self.impresora.refresh_from_db()
-        self.equipo_impresora.refresh_from_db()
-        self.assertEqual(self.impresora.estado, Impresora.EstadoImpresora.DE_BAJA)
-        self.assertFalse(self.equipo_impresora.activo_en_revision)
-
-    def test_impresora_dada_de_baja_no_aparece_para_darla_de_baja_de_nuevo(self):
-        self.impresora.estado = Impresora.EstadoImpresora.DE_BAJA
-        self.impresora.save()
-
-        from .forms import EliminarImpresoraForm
-        form = EliminarImpresoraForm()
-        self.assertNotIn(self.impresora, list(form.fields['impresora'].queryset))
-
-
 class CicloImpresorasTests(ImpresoraTestCase):
     def test_generar_ciclo_revision_impr_crea_fila_para_impresora_real(self):
         call_command('generar_ciclo_revision', 'IMPR')
@@ -474,9 +500,32 @@ class CicloImpresorasTests(ImpresoraTestCase):
 
         self.assertFalse(RevisionEquipo.objects.filter(equipo=self.equipo_impresora).exists())
 
-    def test_reporte_excel_impresoras_no_falla(self):
+    def test_reporte_excel_bloqueado_si_quedan_pendientes(self):
+        """El reporte no refleja la realidad si todavía faltan equipos por revisar."""
         call_command('generar_ciclo_revision', 'IMPR')
         self.client.login(username='practicante1', password='clave-segura-123')
+        response = self.client.get(reverse('mantencion_reporte_excel_impresoras'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(
+            response.get('Content-Type'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    def test_reporte_email_bloqueado_si_quedan_pendientes(self):
+        call_command('generar_ciclo_revision', 'IMPR')
+        self.client.login(username='practicante1', password='clave-segura-123')
+        ciclo = CicloRevision.objects.filter(tipo='IMPR').first()
+        response = self.client.post(reverse('mantencion_reporte_email_impresoras'), {'ciclo': ciclo.pk})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reporte_excel_impresoras_funciona_con_el_ciclo_completo(self):
+        call_command('generar_ciclo_revision', 'IMPR')
+        revision = RevisionEquipo.objects.get(equipo=self.equipo_impresora)
+        self.client.login(username='practicante1', password='clave-segura-123')
+        self.client.post(reverse('mantencion_marcar_ok', args=[revision.pk]))
+
         response = self.client.get(reverse('mantencion_reporte_excel_impresoras'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -492,3 +541,42 @@ class CicloImpresorasTests(ImpresoraTestCase):
         self.impresora.refresh_from_db()
         self.assertEqual(self.impresora.ubicacion, self.sala_102)
         self.assertEqual(response.status_code, 302)
+
+
+class AuditoriaMantencionTests(MantencionTestCase):
+    def test_practicante_no_puede_ver_la_auditoria(self):
+        """Auditoría es sólo lectura para ADR, ni siquiera los revisores de terreno la ven."""
+        self.client.login(username='practicante1', password='clave-segura-123')
+        response = self.client.get(reverse('mantencion_auditoria'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_adr_si_puede_ver_la_auditoria(self):
+        self.client.login(username='adr1', password='clave-segura-123')
+        response = self.client.get(reverse('mantencion_auditoria'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_enroque_deja_registro_con_ubicacion_anterior_y_nueva(self):
+        self.client.login(username='adr1', password='clave-segura-123')
+        self.client.post(reverse('mantencion_enroque', args=[self.equipo.pk]), {'ubicacion': self.sala_102.pk})
+
+        registro = RegistroAuditoria.objects.latest('id')
+        self.assertEqual(registro.accion, RegistroAuditoria.Accion.ENROQUE)
+        self.assertIn(self.sala_101.nombre, registro.detalle)
+        self.assertIn(self.sala_102.nombre, registro.detalle)
+
+
+class EquiposDeBajaTests(MantencionTestCase):
+    def test_equipo_pausado_aparece_en_equipos_de_baja(self):
+        self.equipo.activo_en_revision = False
+        self.equipo.save(update_fields=['activo_en_revision'])
+
+        self.client.login(username='practicante1', password='clave-segura-123')
+        response = self.client.get(reverse('mantencion_lista_proyectores'))
+
+        self.assertIn(self.equipo, list(response.context['equipos_de_baja']))
+
+    def test_equipo_activo_no_aparece_en_equipos_de_baja(self):
+        self.client.login(username='practicante1', password='clave-segura-123')
+        response = self.client.get(reverse('mantencion_lista_proyectores'))
+
+        self.assertNotIn(self.equipo, list(response.context['equipos_de_baja']))

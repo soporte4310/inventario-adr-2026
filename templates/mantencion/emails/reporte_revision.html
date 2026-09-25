@@ -32,6 +32,7 @@
       <tr>
         <th align="left">Equipo</th>
         <th align="left">Ubicación</th>
+        <th align="left">¿Operativo?</th>
         <th align="left">Comentario</th>
       </tr>
     </thead>
@@ -41,6 +42,9 @@
         <td>{{ n.equipo.equipo_real }}</td>
         <td>
           {% if n.ubicacion_en_revision %}{{ n.ubicacion_en_revision.piso.edificio.nombre }} - {{ n.ubicacion_en_revision.nombre }}{% else %}—{% endif %}
+        </td>
+        <td style="{% if n.sigue_operativo %}color:#a16207;{% else %}color:#c0392b; font-weight:bold;{% endif %}">
+          {% if n.sigue_operativo %}Sí{% else %}NO{% endif %}
         </td>
         <td>{{ n.comentario }}</td>
       </tr>

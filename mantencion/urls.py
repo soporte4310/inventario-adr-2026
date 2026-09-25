@@ -28,7 +28,8 @@ from .views import (
     RosterPausarEquipoView,
 
     ImpresoraAgregarView,
-    ImpresoraEliminarView,
+
+    AuditoriaMantencionView,
 )
 
 
@@ -67,7 +68,10 @@ urlpatterns = [
     path('roster/nuevo/', RosterAgregarEquipoView.as_view(), name='mantencion_roster_agregar'),
     path('roster/<int:pk>/pausar/', RosterPausarEquipoView.as_view(), name='mantencion_roster_pausar'),
 
-    # Alta/baja de impresoras (modal en Lista de impresoras, sólo ADR)
+    # Alta de impresoras (modal en Lista de impresoras, sólo ADR). La baja se
+    # maneja con "Quitar" (pausar) por fila + el modal "De baja" para verlas.
     path('impresoras/agregar/', ImpresoraAgregarView.as_view(), name='mantencion_impresora_agregar'),
-    path('impresoras/eliminar/', ImpresoraEliminarView.as_view(), name='mantencion_impresora_eliminar'),
+
+    # Bitácora de auditoría (solo lectura, solo ADR)
+    path('auditoria/', AuditoriaMantencionView.as_view(), name='mantencion_auditoria'),
 ]

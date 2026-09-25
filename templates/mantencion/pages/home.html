@@ -49,7 +49,14 @@
 <div class="space-y-2">
   {% for n in ultimas_novedades %}
   <div class="rounded-lg border border-black/10 dark:border-white/10 p-3 text-sm">
-    <div class="font-medium">{{ n.equipo.equipo_real }}</div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="font-medium">{{ n.equipo.equipo_real }}</div>
+      <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap
+        {% if n.sigue_operativo %} bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100
+        {% else %} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 {% endif %}">
+        {% if n.sigue_operativo %}Operativo{% else %}Fuera de servicio{% endif %}
+      </span>
+    </div>
     <div class="text-black/60 dark:text-white/60">{{ n.comentario }}</div>
     <div class="text-xs text-black/40 dark:text-white/40 mt-1">
       {{ n.revisado_por }} · {{ n.fecha_revision|date:"d/m/Y H:i" }}

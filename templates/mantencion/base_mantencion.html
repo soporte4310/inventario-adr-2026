@@ -39,7 +39,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="{% static 'css/mantencion.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'css/mantencion.css' %}?v=3">
 </head>
 
 <body class="bg-white text-black dark:bg-black dark:text-white font-sans min-h-screen">
@@ -113,6 +113,10 @@
       {% url 'mantencion_roster' as url_roster %}
       <a href="{{ url_roster }}" class="mnt-nav-link {% if request.path == url_roster %}mnt-nav-link-active{% endif %}">
         <i class="fas fa-tasks w-5"></i> Equipos en mantención
+      </a>
+      {% url 'mantencion_auditoria' as url_auditoria %}
+      <a href="{{ url_auditoria }}" class="mnt-nav-link {% if request.path == url_auditoria %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-clipboard-list w-5"></i> Auditoría
       </a>
       {% endif %}
     </div>

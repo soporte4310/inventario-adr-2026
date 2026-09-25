@@ -148,26 +148,6 @@ class ImpresoraForm(forms.ModelForm):
         }
 
 
-class EliminarImpresoraForm(forms.Form):
-    """
-    "Dar de baja" una impresora (ej: se rompió y la reemplazaron por una
-    nueva). No borra nada: marca la Impresora como De Baja/Deprecada y
-    pausa su EquipoMantenible, dejando el historial intacto para siempre.
-    """
-    impresora = forms.ModelChoiceField(
-        queryset=Impresora.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        label="Impresora a dar de baja",
-        empty_label="-- Selecciona una impresora --"
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['impresora'].queryset = Impresora.objects.filter(
-            estado=Impresora.EstadoImpresora.OPERATIVA
-        ).order_by('modelo', 'nombre_equipo')
-
-
 class NovedadRevisionForm(forms.Form):
     """
     Formulario que usa el practicante en terreno cuando un equipo NO está
@@ -176,6 +156,14 @@ class NovedadRevisionForm(forms.Form):
     comentario = forms.CharField(
         label="¿Qué le pasó al equipo?",
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Ej: No enciende, falta control remoto, atasco de papel...'})
+    )
+    # Una novedad no siempre significa que el equipo dejó de funcionar (ej:
+    # una rayadura estética); se pregunta explícito en vez de asumir.
+    sigue_operativo = forms.TypedChoiceField(
+        label="¿El equipo sigue operativo pese a esta observación?",
+        choices=[('True', 'Sí, sigue funcionando con normalidad'), ('False', 'No, quedó fuera de servicio')],
+        coerce=lambda valor: valor == 'True',
+        widget=forms.RadioSelect,
     )
     archivo = forms.FileField(
         label="Foto o video de evidencia",

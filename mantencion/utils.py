@@ -27,6 +27,21 @@ def limite_alcanzado(user, accion, max_intentos=30, ventana_segundos=60):
     return False
 
 
+def registrar_auditoria(usuario, accion, equipo_descripcion, tipo_equipo=None, detalle=''):
+    """
+    Deja constancia en la bitácora de auditoría de mantención (solo lectura,
+    ver AuditoriaMantencionView). 'equipo_descripcion' debe ser el snapshot
+    de texto del equipo (ej. equipo.marca_modelo + su N° de serie), no una
+    referencia que dependa de que el equipo siga existiendo.
+    """
+    from .models import RegistroAuditoria
+
+    RegistroAuditoria.objects.create(
+        usuario=usuario, accion=accion, tipo_equipo=tipo_equipo,
+        equipo_descripcion=equipo_descripcion, detalle=detalle,
+    )
+
+
 def crear_nuevo_ciclo(tipo, usuario=None, fecha=None):
     """
     Crea un nuevo CicloRevision de 'tipo' con la fecha dada (hoy por

@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const fotoComentario = document.getElementById('mnt-foto-comentario');
   const modalImpresoras = document.getElementById('mnt-modal-impresoras');
   const abrirImpresoras = document.getElementById('mnt-abrir-gestionar-impresoras');
+  const modalDeBaja = document.getElementById('mnt-modal-de-baja');
+  const abrirDeBaja = document.getElementById('mnt-abrir-de-baja');
 
   if (modalNovedad && formNovedad) {
     document.querySelectorAll('.mnt-abrir-novedad').forEach(function (btn) {
@@ -52,12 +54,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  if (modalDeBaja && abrirDeBaja) {
+    abrirDeBaja.addEventListener('click', function () {
+      modalDeBaja.classList.remove('hidden');
+    });
+  }
+
   document.querySelectorAll('.mnt-cerrar-modal').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (modalNovedad) modalNovedad.classList.add('hidden');
       if (modalEnroque) modalEnroque.classList.add('hidden');
       if (modalFoto) modalFoto.classList.add('hidden');
       if (modalImpresoras) modalImpresoras.classList.add('hidden');
+      if (modalDeBaja) modalDeBaja.classList.add('hidden');
     });
   });
 });

@@ -11,7 +11,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, ListView, TemplateView, View
@@ -21,12 +21,12 @@ from accounts.views import CustomLoginView
 from common.utils import procesar_imagen_en_memoria
 
 from .forms import (
-    AgregarProyectorForm, EliminarImpresoraForm, EnroqueActivoForm, EnroqueImpresoraForm,
+    AgregarProyectorForm, EnroqueActivoForm, EnroqueImpresoraForm,
     ImpresoraForm, NovedadRevisionForm,
 )
 from .mixins import MantencionLoginRequiredMixin
-from .models import CicloRevision, EquipoMantenible, EvidenciaRevision, Impresora, RevisionEquipo
-from .utils import GRUPOS_ADMIN, GRUPOS_REVISION, crear_nuevo_ciclo, limite_alcanzado
+from .models import CicloRevision, EquipoMantenible, EvidenciaRevision, Impresora, RegistroAuditoria, RevisionEquipo
+from .utils import GRUPOS_ADMIN, GRUPOS_REVISION, crear_nuevo_ciclo, limite_alcanzado, registrar_auditoria
 
 
 class MantencionLoginView(CustomLoginView):
@@ -117,7 +117,15 @@ class ListaEquiposView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEqu
         context['enroque_form'] = EnroqueActivoForm() if self.tipo == EquipoMantenible.Tipo.PROYECTOR else EnroqueImpresoraForm()
         if self.tipo == EquipoMantenible.Tipo.IMPRESORA:
             context['impresora_form'] = ImpresoraForm()
-            context['eliminar_impresora_form'] = EliminarImpresoraForm()
+        # Modal "Ver equipos de baja": mismo campo que ya controla por qué un
+        # equipo deja de aparecer en esta lista (pausado por ADR, o impresora
+        # marcada De Baja, que también pausa su EquipoMantenible).
+        context['equipos_de_baja'] = EquipoMantenible.objects.filter(
+            tipo=self.tipo, activo_en_revision=False
+        ).select_related(
+            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__estado',
+            'activo__ubicacion__piso__edificio', 'impresora__ubicacion__piso__edificio',
+        )
         return context
 
 
@@ -235,8 +243,20 @@ class MarcarOkView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
         revision.revisado_por = request.user
         revision.fecha_revision = timezone.now()
         revision.save()
+
+        registrar_auditoria(
+            usuario=request.user, accion=RegistroAuditoria.Accion.REVISION_OK,
+            equipo_descripcion=f"{revision.equipo.marca_modelo} (S/N {revision.equipo.numero_serie or '—'})",
+            tipo_equipo=revision.equipo.tipo,
+        )
+
         messages.success(request, f"{revision.equipo.equipo_real} marcado como OK.")
-        return redirect(_url_revision(revision.equipo.tipo))
+        # El ancla deja al navegador en la misma tarjeta que se acaba de
+        # marcar, en vez de saltar arriba de todo con cada click. redirect()
+        # necesita la ruta ya resuelta (reverse()): un nombre de url con '#'
+        # pegado no se puede resolver como nombre de vista.
+        url = reverse(_url_revision(revision.equipo.tipo))
+        return redirect(f"{url}#revision-{revision.pk}")
 
 
 class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
@@ -280,8 +300,11 @@ class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, Vie
         else:
             archivo_final = archivo
 
+        sigue_operativo = form.cleaned_data['sigue_operativo']
+
         revision.estado = RevisionEquipo.Estado.NOVEDAD
         revision.comentario = form.cleaned_data['comentario']
+        revision.sigue_operativo = sigue_operativo
         revision.revisado_por = request.user
         revision.fecha_revision = timezone.now()
         revision.save()
@@ -291,8 +314,17 @@ class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, Vie
             tipo_archivo=form.tipo_archivo, subido_por=request.user
         )
 
+        etiqueta_operatividad = 'sigue operativo' if sigue_operativo else 'FUERA DE SERVICIO'
+        registrar_auditoria(
+            usuario=request.user, accion=RegistroAuditoria.Accion.REVISION_NOVEDAD,
+            equipo_descripcion=f"{revision.equipo.marca_modelo} (S/N {revision.equipo.numero_serie or '—'})",
+            tipo_equipo=revision.equipo.tipo,
+            detalle=f"{form.cleaned_data['comentario']} ({etiqueta_operatividad})",
+        )
+
         messages.warning(request, f"Novedad registrada para {revision.equipo.equipo_real}.")
-        return redirect(_url_revision(revision.equipo.tipo))
+        url = reverse(_url_revision(revision.equipo.tipo))
+        return redirect(f"{url}#revision-{revision.pk}")
 
 
 class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
@@ -308,8 +340,13 @@ class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
 
     def post(self, request, equipo_id):
         equipo = get_object_or_404(
-            EquipoMantenible.objects.select_related('activo', 'impresora'), pk=equipo_id
+            EquipoMantenible.objects.select_related('activo__ubicacion', 'impresora__ubicacion'), pk=equipo_id
         )
+        # Se captura ANTES de validar el form: ModelForm.is_valid() ya deja
+        # el 'instance' (que es equipo.activo/impresora) con el valor NUEVO,
+        # así que después de eso ya sería tarde para saber cuál era el viejo.
+        ubicacion_anterior = str(equipo.ubicacion) if equipo.ubicacion else 'Sin ubicación'
+
         if equipo.tipo == EquipoMantenible.Tipo.PROYECTOR:
             form = EnroqueActivoForm(request.POST, instance=equipo.activo)
         else:
@@ -317,6 +354,12 @@ class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
 
         if form.is_valid():
             form.save()
+            registrar_auditoria(
+                usuario=request.user, accion=RegistroAuditoria.Accion.ENROQUE,
+                equipo_descripcion=f"{equipo.marca_modelo} (S/N {equipo.numero_serie or '—'})",
+                tipo_equipo=equipo.tipo,
+                detalle=f"{ubicacion_anterior} → {equipo.ubicacion}",
+            )
             messages.success(request, f"{equipo.equipo_real} fue reubicado correctamente.")
         else:
             messages.error(request, "No se pudo actualizar la ubicación. Selecciona una sala válida.")
@@ -350,32 +393,12 @@ class ImpresoraAgregarView(MantencionLoginRequiredMixin, GroupRequiredMixin, Vie
             tipo=EquipoMantenible.Tipo.IMPRESORA, impresora=impresora, agregado_por=request.user
         )
 
+        registrar_auditoria(
+            usuario=request.user, accion=RegistroAuditoria.Accion.IMPRESORA_AGREGADA,
+            equipo_descripcion=str(impresora), tipo_equipo=EquipoMantenible.Tipo.IMPRESORA,
+        )
+
         messages.success(request, f"{impresora} agregada al circuito de mantención.")
-        return redirect('mantencion_lista_impresoras')
-
-
-class ImpresoraEliminarView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """
-    Modal "Eliminar impresora": la marca 'De Baja/Deprecada' (ej: se rompió
-    y la reemplazaron por una nueva) y pausa su EquipoMantenible. No borra
-    ningún dato: el historial de revisiones queda intacto para siempre.
-    """
-    group_required = GRUPOS_ADMIN
-
-    def post(self, request, *args, **kwargs):
-        form = EliminarImpresoraForm(request.POST)
-        if not form.is_valid():
-            for error in form.errors.values():
-                messages.error(request, error.as_text())
-            return redirect('mantencion_lista_impresoras')
-
-        impresora = form.cleaned_data['impresora']
-        impresora.estado = Impresora.EstadoImpresora.DE_BAJA
-        impresora.save(update_fields=['estado'])
-
-        EquipoMantenible.objects.filter(impresora=impresora).update(activo_en_revision=False)
-
-        messages.warning(request, f"{impresora} se marcó como De Baja/Deprecada.")
         return redirect('mantencion_lista_impresoras')
 
 
@@ -462,6 +485,11 @@ def _dataframe_revision(ciclo, tipo):
     return pd.DataFrame(data)
 
 
+def _quedan_pendientes(ciclo):
+    """El reporte (Excel o correo) solo tiene sentido con el ciclo completo: todavía no refleja la realidad si faltan equipos por revisar."""
+    return bool(ciclo) and RevisionEquipo.objects.filter(ciclo=ciclo, estado=RevisionEquipo.Estado.PENDIENTE).exists()
+
+
 class ReporteExcelView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, View):
     group_required = GRUPOS_REVISION
 
@@ -471,6 +499,11 @@ class ReporteExcelView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEqu
             ciclo = get_object_or_404(CicloRevision, pk=ciclo_id, tipo=self.tipo)
         else:
             ciclo = _ultimo_ciclo(self.tipo)
+
+        if _quedan_pendientes(ciclo):
+            messages.error(request, "Todavía quedan equipos pendientes de revisar en este ciclo. El reporte se habilita cuando todos queden en OK o con novedad.")
+            return redirect(_url_revision(self.tipo))
+
         df = _dataframe_revision(ciclo, self.tipo)
         nombre_tipo = self.get_tipo_label()
         etiqueta_fecha = ciclo.fecha_inicio.strftime('%d_%m_%Y') if ciclo else timezone.localdate().strftime('%d_%m_%Y')
@@ -494,6 +527,11 @@ class ReporteEmailView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEqu
             ciclo = get_object_or_404(CicloRevision, pk=ciclo_id, tipo=self.tipo)
         else:
             ciclo = _ultimo_ciclo(self.tipo)
+
+        if _quedan_pendientes(ciclo):
+            messages.error(request, "Todavía quedan equipos pendientes de revisar en este ciclo. El reporte se habilita cuando todos queden en OK o con novedad.")
+            return redirect(_url_revision(self.tipo))
+
         revisiones = RevisionEquipo.objects.filter(ciclo=ciclo) if ciclo else RevisionEquipo.objects.none()
         nombre_tipo = self.get_tipo_label()
 
@@ -572,6 +610,12 @@ class RosterAgregarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, 
             activo.ubicacion = ubicacion
             activo.save()
 
+        registrar_auditoria(
+            usuario=self.request.user, accion=RegistroAuditoria.Accion.EQUIPO_AGREGADO,
+            equipo_descripcion=f"{self.object.marca_modelo} (S/N {self.object.numero_serie or '—'})",
+            tipo_equipo=self.object.tipo,
+        )
+
         messages.success(self.request, "Proyector agregado al circuito de mantención mensual.")
         return response
 
@@ -584,10 +628,20 @@ class RosterPausarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, V
     group_required = GRUPOS_ADMIN
 
     def post(self, request, pk):
-        equipo = get_object_or_404(EquipoMantenible, pk=pk)
+        equipo = get_object_or_404(
+            EquipoMantenible.objects.select_related('activo', 'impresora'), pk=pk
+        )
         equipo.activo_en_revision = not equipo.activo_en_revision
         equipo.save(update_fields=['activo_en_revision'])
         estado = "reactivado" if equipo.activo_en_revision else "quitado de la lista"
+
+        registrar_auditoria(
+            usuario=request.user,
+            accion=RegistroAuditoria.Accion.EQUIPO_REACTIVADO if equipo.activo_en_revision else RegistroAuditoria.Accion.EQUIPO_PAUSADO,
+            equipo_descripcion=f"{equipo.marca_modelo} (S/N {equipo.numero_serie or '—'})",
+            tipo_equipo=equipo.tipo,
+        )
+
         messages.success(request, f"Equipo {estado} correctamente.")
         # Si el botón vino desde "Lista de proyectores/impresoras" (no desde
         # el roster de ADR), volvemos a esa misma página en vez de forzar
@@ -597,3 +651,36 @@ class RosterPausarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, V
         if siguiente and url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
             return redirect(siguiente)
         return redirect('mantencion_roster')
+
+
+# ---------------------------------------------------------------------------
+# Sólo ADR: bitácora de auditoría (solo lectura)
+# ---------------------------------------------------------------------------
+
+class AuditoriaMantencionView(MantencionLoginRequiredMixin, GroupRequiredMixin, ListView):
+    """
+    Bitácora de solo lectura: quién hizo qué y cuándo dentro del módulo.
+    Nunca se edita ni se borra nada desde acá, solo se consulta.
+    """
+    group_required = GRUPOS_ADMIN
+    model = RegistroAuditoria
+    template_name = 'mantencion/pages/auditoria.html'
+    context_object_name = 'registros'
+    paginate_by = 50
+
+    def get_queryset(self):
+        qs = RegistroAuditoria.objects.select_related('usuario')
+        tipo = self.request.GET.get('tipo')
+        if tipo in EquipoMantenible.Tipo.values:
+            qs = qs.filter(tipo_equipo=tipo)
+        accion = self.request.GET.get('accion')
+        if accion in RegistroAuditoria.Accion.values:
+            qs = qs.filter(accion=accion)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tipo_filtro'] = self.request.GET.get('tipo', '')
+        context['accion_filtro'] = self.request.GET.get('accion', '')
+        context['acciones'] = RegistroAuditoria.Accion.choices
+        return context

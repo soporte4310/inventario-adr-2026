@@ -222,6 +222,15 @@ class RevisionEquipo(models.Model):
     fecha_revision = models.DateTimeField(null=True, blank=True)
     comentario = models.TextField(blank=True, verbose_name="Comentario / Novedad")
 
+    # Solo tiene sentido cuando estado=NOVEDAD: una observación no siempre
+    # significa que el equipo dejó de funcionar (ej: una rayadura estética),
+    # así que se pregunta explícito en vez de asumir "novedad = no operativo".
+    # None cuando no aplica (PENDIENTE u OK).
+    sigue_operativo = models.BooleanField(
+        null=True, blank=True, default=None,
+        verbose_name="¿Sigue operativo pese a la novedad?"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -241,6 +250,56 @@ class RevisionEquipo(models.Model):
         # comentario deja al equipo técnico sin ninguna pista del problema.
         if self.estado == self.Estado.NOVEDAD and not self.comentario.strip():
             raise ValidationError({'comentario': 'Debes describir la novedad antes de guardarla.'})
+        if self.estado == self.Estado.NOVEDAD and self.sigue_operativo is None:
+            raise ValidationError({'sigue_operativo': 'Debes indicar si el equipo sigue operativo pese a la novedad.'})
+
+
+class RegistroAuditoria(models.Model):
+    """
+    Bitácora de solo lectura de las acciones del módulo (quién hizo qué y
+    cuándo): revisiones, enroques, altas/bajas de equipos. Se muestra en
+    AuditoriaMantencionView, visible solo para ADR.
+
+    A propósito NO reutiliza inventario.AuditoriaActivo: esa tabla es
+    específica de cambios sobre Activo y los reportes diario/semanal ya
+    asumen ese contexto (usuario, campo, valor_anterior/nuevo). Mezclar
+    eventos de mantención ahí complicaría esos reportes sin necesidad.
+
+    'equipo_descripcion' guarda un snapshot de texto (no solo una FK) para
+    que el registro siga siendo legible aunque el equipo se pause, dé de
+    baja o cambie de datos después del evento.
+    """
+
+    class Accion(models.TextChoices):
+        REVISION_OK = 'REV_OK', 'Revisión marcada OK'
+        REVISION_NOVEDAD = 'REV_NOV', 'Revisión con novedad'
+        ENROQUE = 'ENROQUE', 'Enroque (cambio de ubicación)'
+        EQUIPO_AGREGADO = 'EQ_ALTA', 'Equipo agregado al roster'
+        EQUIPO_PAUSADO = 'EQ_PAUSA', 'Equipo pausado'
+        EQUIPO_REACTIVADO = 'EQ_REACT', 'Equipo reactivado'
+        IMPRESORA_AGREGADA = 'IMP_ALTA', 'Impresora agregada'
+        IMPRESORA_BAJA = 'IMP_BAJA', 'Impresora dada de baja'
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Realizado por"
+    )
+    accion = models.CharField(max_length=10, choices=Accion.choices, verbose_name="Acción")
+    tipo_equipo = models.CharField(
+        max_length=4, choices=EquipoMantenible.Tipo.choices, null=True, blank=True,
+        verbose_name="Tipo de equipo"
+    )
+    equipo_descripcion = models.CharField(max_length=200, verbose_name="Equipo afectado")
+    detalle = models.TextField(blank=True, verbose_name="Detalle")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y hora")
+
+    class Meta:
+        verbose_name = "Registro de Auditoría"
+        verbose_name_plural = "Registros de Auditoría"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_accion_display()} - {self.equipo_descripcion} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"
 
 
 class EvidenciaRevision(models.Model):
