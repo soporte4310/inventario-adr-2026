@@ -3,6 +3,19 @@
    sólo resuelve lo que no es práctico expresar como utilidad suelta:
    el navbar retráctil, el submenú colapsable y los inputs de formulario. */
 
+/* Le dice al navegador con qué paleta dibujar los controles NATIVOS del
+   sistema operativo (la lista desplegable de un <select> al abrirse,
+   checkboxes, scrollbars): esa lista no se puede re-estilar con CSS normal,
+   así que sin esto queda con los colores nativos del SO sin importar lo que
+   pongamos en .form-control más abajo. */
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
 .mnt-nav-link {
   display: flex;
   align-items: center;
@@ -45,14 +58,19 @@ textarea.form-control {
   padding: 0.55rem 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid rgba(0, 0, 0, 0.15);
-  background: transparent;
+  /* Fondo explícito (no transparent): el contraste con el texto no puede
+     depender de que el navegador deje ver el fondo de la página a través
+     del control nativo, porque en la práctica no siempre lo hace. */
+  background: #ffffff;
   font-size: 0.9rem;
-  color: inherit;
+  color: #111827;
 }
 
 .dark .form-control,
 .dark select.form-control,
 .dark textarea.form-control {
+  background: #18181b;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.2);
 }
 
