@@ -31,7 +31,8 @@ class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
             'numero_serie', 'etiqueta', 'bdo', 
             'tipo_red', 'netbios', 'tipo_uso', 
             'ubicacion', 'asignado_a',
-            'acta_entrega', 'acta_devolucion'
+            'acta_entrega', 'acta_devolucion',
+            'nombre_proyector', 'conexion_proyector'
         ]
         widgets = {
             'catalogo': forms.Select(attrs={'class': 'form-control select2'}),
@@ -49,6 +50,10 @@ class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
 
             'acta_entrega': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'}),
             'acta_devolucion': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'}),
+            
+            # Nuevos widgets para Proyectores
+            'nombre_proyector': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: SALA505C'}),
+            'conexion_proyector': forms.Select(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):

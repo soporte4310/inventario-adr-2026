@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  {% load static %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Mantención de Equipos{% endblock %} · ADR</title>
+  <link rel="shortcut icon" href="{% static 'imagenes/favicon.ico' %}" type="image/x-icon">
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Configuración de Tailwind (Play CDN) con soporte de modo oscuro manual.
+    // IMPORTANTE: esto va DESPUÉS de cargar el <script src> del CDN, no antes.
+    // Declarar 'tailwind' como variable global previa no sirve: el propio
+    // script del CDN la pisa al inicializarse, y la config se pierde en
+    // silencio (nos pasó: tailwind.config quedaba {} pese a estar bien
+    // escrito acá). Asignando tailwind.config ya con el objeto real creado sí
+    // dispara la regeneración con darkMode:'class', que hace que las clases
+    // 'dark:*' solo se activen cuando el <html> tenga la clase 'dark' puesta
+    // a mano (con el botón del navbar), nunca por el modo oscuro del sistema
+    // operativo.
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {} }
+    };
+  </script>
+
+  <script>
+    // Aplica el tema guardado ANTES de pintar la página (evita el parpadeo de
+    // cargar en claro y saltar a oscuro un instante después). A propósito NO
+    // seguimos prefers-color-scheme del sistema operativo: así el modo oscuro
+    // es siempre una elección explícita de la persona con el botón del
+    // navbar, nunca algo que "aparece solo" según la config de Windows.
+    if (localStorage.getItem('mantencion-theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+
+  <link rel="stylesheet" href="{% static 'css/mantencion.css' %}?v=3">
+</head>
+
+<body class="bg-white text-black dark:bg-black dark:text-white font-sans min-h-screen">
+
+  <!-- Botón hamburguesa: sólo visible en móvil, abre el navbar por tap -->
+  <button id="mnt-navbar-toggle" type="button"
+    class="fixed top-3 left-3 z-40 md:hidden bg-red-600 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center"
+    aria-label="Abrir menú">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div id="mnt-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+  <nav id="mnt-navbar"
+    class="fixed top-0 left-0 h-full w-64 -translate-x-full md:translate-x-0 transition-transform duration-200 z-40 bg-black text-white flex flex-col">
+    <div class="flex items-center justify-between gap-2 px-4 py-4 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-tools text-red-600 text-xl"></i>
+        <span class="font-bold text-lg">Mantención ADR</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <!-- Alterna el modo oscuro del contenido (el sidebar ya es negro siempre) -->
+        <button type="button" id="mnt-theme-toggle"
+          class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cambiar a modo oscuro">
+          <i class="fas fa-moon" id="mnt-theme-icon"></i>
+        </button>
+        <button type="button" id="mnt-navbar-close"
+          class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cerrar menú">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto py-2">
+      {% url 'mantencion_home' as url_home %}
+      <a href="{{ url_home }}" class="mnt-nav-link {% if request.path == url_home %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-home w-5"></i> Home
+      </a>
+
+      {% url 'mantencion_lista_impresoras' as url_lista_impr %}
+      <a href="{{ url_lista_impr }}" class="mnt-nav-link {% if request.path == url_lista_impr %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-print w-5"></i> Lista de impresoras
+      </a>
+
+      {% url 'mantencion_lista_proyectores' as url_lista_proy %}
+      <a href="{{ url_lista_proy }}" class="mnt-nav-link {% if request.path == url_lista_proy %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-video w-5"></i> Lista de proyectores
+      </a>
+
+      <button type="button" id="mnt-submenu-toggle" class="mnt-nav-link w-full justify-between">
+        <span><i class="fas fa-clipboard-check w-5"></i> Revisiones</span>
+        <i class="fas fa-chevron-down text-xs transition-transform" id="mnt-submenu-icon"></i>
+      </button>
+      <div id="mnt-submenu">
+        {% url 'mantencion_revision_proyectores' as url_rev_proy %}
+        <a href="{{ url_rev_proy }}" class="mnt-nav-link text-sm pl-10 {% if request.path == url_rev_proy %}mnt-nav-link-active{% endif %}">
+          Revisión de proyectores
+        </a>
+        {% url 'mantencion_revision_impresoras' as url_rev_impr %}
+        <a href="{{ url_rev_impr }}" class="mnt-nav-link text-sm pl-10 {% if request.path == url_rev_impr %}mnt-nav-link-active{% endif %}">
+          Revisión de impresoras
+        </a>
+      </div>
+
+      {% if es_adr %}
+      <div class="mt-3 pt-3 border-t border-white/10 px-4 pb-1 text-xs uppercase tracking-wide text-white/40">
+        Administración ADR
+      </div>
+      {% url 'mantencion_roster' as url_roster %}
+      <a href="{{ url_roster }}" class="mnt-nav-link {% if request.path == url_roster %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-tasks w-5"></i> Equipos en mantención
+      </a>
+      {% url 'mantencion_auditoria' as url_auditoria %}
+      <a href="{{ url_auditoria }}" class="mnt-nav-link {% if request.path == url_auditoria %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-clipboard-list w-5"></i> Auditoría
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Usuario en sesión + su rol (grupo), disponibles en todo el sitio
+         vía core.context_processors.group_and_user -->
+    <div class="px-4 py-3 border-t border-white/10 flex items-center gap-2">
+      <div class="w-8 h-8 shrink-0 rounded-full bg-red-600/80 flex items-center justify-center text-xs font-semibold">
+        {{ user_profile.username|slice:":1"|upper }}
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-medium truncate">{{ user_profile.get_full_name|default:user_profile.username }}</p>
+        <p class="text-xs text-white/50 truncate">{{ group_name_singular|default:"Sin rol asignado" }}</p>
+      </div>
+    </div>
+
+    <div class="border-t border-white/10 p-3">
+      <form action="{% url 'mantencion_logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="mnt-nav-link w-full !px-2 hover:text-red-300">
+          <i class="fas fa-sign-out-alt w-5"></i> Cerrar sesión
+        </button>
+      </form>
+    </div>
+  </nav>
+
+  <main class="md:ml-64 min-h-screen p-4 pt-16 md:pt-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Mensajes como "toast": flotan abajo a la derecha, se cierran solos
+       a los 8 segundos o con la X. No bloquean el resto de la página
+       (pointer-events-none en el contenedor, activado sólo en cada toast). -->
+  {% if messages %}
+  <div id="mnt-toasts" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 flex flex-col gap-2 pointer-events-none">
+    {% for message in messages %}
+    <div class="mnt-toast pointer-events-auto rounded-lg shadow-lg px-4 py-3 text-sm font-medium flex items-start gap-3
+        {% if message.tags == 'success' %} bg-green-600 text-white
+        {% elif message.tags == 'error' %} bg-red-600 text-white
+        {% elif message.tags == 'warning' %} bg-yellow-500 text-black
+        {% else %} bg-black text-white {% endif %}">
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="mnt-cerrar-toast shrink-0 opacity-70 hover:opacity-100" aria-label="Cerrar mensaje">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <script src="{% static 'js/mantencion_navbar.js' %}?v=3"></script>
+  <script src="{% static 'js/mantencion_toasts.js' %}"></script>
+  {% block js %}{% endblock %}
+</body>
+
+</html>

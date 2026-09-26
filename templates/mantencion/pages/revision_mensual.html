@@ -1,0 +1,221 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% load static %}
+{% block title %}Revisión de {{ tipo_label }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-start justify-between gap-3 mb-2">
+  <h1 class="text-2xl font-bold">Revisión de {{ tipo_label }}</h1>
+
+  {% if tipo_code == 'PROY' %}
+    {% url 'mantencion_nuevo_ciclo_proyectores' as url_nuevo_ciclo %}
+  {% else %}
+    {% url 'mantencion_nuevo_ciclo_impresoras' as url_nuevo_ciclo %}
+  {% endif %}
+  <form method="post" action="{{ url_nuevo_ciclo }}"
+    onsubmit="return confirm('¿Iniciar un nuevo ciclo de revisión de {{ tipo_label|lower }} con la fecha de hoy? El ciclo actual pasará a ser historial de sólo lectura.');">
+    {% csrf_token %}
+    <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">
+      <i class="fas fa-plus"></i> Nuevo ciclo/revisión
+    </button>
+  </form>
+</div>
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <form method="get" class="flex items-center gap-2">
+    <label for="mnt-select-ciclo" class="text-sm text-black/60 dark:text-white/60">Ciclo:</label>
+    <select id="mnt-select-ciclo" name="ciclo" class="form-control" onchange="this.form.submit()">
+      {% for c in ciclos %}
+      <option value="{{ c.pk }}" {% if ciclo and c.pk == ciclo.pk %}selected{% endif %}>
+        {{ c }}{% if forloop.first %} (más reciente){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if ciclo and pendientes_count == 0 %}
+  <div class="flex gap-2">
+    {% if tipo_code == 'PROY' %}
+      {% url 'mantencion_reporte_excel_proyectores' as url_reporte_excel %}
+      {% url 'mantencion_reporte_email_proyectores' as url_reporte_email %}
+    {% else %}
+      {% url 'mantencion_reporte_excel_impresoras' as url_reporte_excel %}
+      {% url 'mantencion_reporte_email_impresoras' as url_reporte_email %}
+    {% endif %}
+    <a href="{{ url_reporte_excel }}?ciclo={{ ciclo.pk }}"
+      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">
+      <i class="fas fa-file-excel"></i> Excel
+    </a>
+    <form method="post" action="{{ url_reporte_email }}">
+      {% csrf_token %}
+      <input type="hidden" name="ciclo" value="{{ ciclo.pk }}">
+      <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">
+        <i class="fas fa-paper-plane"></i> Enviar reporte
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if ciclo and pendientes_count > 0 %}
+<p class="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
+  <i class="fas fa-lock"></i>
+  El reporte (Excel o correo) se habilita cuando termines de revisar todos los equipos. Faltan
+  <strong>{{ pendientes_count }}</strong> {{ tipo_label_singular }}{{ pendientes_count|pluralize }}
+  (marcada{{ pendientes_count|pluralize }} en amarillo).
+</p>
+{% endif %}
+
+{% if ciclo and not es_editable %}
+<div class="mb-4 rounded-lg px-4 py-2 text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+  <i class="fas fa-lock"></i> Estás viendo un ciclo histórico. Es de sólo lectura: los datos que ya se revisaron no se pueden modificar.
+</div>
+{% endif %}
+
+{% if not ciclo %}
+<p class="text-sm text-black/50 dark:text-white/50">
+  Todavía no hay ningún ciclo de revisión de {{ tipo_label|lower }}. Presiona "Nuevo ciclo/revisión" para empezar.
+</p>
+{% endif %}
+
+{% regroup revisiones by ubicacion_en_revision as grupos_ubicacion %}
+{% for grupo in grupos_ubicacion %}
+<div class="mb-6">
+  <h2 class="font-semibold mb-2 flex items-center gap-2">
+    <i class="fas fa-map-marker-alt text-red-600"></i>
+    {% if grupo.grouper %}{{ grupo.grouper.piso.edificio.nombre }} · {{ grupo.grouper.nombre }}{% else %}Sin ubicación asignada{% endif %}
+  </h2>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {% for revision in grupo.list %}
+    <div id="revision-{{ revision.pk }}" class="rounded-xl border p-3
+        {% if revision.estado == 'PEN' %} bg-yellow-50 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700
+        {% else %} border-black/10 dark:border-white/10 {% endif %}">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div>
+          <div class="font-medium text-base sm:text-sm">{{ revision.equipo.marca_modelo }}</div>
+          <div class="text-sm sm:text-xs text-black/50 dark:text-white/50">S/N: {{ revision.equipo.numero_serie|default:"—" }}</div>
+        </div>
+        <span class="text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap
+          {% if revision.estado == 'OK' %} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100
+          {% elif revision.estado == 'NOV' and revision.sigue_operativo %} bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100
+          {% elif revision.estado == 'NOV' %} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100
+          {% else %} bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100 {% endif %}">
+          {{ revision.get_estado_display }}
+        </span>
+      </div>
+
+      {% if revision.estado == 'NOV' %}
+      <p class="text-xs font-semibold mb-1 {% if revision.sigue_operativo %}text-orange-700 dark:text-orange-400{% else %}text-red-700 dark:text-red-400{% endif %}">
+        <i class="fas {% if revision.sigue_operativo %}fa-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+        {% if revision.sigue_operativo %}Sigue operativo pese a la observación{% else %}Fuera de servicio{% endif %}
+      </p>
+      {% endif %}
+
+      {% if revision.comentario %}
+      <p class="text-sm sm:text-xs text-black/60 dark:text-white/60 mb-2">{{ revision.comentario }}</p>
+      {% endif %}
+
+      {% if revision.estado != 'PEN' and revision.revisado_por %}
+      <p class="text-xs text-black/40 dark:text-white/40 mb-2">
+        <i class="fas fa-user"></i> Revisado por {{ revision.revisado_por.get_full_name|default:revision.revisado_por.username }}
+        · {{ revision.fecha_revision|date:"d/m/Y H:i" }}
+      </p>
+      {% endif %}
+
+      {% if revision.evidencias.all %}
+      <div class="flex flex-wrap gap-2 mb-2">
+        {% for ev in revision.evidencias.all %}
+        {% if ev.tipo_archivo == 'FOTO' %}
+        <button type="button" class="mnt-ver-foto w-12 h-12 rounded-lg overflow-hidden border border-black/10 dark:border-white/10"
+          data-foto="{{ ev.archivo.url }}"
+          data-equipo="{{ revision.equipo.marca_modelo }}"
+          data-comentario="{{ revision.comentario }}">
+          <img src="{{ ev.archivo.url }}" class="w-full h-full object-cover">
+        </button>
+        {% else %}
+        <a href="{{ ev.archivo.url }}" target="_blank" rel="noopener"
+          class="w-12 h-12 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10">
+          <i class="fas fa-video"></i>
+        </a>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if es_editable %}
+      <!-- En celular van apiladas (full width, más fáciles de tocar sin
+           errar); desde 'sm' vuelven a ir lado a lado para no ocupar tanto
+           espacio vertical en pantallas grandes. -->
+      <div class="flex flex-col sm:flex-row gap-2 mt-3">
+        <form method="post" action="{% url 'mantencion_marcar_ok' revision.pk %}" class="sm:flex-1">
+          {% csrf_token %}
+          <button type="submit" class="w-full flex items-center justify-center gap-2 px-3 py-3 sm:py-2.5 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-base sm:text-sm font-medium">
+            <i class="fas fa-check"></i> OK
+          </button>
+        </form>
+        <button type="button" class="mnt-abrir-novedad sm:flex-1 flex items-center justify-center gap-2 px-3 py-3 sm:py-2.5 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-base sm:text-sm font-medium"
+          data-url-template="{% url 'mantencion_registrar_novedad' 0 %}" data-revision="{{ revision.pk }}">
+          <i class="fas fa-camera"></i> Observación
+        </button>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<p class="text-sm text-black/50 dark:text-white/50">
+  No hay equipos de este tipo en el circuito de mantención todavía. Pide al equipo ADR que los agregue desde
+  "Equipos en mantención".
+</p>
+{% endfor %}
+
+<!-- Modal: comentario + evidencia -->
+<div id="mnt-modal-novedad" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-md max-h-screen overflow-y-auto p-4">
+    <h3 class="font-semibold mb-3"><i class="fas fa-exclamation-triangle text-red-600"></i> Registrar observación</h3>
+    <form method="post" id="mnt-form-novedad" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label class="block text-sm font-medium mb-1">{{ novedad_form.comentario.label }}</label>
+      {{ novedad_form.comentario }}
+      <div class="mt-3">
+        <label class="block text-sm font-medium mb-1">{{ novedad_form.sigue_operativo.label }}</label>
+        <div class="space-y-1 text-sm">
+          {% for radio in novedad_form.sigue_operativo %}
+          <label class="flex items-center gap-2">{{ radio.tag }} {{ radio.choice_label }}</label>
+          {% endfor %}
+        </div>
+        {% if novedad_form.sigue_operativo.errors %}<p class="text-red-600 text-xs mt-0.5">{{ novedad_form.sigue_operativo.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div class="mt-3">
+        <label class="block text-sm font-medium mb-1">{{ novedad_form.archivo.label }}</label>
+        {{ novedad_form.archivo }}
+        <p class="text-xs text-black/50 dark:text-white/50 mt-1">
+          Foto (JPG/PNG/WEBP) o video (MP4). En el celular se puede tomar directo con la cámara.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" class="mnt-cerrar-modal px-3 py-2 text-sm">Cancelar</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Guardar novedad</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: ver foto de evidencia en grande -->
+<div id="mnt-modal-foto" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-black rounded-xl w-full max-w-lg max-h-screen overflow-y-auto">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-black/10 dark:border-white/10">
+      <h3 class="font-semibold text-sm" id="mnt-foto-titulo">Evidencia</h3>
+      <button type="button" class="mnt-cerrar-modal text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <img id="mnt-foto-imagen" src="" alt="Evidencia ampliada" class="w-full max-h-96 object-contain bg-black/5 dark:bg-white/5">
+    <p id="mnt-foto-comentario" class="text-sm px-4 py-3 text-black/70 dark:text-white/70"></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'js/mantencion_modales.js' %}?v=3"></script>
+{% endblock %}

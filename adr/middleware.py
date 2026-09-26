@@ -13,7 +13,18 @@ class CurrentUserMiddleware:
         return response
 
 def get_current_user():
-    return getattr(_user, 'value', None)
+    """
+    Devuelve el usuario autenticado de la request actual, o None.
+
+    request.user puede ser un AnonymousUser (no autenticado); como los
+    consumidores de esta función lo asignan directo a FKs nullable como
+    AuditoriaActivo.usuario, hay que normalizarlo a None acá para no romper
+    el guardado (AnonymousUser no es una instancia válida de User).
+    """
+    user = getattr(_user, 'value', None)
+    if user is not None and not user.is_authenticated:
+        return None
+    return user
 class ForcePasswordChangeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

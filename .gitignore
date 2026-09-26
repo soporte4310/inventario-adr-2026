@@ -4,6 +4,7 @@ __pycache__/
 
 # Virtual environment & env vars
 venv/
+.venv/
 .env
 
 # Django
@@ -12,6 +13,9 @@ db.sqlite3
 
 /staticfiles/
 /media/
+
+# Documentación interna (no se publica en el repo remoto)
+/docs/
 
 # IDEs & system
 .vscode/

@@ -1,0 +1,60 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% block title %}Equipos en mantención{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <h1 class="text-2xl font-bold">Equipos en mantención</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'mantencion_roster_agregar' %}?tipo=PROY" class="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">
+      <i class="fas fa-plus"></i> Agregar proyector
+    </a>
+    <a href="{% url 'mantencion_lista_impresoras' %}" class="px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">
+      <i class="fas fa-print"></i> Gestionar impresoras
+    </a>
+  </div>
+</div>
+
+<div class="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
+  <table class="min-w-full text-sm">
+    <thead class="bg-black/5 dark:bg-white/10 text-left">
+      <tr>
+        <th class="px-3 py-2">Tipo</th>
+        <th class="px-3 py-2">Equipo</th>
+        <th class="px-3 py-2">Ubicación</th>
+        <th class="px-3 py-2">Estado</th>
+        <th class="px-3 py-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for equipo in equipos %}
+      <tr class="border-t border-black/5 dark:border-white/5">
+        <td class="px-3 py-2">{{ equipo.get_tipo_display }}</td>
+        <td class="px-3 py-2">{{ equipo.marca_modelo }} ({{ equipo.numero_serie|default:"s/n" }})</td>
+        <td class="px-3 py-2">
+          {% if equipo.ubicacion %}{{ equipo.ubicacion.piso.edificio.nombre }} · {{ equipo.ubicacion.nombre }}{% else %}—{% endif %}
+        </td>
+        <td class="px-3 py-2">
+          {% if equipo.activo_en_revision %}
+          <span class="text-green-700 dark:text-green-400"><i class="fas fa-check-circle"></i> Activo</span>
+          {% else %}
+          <span class="text-black/40 dark:text-white/40"><i class="fas fa-pause"></i> Pausado</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2 text-right">
+          <form method="post" action="{% url 'mantencion_roster_pausar' equipo.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="text-xs px-2 py-1 rounded bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">
+              {% if equipo.activo_en_revision %}Pausar{% else %}Reactivar{% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="px-3 py-6 text-center text-black/50 dark:text-white/50">Todavía no hay equipos inscritos.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
