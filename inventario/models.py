@@ -5,13 +5,13 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
-from common.validators import validador_solo_letras, validador_alfanumerico_estricto
+from common.validators import validador_solo_letras, validador_alfanumerico_nombres, validador_codigo_estricto, validador_solo_numeros, validador_telefono, validador_texto_seguro
 
 
 class AreaAdministrativa(models.Model):
     """Modelo para registrar áreas administrativas o departamentos dentro de la sede"""
     nombre = models.CharField(verbose_name="Nombre", max_length=100, validators=[validador_solo_letras])
-    sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True, validators=[validador_alfanumerico_estricto])
+    sigla = models.CharField(verbose_name="Sigla", max_length=100, null=True, blank=True, validators=[validador_codigo_estricto])
 
     class Meta:
         verbose_name = "Área Administrativa"
@@ -19,11 +19,17 @@ class AreaAdministrativa(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+    def clean(self):
+            super().clean()
+            # Normalización: quita espacios y convierte a mayúsculas
+            if self.nombre:
+                self.nombre = self.nombre.strip().upper()
 
 
 class Cargo(models.Model):
     """Modelo para registrar los cargos de los funcionarios"""
-    nombre = models.CharField(verbose_name="Nombre", max_length=100)
+    nombre = models.CharField(verbose_name="Nombre", max_length=100, validators=[validador_solo_letras])
     es_adr = models.BooleanField(verbose_name="Es cargo de ADR", default=False, help_text="Seleccione si el cargo es exclusivo de ADR")
 
     class Meta:
@@ -36,8 +42,8 @@ class Cargo(models.Model):
 
 class Funcionario(models.Model):
     """Modelo para registrar a las personas a las que se les asigna equipos (Administrativos, Docentes, etc.)."""
-    nombre = models.CharField(verbose_name="Nombre", max_length=100)
-    telefono = models.CharField(verbose_name="Teléfono", max_length=20, blank=True, null=True)
+    nombre = models.CharField(verbose_name="Nombre", max_length=100, validators=[validador_solo_letras])
+    telefono = models.CharField(verbose_name="Teléfono", max_length=20, blank=True, null=True, validators=[validador_telefono])
     email = models.EmailField(verbose_name="Email", max_length=100, blank=True, null=True)
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, verbose_name="Cargo", null=True, blank=True)
     area = models.ForeignKey(AreaAdministrativa, on_delete=models.PROTECT, verbose_name="Área administrativa", null=True, blank=True)
@@ -58,8 +64,8 @@ class Funcionario(models.Model):
 
 class Edificio(models.Model):
     """Modelo para registrar los edificios disponibles en la sede"""
-    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del Edificio")
-    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del Edificio", validators=[validador_alfanumerico_nombres])
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
 
     class Meta:
         verbose_name = "Edificio"
@@ -71,8 +77,8 @@ class Edificio(models.Model):
 
 class Piso(models.Model):
     """Modelo para registrar los niveles/pisos disponibles en los edificios"""
-    nombre = models.CharField(verbose_name="Piso", max_length=20, help_text="Ingrese el nombre del Piso/Nivel")
-    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    nombre = models.CharField(verbose_name="Piso", max_length=20, help_text="Ingrese el nombre del Piso/Nivel", validators=[validador_alfanumerico_nombres])
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
     edificio = models.ForeignKey(Edificio, on_delete=models.PROTECT, verbose_name="Edificio", help_text="Seleccione el edificio correspondiente")
 
     class Meta:
@@ -85,8 +91,8 @@ class Piso(models.Model):
 
 class Ubicacion(models.Model):
     """Modelo para registrar la ubicación final de los equipos. Estas pueden ser, salas, pasillos, bodegas, etc."""
-    nombre = models.CharField(verbose_name="Ubicación", max_length=100, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)")
-    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    nombre = models.CharField(verbose_name="Ubicación", max_length=100, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)", validators=[validador_alfanumerico_nombres])
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
     imagen = models.ImageField(verbose_name="Imagen de la ubicación", null=True, blank=True, upload_to="ubicaciones/imagen/main")
     imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="ubicaciones/imagen/medium/", blank=True, null=True,editable=False)
     imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)",upload_to="ubicaciones/imagen/small/", blank=True, null=True,editable=False)
@@ -102,7 +108,7 @@ class Ubicacion(models.Model):
 
 class Marca(models.Model):
     """Modelo para registrar marcas de productos"""
-    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre de la marca")
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre de la marca", validators=[validador_alfanumerico_nombres])
 
     class Meta:
         verbose_name = "Marca"
@@ -120,8 +126,8 @@ class Marca(models.Model):
 
 class Categoria(models.Model):
     """Modelo para registrar las diferentes categorías o tipos de producto"""
-    nombre = models.CharField(verbose_name="Nombre", max_length=100, help_text="Ingrese el nombre de la categoría (tipo). Ej: Televisor, All in One, Monitor, Laptop, etc.")
-    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    nombre = models.CharField(verbose_name="Nombre", max_length=100, help_text="Ingrese el nombre de la categoría (tipo). Ej: Televisor, All in One, Monitor, Laptop, etc.", validators=[validador_alfanumerico_nombres])
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
     usa_netbios = models.BooleanField(default=False, verbose_name="¿Requiere NetBIOS?", help_text="Marque si los equipos de esta categoría se unen al dominio.")
     usa_bdo = models.BooleanField(default=True, verbose_name="¿Requiere BDO?", help_text="Marque si a estos equipos se les pega placa de inventario.")
     imagen = models.ImageField(verbose_name="Imagen representativa", null=True, blank=True, upload_to="categorias/imagen/main")
@@ -169,8 +175,8 @@ class Catalogo(models.Model):
     """Modelo para crear productos. Los productos creados aquí servirán para registrar activos o equipos reales en el modelo para activos"""
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, verbose_name="Categoría (tipo)", help_text="Seleccione la categoría correspondiente")
     marca = models.ForeignKey(Marca, on_delete=models.PROTECT, verbose_name="Marca", help_text="Seleccione la marca correspondiente")
-    modelo = models.CharField(max_length=50, blank=True, null=True)
-    descripcion = models.TextField(verbose_name="Detalle (opcional)", null=True, blank=True)
+    modelo = models.CharField(max_length=50, blank=True, null=True, validators=[validador_alfanumerico_nombres])
+    descripcion = models.TextField(verbose_name="Detalle (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
     imagen = models.ImageField(verbose_name="Imagen (opcional)", upload_to="productos/imagen/main/", blank=True, null=True)
     imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="productos/imagen/medium/", blank=True, null=True,editable=False)
     imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)",upload_to="productos/imagen/small/", blank=True, null=True,editable=False)
@@ -211,8 +217,8 @@ class Catalogo(models.Model):
 
 class Estado(models.Model):
     '''Modelo para registrar los diferentes estados que pueden tener los equipos'''
-    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del estado")
-    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True)
+    nombre = models.CharField(verbose_name="Nombre", unique=True, max_length=50, help_text="Ingrese el nombre del estado", validators=[validador_solo_letras])
+    descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
 
     class Meta:
         verbose_name = "Estado"
@@ -249,11 +255,17 @@ class Activo(models.Model):
         LAB = 'LAB', 'Laboratorio Aislado'
         OTRO = 'OTRO', 'Otro / Sin Red'
 
+        # Nueva clase anidada para el medio de conexión del proyector
+    class TipoConexionProyector(models.TextChoices):
+        WIFI = 'WIFI', 'Inalámbrica (Wi-Fi)'
+        ETHERNET = 'ETH', 'Cableada (Ethernet/UTP)'
+        OTRO = 'OTR', 'Otra / Sin conexión'
+
     catalogo = models.ForeignKey(Catalogo, on_delete=models.PROTECT, verbose_name="Catálogo", help_text="Seleccione el producto correspondiente")
-    numero_serie = models.CharField(verbose_name="N° de serie", max_length=50, help_text="Ingrese el número de serie del equipo", null=True, blank=True)
-    etiqueta = models.CharField(verbose_name="Etiqueta", max_length=50, help_text="Ingrese el código de la etiqueta del equipo", null=True, blank=True)
-    bdo = models.CharField(verbose_name="Número BDO", max_length=50, help_text="Ingrese el número BDO del equipo", null=True, blank=True)
-    netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True)
+    numero_serie = models.CharField(verbose_name="N° de serie", max_length=50, help_text="Ingrese el número de serie del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
+    etiqueta = models.CharField(verbose_name="Etiqueta", max_length=50, help_text="Ingrese el código de la etiqueta del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
+    bdo = models.CharField(verbose_name="Número BDO", max_length=50, help_text="Ingrese el número BDO del equipo", null=True, blank=True, validators=[validador_solo_numeros])
+    netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
     estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
     tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
     tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
@@ -265,6 +277,9 @@ class Activo(models.Model):
     acta_devolucion = models.FileField(upload_to='documentos/actas/devoluciones/', validators=[FileExtensionValidator(allowed_extensions=['pdf'])], verbose_name="Acta de Devolución", help_text="Suba el acta de devolución escaneada en formato PDF", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # Campos extendidos pensados para la categoría Proyectores
+    nombre_proyector = models.CharField(verbose_name="Nombre en Red (Control Remoto)", max_length=50, help_text="Ingrese el nombre configurado mediante el control remoto", null=True, blank=True, validators=[validador_alfanumerico_nombres])
+    conexion_proyector = models.CharField(max_length=4, choices=TipoConexionProyector.choices, verbose_name="Medio de Conexión", help_text="Seleccione cómo se conecta el proyector a la red", null=True, blank=True)
 
     objects = ActivoManager() # El manager principal ahora oculta los eliminados
     all_objects = models.Manager() # Manager secundario para ver TODO (ej: panel de admin)

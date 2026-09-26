@@ -1,16 +1,30 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 
-# Validador para nombres de personas, áreas y cargos (Solo letras y espacios)
+# Reglas de validación estricta
 validador_solo_letras = RegexValidator(
     regex=r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$',
-    message='Error: Este campo solo admite letras y espacios. No se permiten números ni caracteres especiales (ej: #, @, !).'
+    message='Solo se admiten letras y espacios. Sin números ni caracteres especiales.'
 )
-
-# Validador para códigos como BDO, NetBIOS, N° de Serie (Alfanumérico sin espacios)
-validador_alfanumerico_estricto = RegexValidator(
+validador_alfanumerico_nombres = RegexValidator(
+    regex=r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-\.]+$',
+    message='Solo se admiten letras, números, espacios, guiones y puntos.'
+)
+validador_codigo_estricto = RegexValidator(
     regex=r'^[a-zA-Z0-9\-]+$',
-    message='Error: Este campo solo admite letras, números y guiones medios. No ingrese espacios ni caracteres especiales.'
+    message='Solo se admiten letras, números y guiones medios. Sin espacios.'
+)
+validador_solo_numeros = RegexValidator(
+    regex=r'^\d+$',
+    message='Este campo debe contener estrictamente números enteros.'
+)
+validador_telefono = RegexValidator(
+    regex=r'^\+?56?\d{9}$',
+    message='Formato de teléfono no válido. Use solo números y un "+" opcional (Ej: +56912345678).'
+)
+validador_texto_seguro = RegexValidator(
+    regex=r'^[^<>{}]+$', # Previene inyección de etiquetas HTML/JS básicas
+    message='El texto contiene caracteres no permitidos (como <, >, {, }).'
 )
 
 def validar_extension_imagen(imagen):
