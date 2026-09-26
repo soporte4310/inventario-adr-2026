@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  {% load static %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresar · Mantención de Equipos</title>
+  <link rel="shortcut icon" href="{% static 'imagenes/favicon.ico' %}" type="image/x-icon">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+  <script>
+    tailwind = {
+      config: {
+        theme: {
+          extend: {
+            colors: { primary: { DEFAULT: '#C8102E', dark: '#8C0000' } }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-black flex items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-red-600 flex items-center justify-center mb-3">
+        <i class="fas fa-tools text-white text-2xl"></i>
+      </div>
+      <h1 class="text-white text-xl font-bold">Mantención de Equipos</h1>
+      <p class="text-white/50 text-sm">INACAP Iquique · Módulo ADR</p>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="bg-red-900/40 border border-red-500 text-red-100 text-sm px-4 py-3 rounded-lg mb-4">
+      {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'mantencion_login' %}" class="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+      <div>
+        <label for="id_username" class="block text-sm font-medium text-white/80 mb-1">Usuario</label>
+        <div class="relative">
+          <i class="fas fa-user absolute left-3 top-1/2 -translate-y-1/2 text-black/40"></i>
+          <input id="id_username" name="username" type="text" autocomplete="username" required autofocus
+            class="w-full rounded-lg bg-white text-black pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+        </div>
+      </div>
+
+      <div>
+        <label for="id_password" class="block text-sm font-medium text-white/80 mb-1">Contraseña</label>
+        <div class="relative">
+          <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-black/40"></i>
+          <input id="id_password" name="password" type="password" autocomplete="current-password" required
+            class="w-full rounded-lg bg-white text-black pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+          <button type="button" id="mnt-toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-black/40" aria-label="Mostrar contraseña">
+            <i class="fas fa-eye" id="mnt-icon-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="text-right">
+        <a href="{% url 'password_reset' %}" class="text-xs text-white/50 hover:text-white underline">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <button type="submit" class="w-full rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 transition-colors">
+        Ingresar
+      </button>
+    </form>
+
+    <p class="text-center text-white/30 text-xs mt-5">
+      Usa las mismas credenciales del Sistema de Inventario ADR.
+    </p>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const input = document.getElementById('id_password');
+      const toggle = document.getElementById('mnt-toggle-password');
+      const icon = document.getElementById('mnt-icon-eye');
+      toggle.addEventListener('click', function () {
+        const oculto = input.type === 'password';
+        input.type = oculto ? 'text' : 'password';
+        icon.classList.toggle('fa-eye', !oculto);
+        icon.classList.toggle('fa-eye-slash', oculto);
+      });
+    });
+  </script>
+</body>
+
+</html>

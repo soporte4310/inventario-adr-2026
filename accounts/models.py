@@ -13,8 +13,10 @@ class Profile(models.Model):
         verbose_name='Usuario'
     )
     image = models.ImageField(
-        default='default.png', 
-        upload_to='users/', 
+        default='default.png',
+        upload_to='users/',
+        #Sin el blank=True, el campo es obligatorio y no permite valores nulos, generando el error de Emilio/Herna
+        blank=True,
         verbose_name='Imagen de perfil'
     )
     create_by_adr = models.BooleanField(
