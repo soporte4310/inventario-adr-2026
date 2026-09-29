@@ -5,9 +5,7 @@
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <h1 class="text-2xl font-bold">Equipos en mantención</h1>
   <div class="flex gap-2">
-    <a href="{% url 'mantencion_roster_agregar' %}?tipo=PROY" class="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">
-      <i class="fas fa-plus"></i> Agregar proyector
-    </a>
+    {# "Agregar proyector" se quitó de acá: ya está en "Lista de proyectores", duplicaba el mismo botón #}
     <a href="{% url 'mantencion_lista_impresoras' %}" class="px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">
       <i class="fas fa-print"></i> Gestionar impresoras
     </a>

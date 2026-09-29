@@ -595,7 +595,9 @@ class RosterAgregarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, 
     model = EquipoMantenible
     form_class = AgregarProyectorForm
     template_name = 'mantencion/pages/roster_form.html'
-    success_url = reverse_lazy('mantencion_roster')
+    # Vuelve a la lista de proyectores (no al roster): mismo comportamiento
+    # que ya tiene ImpresoraAgregarView al agregar una impresora.
+    success_url = reverse_lazy('mantencion_lista_proyectores')
 
     def form_valid(self, form):
         form.instance.agregado_por = self.request.user
@@ -616,7 +618,7 @@ class RosterAgregarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, 
             tipo_equipo=self.object.tipo,
         )
 
-        messages.success(self.request, "Proyector agregado al circuito de mantención mensual.")
+        messages.success(self.request, "Equipo agregado a la lista.")
         return response
 
 

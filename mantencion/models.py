@@ -2,6 +2,10 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from common.validators import (
+    validador_alfanumerico_nombres, validador_codigo_estricto, validador_mac,
+    validador_nombre_red, validador_solo_numeros,
+)
 from inventario.models import Activo, Ubicacion
 
 
@@ -19,27 +23,40 @@ class Impresora(models.Model):
         OPERATIVA = 'OPER', 'Operativa'
         DE_BAJA = 'BAJA', 'De Baja / Deprecada'
 
-    marca = models.CharField(max_length=50, default='HP', verbose_name="Marca")
-    modelo = models.CharField(max_length=50, verbose_name="Modelo")
+    marca = models.CharField(
+        max_length=50, default='HP', verbose_name="Marca",
+        validators=[validador_alfanumerico_nombres]
+    )
+    modelo = models.CharField(
+        max_length=50, verbose_name="Modelo",
+        validators=[validador_codigo_estricto]
+    )
     tipo_impresion = models.CharField(
         max_length=30, blank=True, verbose_name="Tipo de impresión",
-        help_text="Ej: Blanco y Negro, Color"
+        help_text="Ej: Blanco y Negro, Color",
+        validators=[validador_alfanumerico_nombres]
     )
     rango_impresiones = models.CharField(
-        max_length=30, blank=True, verbose_name="Rango de impresiones contratado"
+        max_length=30, blank=True, verbose_name="Rango de impresiones contratado",
+        validators=[validador_alfanumerico_nombres]
     )
     nombre_equipo = models.CharField(
         max_length=100, blank=True, verbose_name="Nombre de red",
-        help_text="Hostname asignado por el proveedor, ej: IQQ_E540_BODEGA"
+        help_text="Hostname asignado por el proveedor, ej: IQQ_E540_BODEGA",
+        validators=[validador_nombre_red]
     )
-    numero_serie = models.CharField(max_length=50, unique=True, verbose_name="N° de Serie")
+    numero_serie = models.CharField(
+        max_length=50, unique=True, verbose_name="N° de Serie",
+        validators=[validador_codigo_estricto]
+    )
     ip = models.GenericIPAddressField(protocol='IPv4', null=True, blank=True, verbose_name="IP")
-    mac = models.CharField(max_length=17, blank=True, verbose_name="MAC")
+    mac = models.CharField(max_length=17, blank=True, verbose_name="MAC", validators=[validador_mac])
     codigo_proveedor = models.CharField(
         # No es unique: en la práctica el proveedor a veces repite este
         # código entre equipos distintos (ej: por contrato/lote). El N° de
         # Serie es el identificador confiable, ese sí es único.
-        max_length=30, blank=True, null=True, verbose_name="Código del proveedor"
+        max_length=30, blank=True, null=True, verbose_name="Código del proveedor",
+        validators=[validador_solo_numeros]
     )
     ubicacion = models.ForeignKey(
         Ubicacion, on_delete=models.PROTECT, null=True, blank=True, related_name='+'

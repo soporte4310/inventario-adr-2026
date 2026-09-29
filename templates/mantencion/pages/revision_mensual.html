@@ -1,5 +1,5 @@
 {% extends 'mantencion/base_mantencion.html' %}
-{% load static %}
+{% load static mantencion_extras %}
 {% block title %}Revisión de {{ tipo_label }}{% endblock %}
 
 {% block content %}
@@ -124,19 +124,27 @@
       {% if revision.evidencias.all %}
       <div class="flex flex-wrap gap-2 mb-2">
         {% for ev in revision.evidencias.all %}
-        {% if ev.tipo_archivo == 'FOTO' %}
-        <button type="button" class="mnt-ver-foto w-12 h-12 rounded-lg overflow-hidden border border-black/10 dark:border-white/10"
-          data-foto="{{ ev.archivo.url }}"
-          data-equipo="{{ revision.equipo.marca_modelo }}"
-          data-comentario="{{ revision.comentario }}">
-          <img src="{{ ev.archivo.url }}" class="w-full h-full object-cover">
-        </button>
-        {% else %}
-        <a href="{{ ev.archivo.url }}" target="_blank" rel="noopener"
-          class="w-12 h-12 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10">
-          <i class="fas fa-video"></i>
-        </a>
-        {% endif %}
+        <div class="flex items-center gap-1">
+          {% if ev.tipo_archivo == 'FOTO' %}
+          <button type="button" class="mnt-ver-foto w-12 h-12 rounded-lg overflow-hidden border border-black/10 dark:border-white/10"
+            data-foto="{{ ev.archivo.url }}"
+            data-equipo="{{ revision.equipo.marca_modelo }}"
+            data-comentario="{{ revision.comentario }}">
+            <img src="{{ ev.archivo.url }}" class="w-full h-full object-cover">
+          </button>
+          {% else %}
+          <a href="{{ ev.archivo.url }}" target="_blank" rel="noopener"
+            class="w-12 h-12 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10">
+            <i class="fas fa-video"></i>
+          </a>
+          {% endif %}
+          {# Descarga forzada (Content-Disposition: attachment vía Cloudinary), separada de "ver" #}
+          <a href="{{ ev.archivo.url|descarga_forzada }}"
+            class="w-6 h-6 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white"
+            title="Descargar evidencia" aria-label="Descargar evidencia">
+            <i class="fas fa-download text-xs"></i>
+          </a>
+        </div>
         {% endfor %}
       </div>
       {% endif %}

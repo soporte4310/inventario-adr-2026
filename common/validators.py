@@ -26,6 +26,19 @@ validador_texto_seguro = RegexValidator(
     regex=r'^[^<>{}]+$', # Previene inyección de etiquetas HTML/JS básicas
     message='El texto contiene caracteres no permitidos (como <, >, {, }).'
 )
+# Nombres de red/hostname (ej: IQQ_E540_BODEGA): los guiones bajos son parte
+# habitual de esa convención, por eso necesita un validador propio en vez de
+# reutilizar validador_codigo_estricto (que no los admite).
+validador_nombre_red = RegexValidator(
+    regex=r'^[a-zA-Z0-9_\-]+$',
+    message='Solo se admiten letras, números, guiones y guiones bajos. Sin espacios.'
+)
+# MAC address: acepta con o sin separadores (los datos reales del proveedor
+# vienen sin separadores, ej: 644ED7D71BB2), pero solo caracteres hexadecimales.
+validador_mac = RegexValidator(
+    regex=r'^[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}$',
+    message='Formato de MAC no válido (use solo dígitos hexadecimales, con o sin separadores).'
+)
 
 def validar_extension_imagen(imagen):
     """
