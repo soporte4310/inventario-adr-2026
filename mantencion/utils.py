@@ -8,7 +8,7 @@ from django.core.cache import cache
 # (Group.objects...). Ojo: son los mismos que usa 'inventario' en sus vistas
 # (ver inventario/views.py DashboardInventario.group_required), así que si
 # esa lista cambia, hay que actualizar ésta también.
-GRUPOS_REVISION = ['ADR', 'Alumnos en Práctica', 'Auxiliares Operadores ADR', 'Operadores ADR']
+GRUPOS_REVISION = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Operador ADR']
 GRUPOS_ADMIN = ['ADR']
 
 

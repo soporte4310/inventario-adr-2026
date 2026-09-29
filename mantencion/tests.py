@@ -48,17 +48,17 @@ class MantencionTestCase(TestCase):
         )
         self.equipo = EquipoMantenible.objects.create(activo=self.activo, tipo=EquipoMantenible.Tipo.PROYECTOR)
 
-        # Mismos nombres de grupo que existen en la base real (ver
-        # mantencion/utils.py::GRUPOS_REVISION para el porqué del plural).
+        # Mismos nombres de grupo que existen en la base real (singular:
+        # ver mantencion/utils.py::GRUPOS_REVISION).
         Group.objects.get_or_create(name='ADR')
-        Group.objects.get_or_create(name='Alumnos en Práctica')
+        Group.objects.get_or_create(name='Alumno en Práctica')
         Group.objects.get_or_create(name='Usuario')
 
         self.user_adr = User.objects.create_user(username='adr1', password='clave-segura-123')
         self.user_adr.groups.add(Group.objects.get(name='ADR'))
 
         self.user_practicante = User.objects.create_user(username='practicante1', password='clave-segura-123')
-        self.user_practicante.groups.add(Group.objects.get(name='Alumnos en Práctica'))
+        self.user_practicante.groups.add(Group.objects.get(name='Alumno en Práctica'))
 
         self.user_visitante = User.objects.create_user(username='visitante1', password='clave-segura-123')
         self.user_visitante.groups.add(Group.objects.get(name='Usuario'))

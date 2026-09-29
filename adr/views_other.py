@@ -162,7 +162,7 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
                 # El usuario nunca la usará porque entrará directo por el token del correo.
                 user.set_password(get_random_string(32))
 
-                if group.name in ['ADR', 'Operadores ADR']:
+                if group.name in ['ADR', 'Operador ADR']:
                     user.is_staff = True
 
                 user.save()
@@ -211,9 +211,9 @@ class ProfileListView(LoginRequiredMixin, ListView):
         # Orden por jerarquía de rol (no alfabético): ADR primero, Usuario al final.
         orden_por_rol = Case(
             When(user__groups__name='ADR', then=Value(0)),
-            When(user__groups__name='Operadores ADR', then=Value(1)),
-            When(user__groups__name='Auxiliares Operadores ADR', then=Value(2)),
-            When(user__groups__name='Alumnos en Práctica', then=Value(3)),
+            When(user__groups__name='Operador ADR', then=Value(1)),
+            When(user__groups__name='Auxiliar Operador ADR', then=Value(2)),
+            When(user__groups__name='Alumno en Práctica', then=Value(3)),
             When(user__groups__name='Usuario', then=Value(4)),
             default=Value(5),
             output_field=IntegerField(),

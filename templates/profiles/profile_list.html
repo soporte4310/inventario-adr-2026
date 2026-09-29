@@ -73,9 +73,9 @@
         {# Header con tinte del color del grupo (sin borde de color, solo el fondo): se reconoce de un vistazo sin perder legibilidad #}
         <div class="px-4 py-2 flex items-center gap-3
           {% if 'ADR' in p.singular_groups %} bg-red-200
-          {% elif 'Operadores ADR' in p.singular_groups %} bg-yellow-200
-          {% elif 'Auxiliares Operadores ADR' in p.singular_groups %} bg-violet-200
-          {% elif 'Alumnos en Práctica' in p.singular_groups %} bg-cyan-200
+          {% elif 'Operador ADR' in p.singular_groups %} bg-yellow-200
+          {% elif 'Auxiliar Operador ADR' in p.singular_groups %} bg-violet-200
+          {% elif 'Alumno en Práctica' in p.singular_groups %} bg-cyan-200
           {% elif 'Usuario' in p.singular_groups %} bg-slate-200
           {% else %} bg-gray-100
           {% endif %}">
@@ -96,16 +96,16 @@
             <div><dt class="text-gray-500">Nombre</dt><dd class="text-gray-800 break-words">{{ p.profile.user.first_name|default:"—" }}</dd></div>
             <div><dt class="text-gray-500">Apellidos</dt><dd class="text-gray-800 break-words">{{ p.profile.user.last_name|default:"—" }}</dd></div>
             <div class="col-span-2"><dt class="text-gray-500">Email</dt><dd class="text-gray-800 break-words">{{ p.profile.user.email|default:"—" }}</dd></div>
-            {# Chip de grupo: color sólido (ADR rojo institucional, Operadores ADR amarillo, Auxiliares Operadores ADR morado, Alumnos en Práctica aguamarina, Usuario gris). Los botones de acción usan negro/gris oscuro (no rojo), para no confundirse con la identidad de grupo de ADR #}
+            {# Chip de grupo: color sólido (ADR rojo institucional, Operador ADR amarillo, Auxiliar Operador ADR morado, Alumno en Práctica aguamarina, Usuario gris). Los botones de acción usan negro/gris oscuro (no rojo), para no confundirse con la identidad de grupo de ADR #}
             <div class="col-span-2">
               <dt class="text-gray-500">Grupos</dt>
               <dd class="flex flex-wrap gap-1 mt-0.5">
                 {% for g in p.singular_groups %}
                 <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
                   {% if g == 'ADR' %} bg-red-300 text-red-900
-                  {% elif g == 'Operadores ADR' %} bg-yellow-300 text-yellow-900
-                  {% elif g == 'Auxiliares Operadores ADR' %} bg-violet-300 text-violet-900
-                  {% elif g == 'Alumnos en Práctica' %} bg-cyan-300 text-cyan-900
+                  {% elif g == 'Operador ADR' %} bg-yellow-300 text-yellow-900
+                  {% elif g == 'Auxiliar Operador ADR' %} bg-violet-300 text-violet-900
+                  {% elif g == 'Alumno en Práctica' %} bg-cyan-300 text-cyan-900
                   {% elif g == 'Usuario' %} bg-slate-300 text-slate-900
                   {% else %} bg-gray-100 text-gray-700
                   {% endif %}">
@@ -172,9 +172,9 @@
           {# Tinte del color de grupo (sin borde de color, solo el fondo de la fila) #}
           <tr class="border-b border-neutral-100 text-gray-800 hover:brightness-[0.97] transition-[filter]
             {% if 'ADR' in r.singular_groups %} bg-red-200
-            {% elif 'Operadores ADR' in r.singular_groups %} bg-yellow-200
-            {% elif 'Auxiliares Operadores ADR' in r.singular_groups %} bg-violet-200
-            {% elif 'Alumnos en Práctica' in r.singular_groups %} bg-cyan-200
+            {% elif 'Operador ADR' in r.singular_groups %} bg-yellow-200
+            {% elif 'Auxiliar Operador ADR' in r.singular_groups %} bg-violet-200
+            {% elif 'Alumno en Práctica' in r.singular_groups %} bg-cyan-200
             {% elif 'Usuario' in r.singular_groups %} bg-slate-200
             {% else %} bg-white
             {% endif %}">
@@ -215,9 +215,9 @@
                 {% for g in r.singular_groups %}
                 <span class="inline-block px-2 py-0.5 rounded-full text-[11px] md:text-xs font-semibold
                   {% if g == 'ADR' %} bg-red-300 text-red-900
-                  {% elif g == 'Operadores ADR' %} bg-yellow-300 text-yellow-900
-                  {% elif g == 'Auxiliares Operadores ADR' %} bg-violet-300 text-violet-900
-                  {% elif g == 'Alumnos en Práctica' %} bg-cyan-300 text-cyan-900
+                  {% elif g == 'Operador ADR' %} bg-yellow-300 text-yellow-900
+                  {% elif g == 'Auxiliar Operador ADR' %} bg-violet-300 text-violet-900
+                  {% elif g == 'Alumno en Práctica' %} bg-cyan-300 text-cyan-900
                   {% elif g == 'Usuario' %} bg-slate-300 text-slate-900
                   {% else %} bg-gray-100 text-gray-700
                   {% endif %}">

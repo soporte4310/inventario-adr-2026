@@ -33,16 +33,20 @@ if __name__ == "__main__":
     else:
         print("El RUT no es válido.")
 
-# FUNCIÓN PARA PASAR DE PLURAL A SINGULAR LOS GRUPOS
-def plural_singular(plural):
-    plural_singular = {
+# Los nombres de grupo en la base de datos YA están en singular
+# ('Operador ADR', 'Alumno en Práctica', etc.), así que esto ya no convierte
+# nada: solo valida contra los nombres conocidos y, si el grupo no está en
+# la lista, devuelve el nombre tal cual en vez de "error" (evitar que un
+# nombre de grupo válido pero no listado rompa silenciosamente permisos).
+def plural_singular(nombre_grupo):
+    nombres_conocidos = {
         'Usuario': 'Usuario',
         'ADR': 'ADR',
-        'Operadores ADR': 'Operador ADR',
-        'Auxiliares Operadores ADR': 'Auxiliar Operador ADR',
-        'Alumnos en Práctica': 'Alumno en Práctica',
+        'Operador ADR': 'Operador ADR',
+        'Auxiliar Operador ADR': 'Auxiliar Operador ADR',
+        'Alumno en Práctica': 'Alumno en Práctica',
     }
-    return plural_singular.get(plural, "error")
+    return nombres_conocidos.get(nombre_grupo, nombre_grupo)
 
 # FUNCION DE FILTRADO Y PAGINADO
 from django.db.models import Q # Asegúrate de importar Q
