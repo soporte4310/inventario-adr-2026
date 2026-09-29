@@ -42,6 +42,7 @@
       <thead class="bg-black/5 dark:bg-white/10 text-left">
         <tr>
           <th class="px-3 py-2">Marca / Modelo</th>
+          {% if tipo_code == 'IMPR' %}<th class="px-3 py-2">Nombre de red</th>{% endif %}
           <th class="px-3 py-2">N° de Serie</th>
           <th class="px-3 py-2">Estado</th>
           <th class="px-3 py-2">Sala / Oficina</th>
@@ -52,8 +53,18 @@
         {% for equipo in grupo.list %}
         <tr class="border-t border-black/5 dark:border-white/5">
           <td class="px-3 py-2">{{ equipo.marca_modelo }}</td>
-          <td class="px-3 py-2">{{ equipo.numero_serie|default:"—" }}</td>
-          <td class="px-3 py-2">{{ equipo.estado_texto }}</td>
+          {% if tipo_code == 'IMPR' %}<td class="px-3 py-2">{{ equipo.nombre_equipo|default:"—" }}</td>{% endif %}
+          <td class="px-3 py-2">
+            {% if equipo.numero_serie %}
+            <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs">{{ equipo.numero_serie }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-3 py-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full {% if equipo.estado_ok %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+              {{ equipo.estado_texto }}
+            </span>
+          </td>
           <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
           <td class="px-3 py-2 text-right whitespace-nowrap">
             {% if es_adr %}
@@ -153,8 +164,17 @@
           {% for equipo in equipos_de_baja %}
           <tr class="border-t border-black/5 dark:border-white/5">
             <td class="px-3 py-2">{{ equipo.marca_modelo }}</td>
-            <td class="px-3 py-2">{{ equipo.numero_serie|default:"—" }}</td>
-            <td class="px-3 py-2">{{ equipo.estado_texto }}</td>
+            <td class="px-3 py-2">
+              {% if equipo.numero_serie %}
+              <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs">{{ equipo.numero_serie }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full {% if equipo.estado_ok %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+                {{ equipo.estado_texto }}
+              </span>
+            </td>
             <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
           </tr>
           {% endfor %}

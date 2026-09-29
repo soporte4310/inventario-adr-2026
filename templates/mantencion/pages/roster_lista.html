@@ -27,7 +27,12 @@
       {% for equipo in equipos %}
       <tr class="border-t border-black/5 dark:border-white/5">
         <td class="px-3 py-2">{{ equipo.get_tipo_display }}</td>
-        <td class="px-3 py-2">{{ equipo.marca_modelo }} ({{ equipo.numero_serie|default:"s/n" }})</td>
+        <td class="px-3 py-2">
+          {{ equipo.marca_modelo }}
+          {% if equipo.numero_serie %}
+          <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs ml-1">{{ equipo.numero_serie }}</span>
+          {% else %}(s/n){% endif %}
+        </td>
         <td class="px-3 py-2">
           {% if equipo.ubicacion %}{{ equipo.ubicacion.piso.edificio.nombre }} · {{ equipo.ubicacion.nombre }}{% else %}—{% endif %}
         </td>

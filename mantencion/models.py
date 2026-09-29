@@ -157,6 +157,17 @@ class EquipoMantenible(models.Model):
         return equipo.numero_serie if equipo else ''
 
     @property
+    def nombre_equipo(self):
+        """
+        Hostname/nombre de red de la impresora (ej: IQQ_E540_BODEGA), que es
+        lo que trae la etiqueta física pegada en el equipo. Los proyectores
+        no tienen este concepto (no son estos los que trae el proveedor).
+        """
+        if self.tipo == self.Tipo.IMPRESORA and self.impresora:
+            return self.impresora.nombre_equipo
+        return ''
+
+    @property
     def ubicacion(self):
         equipo = self.equipo_real
         return equipo.ubicacion if equipo else None
@@ -166,6 +177,19 @@ class EquipoMantenible(models.Model):
         if self.tipo == self.Tipo.PROYECTOR:
             return str(self.activo.estado) if self.activo and self.activo.estado else ''
         return self.impresora.get_estado_display() if self.impresora else ''
+
+    @property
+    def estado_ok(self):
+        """
+        True = el equipo está "Operativo" (bullet verde); False = cualquier
+        otro estado físico (dañado, en mantenimiento, de baja, etc. -
+        bullet amarillo). Para impresoras se compara contra el choice
+        OPERATIVA; para proyectores, el catálogo de Estado es texto libre,
+        así que se compara el nombre normalizado contra 'OPERATIVO'.
+        """
+        if self.tipo == self.Tipo.IMPRESORA:
+            return bool(self.impresora) and self.impresora.estado == Impresora.EstadoImpresora.OPERATIVA
+        return bool(self.activo and self.activo.estado and self.activo.estado.nombre.strip().upper() == 'OPERATIVO')
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.equipo_real}"
