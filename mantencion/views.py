@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import openpyxl
@@ -27,6 +28,8 @@ from .forms import (
 from .mixins import MantencionLoginRequiredMixin
 from .models import CicloRevision, EquipoMantenible, EvidenciaRevision, Impresora, RegistroAuditoria, RevisionEquipo
 from .utils import GRUPOS_ADMIN, GRUPOS_REVISION, crear_nuevo_ciclo, limite_alcanzado, registrar_auditoria
+
+logger = logging.getLogger(__name__)
 
 
 class MantencionLoginView(CustomLoginView):
@@ -562,7 +565,16 @@ class ReporteEmailView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEqu
             to=settings.EMAIL_RECIPIENTS,
         )
         email.attach_alternative(html_content, "text/html")
-        email.send()
+        try:
+            email.send()
+        except Exception:
+            # Puede fallar por problemas ajenos a la app (credenciales de
+            # SendGrid/Gmail vencidas, sin conexión, límite de envíos, etc.):
+            # se registra el detalle real en el log del servidor, pero al
+            # usuario se le avisa con un mensaje simple y no con un error 500.
+            logger.exception("Falló el envío del reporte de %s (ciclo %s)", nombre_tipo, ciclo)
+            messages.error(request, "No se puede enviar el reporte por el momento. Intenta nuevamente más tarde.")
+            return redirect(_url_revision(self.tipo))
 
         messages.success(request, f"Reporte de {nombre_tipo.lower()} enviado a {len(settings.EMAIL_RECIPIENTS)} destinatarios.")
         return redirect(_url_revision(self.tipo))
