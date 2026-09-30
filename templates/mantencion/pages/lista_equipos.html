@@ -164,6 +164,7 @@
             <th class="px-3 py-2">N° de Serie</th>
             <th class="px-3 py-2">Estado</th>
             <th class="px-3 py-2">Última ubicación</th>
+            {% if es_adr %}<th class="px-3 py-2"></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -182,6 +183,18 @@
               </span>
             </td>
             <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
+            {% if es_adr %}
+            <td class="px-3 py-2 text-right whitespace-nowrap">
+              <form method="post" action="{% url 'mantencion_roster_pausar' equipo.pk %}"
+                onsubmit="return confirm('¿Reactivar este equipo? Volverá a aparecer en la lista y en la revisión mensual, en la misma ubicación que tenía.');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="text-xs px-2 py-1 rounded bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-medium">
+                  <i class="fas fa-rotate-left"></i> Activar
+                </button>
+              </form>
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
