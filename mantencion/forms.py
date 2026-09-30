@@ -133,7 +133,7 @@ class ImpresoraForm(forms.ModelForm):
         model = Impresora
         fields = [
             'marca', 'modelo', 'tipo_impresion', 'rango_impresiones',
-            'nombre_equipo', 'numero_serie', 'ip', 'mac', 'codigo_proveedor', 'ubicacion',
+            'nombre_equipo', 'numero_serie', 'ip', 'ip_automatica', 'mac', 'codigo_proveedor', 'ubicacion',
         ]
         widgets = {
             'marca': forms.TextInput(attrs={'class': 'form-control'}),
@@ -143,6 +143,7 @@ class ImpresoraForm(forms.ModelForm):
             'nombre_equipo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: IQQ_E540_BODEGA'}),
             'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
             'ip': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 172.16.5.157'}),
+            'ip_automatica': forms.CheckboxInput(attrs={'class': 'mnt-check-dhcp'}),
             'mac': forms.TextInput(attrs={'class': 'form-control'}),
             'codigo_proveedor': forms.TextInput(attrs={'class': 'form-control'}),
         }

@@ -60,6 +60,20 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // "Automático (DHCP)" en el modal de agregar impresora: deshabilita el
+  // campo IP mientras esté marcado (el valor igual se limpia en el server,
+  // esto es sólo para que no se vea editable si ya no aplica).
+  const checkDhcp = document.querySelector('.mnt-check-dhcp');
+  const inputIp = document.getElementById('id_ip');
+  if (checkDhcp && inputIp) {
+    const sincronizarIp = function () {
+      inputIp.disabled = checkDhcp.checked;
+      if (checkDhcp.checked) inputIp.value = '';
+    };
+    checkDhcp.addEventListener('change', sincronizarIp);
+    sincronizarIp();
+  }
+
   document.querySelectorAll('.mnt-cerrar-modal').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (modalNovedad) modalNovedad.classList.add('hidden');

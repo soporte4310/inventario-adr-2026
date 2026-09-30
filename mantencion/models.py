@@ -4,7 +4,7 @@ from django.db import models
 
 from common.validators import (
     validador_alfanumerico_nombres, validador_codigo_estricto, validador_mac,
-    validador_nombre_red, validador_solo_numeros,
+    validador_nombre_red, validador_solo_numeros, validador_texto_seguro,
 )
 from inventario.models import Activo, Ubicacion
 
@@ -49,7 +49,19 @@ class Impresora(models.Model):
         max_length=50, unique=True, verbose_name="N° de Serie",
         validators=[validador_codigo_estricto]
     )
-    ip = models.GenericIPAddressField(protocol='IPv4', null=True, blank=True, verbose_name="IP")
+    # Antes era GenericIPAddressField, pero eso exige una IPv4 completa y
+    # válida siempre. En la práctica bastantes impresoras no tienen una IP
+    # fija (la asigna el router por DHCP), así que se relajó a texto libre
+    # (ip_automatica cubre ese caso explícitamente) en vez de forzar un
+    # formato que no siempre corresponde.
+    ip = models.CharField(
+        max_length=50, null=True, blank=True, verbose_name="IP",
+        validators=[validador_texto_seguro]
+    )
+    ip_automatica = models.BooleanField(
+        default=False, verbose_name="Automático (DHCP)",
+        help_text="Márquelo si la IP la asigna el router automáticamente (no tiene IP fija)."
+    )
     mac = models.CharField(max_length=17, blank=True, verbose_name="MAC", validators=[validador_mac])
     codigo_proveedor = models.CharField(
         # No es unique: en la práctica el proveedor a veces repite este
@@ -75,6 +87,13 @@ class Impresora(models.Model):
         verbose_name = "Impresora"
         verbose_name_plural = "Impresoras"
         ordering = ['modelo', 'nombre_equipo']
+
+    def save(self, *args, **kwargs):
+        # Si es DHCP, la IP fija queda obsoleta/contradictoria: se limpia acá
+        # para que no quede dato manual desactualizado junto a la marca.
+        if self.ip_automatica:
+            self.ip = ''
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.marca} {self.modelo} - {self.numero_serie}"

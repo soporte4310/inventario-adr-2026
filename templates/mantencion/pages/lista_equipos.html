@@ -127,8 +127,14 @@
       {% csrf_token %}
       {% for field in impresora_form %}
       <div>
+        {% if field.name == 'ip_automatica' %}
+        <label class="flex items-center gap-2 text-xs font-medium mb-0.5">
+          {{ field }} {{ field.label }}
+        </label>
+        {% else %}
         <label class="block text-xs font-medium mb-0.5">{{ field.label }}</label>
         {{ field }}
+        {% endif %}
         {% if field.errors %}<p class="text-red-600 text-xs mt-0.5">{{ field.errors|join:", " }}</p>{% endif %}
       </div>
       {% endfor %}
@@ -189,5 +195,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="{% static 'js/mantencion_modales.js' %}?v=3"></script>
+<script src="{% static 'js/mantencion_modales.js' %}?v=4"></script>
 {% endblock %}

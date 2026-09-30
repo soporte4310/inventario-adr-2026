@@ -47,6 +47,11 @@ def _url_revision(tipo):
     return 'mantencion_revision_proyectores' if tipo == EquipoMantenible.Tipo.PROYECTOR else 'mantencion_revision_impresoras'
 
 
+def _url_lista(tipo):
+    """Nombre de la url de 'Lista de proyectores/impresoras' que corresponde a un tipo de equipo."""
+    return 'mantencion_lista_proyectores' if tipo == EquipoMantenible.Tipo.PROYECTOR else 'mantencion_lista_impresoras'
+
+
 class TipoEquipoMixin:
     """Cada vista concreta fija 'tipo' para reutilizar la misma lógica en Proyectores/Impresoras."""
     tipo = None
@@ -363,7 +368,10 @@ class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
             messages.success(request, f"{equipo.equipo_real} fue reubicado correctamente.")
         else:
             messages.error(request, "No se pudo actualizar la ubicación. Selecciona una sala válida.")
-        return redirect(_url_revision(equipo.tipo))
+        # A diferencia de las demás acciones (marcar OK, novedad), "mover a"
+        # sólo se dispara desde la Lista de equipos, no desde la Revisión
+        # mensual, así que vuelve ahí en vez de a la revisión.
+        return redirect(_url_lista(equipo.tipo))
 
 
 # ---------------------------------------------------------------------------
