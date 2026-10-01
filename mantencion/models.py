@@ -23,6 +23,13 @@ class Impresora(models.Model):
         OPERATIVA = 'OPER', 'Operativa'
         DE_BAJA = 'BAJA', 'De Baja / Deprecada'
 
+    # El valor guardado es igual a la etiqueta (en vez de un código corto)
+    # porque los datos reales ya existentes usan ese mismo texto exacto
+    # ('Blanco y Negro' / 'Color'), así que no requiere migrar datos.
+    class TipoImpresion(models.TextChoices):
+        BLANCO_Y_NEGRO = 'Blanco y Negro', 'Blanco y Negro'
+        COLOR = 'Color', 'Color'
+
     marca = models.CharField(
         max_length=50, default='HP', verbose_name="Marca",
         validators=[validador_alfanumerico_nombres]
@@ -32,9 +39,7 @@ class Impresora(models.Model):
         validators=[validador_codigo_estricto]
     )
     tipo_impresion = models.CharField(
-        max_length=30, blank=True, verbose_name="Tipo de impresión",
-        help_text="Ej: Blanco y Negro, Color",
-        validators=[validador_alfanumerico_nombres]
+        max_length=30, blank=True, choices=TipoImpresion.choices, verbose_name="Tipo de impresión",
     )
     rango_impresiones = models.CharField(
         max_length=30, blank=True, verbose_name="Rango de impresiones contratado",

@@ -138,7 +138,7 @@ class ImpresoraForm(forms.ModelForm):
         widgets = {
             'marca': forms.TextInput(attrs={'class': 'form-control'}),
             'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: E42540'}),
-            'tipo_impresion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Blanco y Negro'}),
+            'tipo_impresion': forms.Select(attrs={'class': 'form-control'}),
             'rango_impresiones': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 1500 - 7500'}),
             'nombre_equipo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: IQQ_E540_BODEGA'}),
             'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
