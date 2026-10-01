@@ -60,6 +60,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Botón "Tomar fotografía" (en realidad una <label> que dispara el input
+  // de archivo oculto): como el input real ya no se ve, mostramos acá el
+  // nombre del archivo elegido para que quede claro que sí se seleccionó algo.
+  const inputArchivo = document.getElementById('id_archivo');
+  const nombreArchivo = document.querySelector('.mnt-archivo-nombre');
+  if (inputArchivo && nombreArchivo) {
+    inputArchivo.addEventListener('change', function () {
+      nombreArchivo.textContent = inputArchivo.files.length ? inputArchivo.files[0].name : '';
+    });
+  }
+
   // Botón "Info" en Lista de proyectores/impresoras: un modal propio por
   // equipo (ver lista_equipos.html), identificado por su id en data-modal.
   document.querySelectorAll('.mnt-abrir-info').forEach(function (btn) {

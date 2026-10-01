@@ -172,7 +172,10 @@ class NovedadRevisionForm(forms.Form):
     )
     archivo = forms.FileField(
         label="Foto de evidencia",
-        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*', 'capture': 'environment'})
+        # sr-only: el input real queda oculto; el botón visible es la
+        # <label for="..."> de la plantilla (ver revision_mensual.html),
+        # porque el texto nativo del input file no se puede personalizar.
+        widget=forms.ClearableFileInput(attrs={'class': 'sr-only', 'accept': 'image/*', 'capture': 'environment'})
     )
 
     def clean_archivo(self):

@@ -200,7 +200,16 @@
       </div>
       <div class="mt-3">
         <label class="block text-sm font-medium mb-1">{{ novedad_form.archivo.label }}</label>
+        {# El input real queda oculto (sr-only); esta label-botón dispara el
+           mismo selector (comportamiento nativo de <label for>), porque el
+           texto del botón de un <input type=file> lo pone el navegador y no
+           se puede cambiar directamente. #}
+        <label for="{{ novedad_form.archivo.id_for_label }}"
+          class="mnt-label-archivo inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium cursor-pointer">
+          <i class="fas fa-camera"></i> Tomar fotografía
+        </label>
         {{ novedad_form.archivo }}
+        <p class="mnt-archivo-nombre text-xs text-black/60 dark:text-white/60 mt-1"></p>
         <p class="text-xs text-black/50 dark:text-white/50 mt-1">
           Foto (JPG/PNG/WEBP). En el celular se puede tomar directo con la cámara.
         </p>
@@ -229,5 +238,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="{% static 'js/mantencion_modales.js' %}?v=5"></script>
+<script src="{% static 'js/mantencion_modales.js' %}?v=6"></script>
 {% endblock %}
