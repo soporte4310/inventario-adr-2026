@@ -67,6 +67,10 @@
           </td>
           <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
           <td class="px-3 py-2 text-right whitespace-nowrap">
+            <button type="button" class="mnt-abrir-info text-xs px-2 py-1 rounded bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-white font-medium"
+              data-modal="mnt-modal-info-{{ equipo.pk }}">
+              Info
+            </button>
             {% if es_adr %}
             <button type="button" class="mnt-abrir-enroque text-xs px-2 py-1 rounded bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-black font-medium"
               data-url-template="{% url 'mantencion_enroque' 0 %}" data-equipo="{{ equipo.pk }}">
@@ -87,6 +91,42 @@
       </tbody>
     </table>
   </div>
+
+  {% comment %}
+  Un modal de info por equipo: evita cálculos de posición en JS (que un
+  popover anclado necesitaría) y no se recorta por el overflow-x-auto
+  de la tabla de arriba.
+  {% endcomment %}
+  {% for equipo in grupo.list %}
+  <div id="mnt-modal-info-{{ equipo.pk }}" class="mnt-modal-info hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-sm p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold"><i class="fas fa-circle-info text-gray-500"></i> {{ equipo.marca_modelo }}</h3>
+        <button type="button" class="mnt-cerrar-modal text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <dl class="text-xs space-y-1.5">
+        {% if tipo_code == 'PROY' %}
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Etiqueta</dt><dd class="font-medium text-right">{{ equipo.activo.etiqueta|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Nombre en red</dt><dd class="font-medium text-right">{{ equipo.activo.nombre_proyector|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Conexión</dt><dd class="font-medium text-right">{{ equipo.activo.get_conexion_proyector_display|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Tipo de uso</dt><dd class="font-medium text-right">{{ equipo.activo.get_tipo_uso_display|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Asignado a</dt><dd class="font-medium text-right">{{ equipo.activo.asignado_a.nombre|default:"Sin asignar" }}</dd></div>
+        {% else %}
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Tipo de impresión</dt><dd class="font-medium text-right">{{ equipo.impresora.tipo_impresion|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Rango contratado</dt><dd class="font-medium text-right">{{ equipo.impresora.rango_impresiones|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3">
+          <dt class="text-black/50 dark:text-white/50">IP</dt>
+          <dd class="font-medium text-right">{% if equipo.impresora.ip_automatica %}Automático (DHCP){% else %}{{ equipo.impresora.ip|default:"—" }}{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">MAC</dt><dd class="font-medium text-right">{{ equipo.impresora.mac|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Código proveedor</dt><dd class="font-medium text-right">{{ equipo.impresora.codigo_proveedor|default:"—" }}</dd></div>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+  {% endfor %}
 </div>
 {% empty %}
 <p class="text-sm text-black/50 dark:text-white/50">Todavía no hay equipos de este tipo en mantención.</p>
@@ -208,5 +248,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="{% static 'js/mantencion_modales.js' %}?v=4"></script>
+<script src="{% static 'js/mantencion_modales.js' %}?v=5"></script>
 {% endblock %}

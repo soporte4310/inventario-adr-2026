@@ -11,10 +11,6 @@ MAX_PIXELS = 25_000_000
 MAX_DIMENSION = 5000
 MAX_UPLOAD_SIZE_MB = 25 # 25MB
 
-# Los videos de evidencia no se recomprimen en el servidor, así que el único
-# control de peso es este límite duro antes de aceptar la subida.
-MAX_VIDEO_SIZE_MB = 60 # 60MB
-
 
 def _preparar_imagen_para_jpeg(image):
     """

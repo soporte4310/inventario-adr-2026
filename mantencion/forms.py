@@ -152,7 +152,11 @@ class ImpresoraForm(forms.ModelForm):
 class NovedadRevisionForm(forms.Form):
     """
     Formulario que usa el practicante en terreno cuando un equipo NO está
-    bien: describe qué pasó y adjunta una foto o un video como evidencia.
+    bien: describe qué pasó y adjunta una foto como evidencia.
+
+    Solo fotos: el plan gratuito de Render (0.1 CPU / 512MB) no aguanta
+    subir videos (el worker se caía con error 500), así que se descartó
+    ese formato en vez de intentar sostenerlo con esos recursos.
     """
     comentario = forms.CharField(
         label="¿Qué le pasó al equipo?",
@@ -167,25 +171,17 @@ class NovedadRevisionForm(forms.Form):
         widget=forms.RadioSelect,
     )
     archivo = forms.FileField(
-        label="Foto o video de evidencia",
-        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*,video/*', 'capture': 'environment'})
+        label="Foto de evidencia",
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*', 'capture': 'environment'})
     )
 
     def clean_archivo(self):
         archivo = self.cleaned_data['archivo']
-        # La extensión decide el camino de procesamiento: las fotos se
-        # comprimen con el pipeline de Pillow ya existente; los videos se
-        # validan (tipo/peso) y se suben tal cual, sin transcodificar.
         ext = os.path.splitext(archivo.name)[1].lower()
 
-        if ext in ('.jpg', '.jpeg', '.png', '.webp'):
-            self.tipo_archivo = EvidenciaRevision.TipoArchivo.FOTO
-        elif ext == '.mp4':
-            from common.validators import validar_video
-            validar_video(archivo)
-            self.tipo_archivo = EvidenciaRevision.TipoArchivo.VIDEO
-        else:
-            raise forms.ValidationError("Formato no soportado. Usa JPG, PNG, WEBP (foto) o MP4 (video).")
+        if ext not in ('.jpg', '.jpeg', '.png', '.webp'):
+            raise forms.ValidationError("Formato no soportado. Usa JPG, PNG o WEBP.")
+        self.tipo_archivo = EvidenciaRevision.TipoArchivo.FOTO
 
         return archivo
 

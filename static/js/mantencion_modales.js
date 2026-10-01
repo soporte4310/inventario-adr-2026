@@ -60,6 +60,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Botón "Info" en Lista de proyectores/impresoras: un modal propio por
+  // equipo (ver lista_equipos.html), identificado por su id en data-modal.
+  document.querySelectorAll('.mnt-abrir-info').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const modal = document.getElementById(btn.dataset.modal);
+      if (modal) modal.classList.remove('hidden');
+    });
+  });
+
   // "Automático (DHCP)" en el modal de agregar impresora: deshabilita el
   // campo IP mientras esté marcado (el valor igual se limpia en el server,
   // esto es sólo para que no se vea editable si ya no aplica).
@@ -81,6 +90,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (modalFoto) modalFoto.classList.add('hidden');
       if (modalImpresoras) modalImpresoras.classList.add('hidden');
       if (modalDeBaja) modalDeBaja.classList.add('hidden');
+      document.querySelectorAll('.mnt-modal-info').forEach(function (modal) {
+        modal.classList.add('hidden');
+      });
     });
   });
 });

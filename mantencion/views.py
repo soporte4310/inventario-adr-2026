@@ -107,7 +107,7 @@ class ListaEquiposView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEqu
 
     def get_queryset(self):
         qs = EquipoMantenible.objects.filter(tipo=self.tipo, activo_en_revision=True).select_related(
-            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__estado',
+            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__estado', 'activo__asignado_a',
             'activo__ubicacion__piso__edificio', 'impresora__ubicacion__piso__edificio',
         )
         # El orden "por edificio" sale de un campo real de BD, y proyectores
@@ -295,18 +295,16 @@ class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, Vie
 
         # Procesamos la evidencia ANTES de tocar la revisión: si la foto
         # viene corrupta o demasiado pesada, no queremos dejar la revisión
-        # marcada como NOVEDAD sin ninguna evidencia adjunta.
-        if form.tipo_archivo == EvidenciaRevision.TipoArchivo.FOTO:
-            try:
-                archivo_final = procesar_imagen_en_memoria(
-                    image_field=archivo, max_dimensions=(1600, 1600),
-                    new_filename=f"evidencia_{uuid.uuid4()}.jpg"
-                )
-            except ValidationError as error:
-                messages.error(request, f"No se pudo procesar la foto: {'; '.join(error.messages)}")
-                return redirect(_url_revision(revision.equipo.tipo))
-        else:
-            archivo_final = archivo
+        # marcada como NOVEDAD sin ninguna evidencia adjunta. Solo fotos:
+        # clean_archivo() ya rechazó cualquier otro formato.
+        try:
+            archivo_final = procesar_imagen_en_memoria(
+                image_field=archivo, max_dimensions=(1600, 1600),
+                new_filename=f"evidencia_{uuid.uuid4()}.jpg"
+            )
+        except ValidationError as error:
+            messages.error(request, f"No se pudo procesar la foto: {'; '.join(error.messages)}")
+            return redirect(_url_revision(revision.equipo.tipo))
 
         sigue_operativo = form.cleaned_data['sigue_operativo']
 

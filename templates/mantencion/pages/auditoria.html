@@ -45,9 +45,11 @@
       {% for registro in registros %}
       <tr class="border-t border-black/5 dark:border-white/5 align-top">
         <td class="px-3 py-2 whitespace-nowrap">{{ registro.fecha|date:"d/m/Y H:i" }}</td>
-        {# registro.usuario puede ser None (usuario borrado, on_delete=SET_NULL): 'firstof'
-           evalúa cada opción con ignore_failures, a diferencia de encadenar 'default',
-           que revienta si el argumento de un filtro intenta resolver un atributo sobre None. #}
+        {% comment %}
+        registro.usuario puede ser None (usuario borrado, on_delete=SET_NULL): 'firstof'
+        evalúa cada opción con ignore_failures, a diferencia de encadenar 'default',
+        que revienta si el argumento de un filtro intenta resolver un atributo sobre None.
+        {% endcomment %}
         <td class="px-3 py-2">{% firstof registro.usuario.get_full_name registro.usuario.username "—" %}</td>
         <td class="px-3 py-2">
           <span class="text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap

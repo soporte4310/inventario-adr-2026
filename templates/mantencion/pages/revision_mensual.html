@@ -145,7 +145,7 @@
           {# Descarga forzada (Content-Disposition: attachment vía Cloudinary), separada de "ver" #}
           <a href="{{ ev.archivo.url|descarga_forzada }}"
             class="w-6 h-6 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white"
-            title="Descargar evidencia" aria-label="Descargar evidencia">
+            title="Descargar imagen" aria-label="Descargar imagen">
             <i class="fas fa-download text-xs"></i>
           </a>
         </div>
@@ -202,9 +202,7 @@
         <label class="block text-sm font-medium mb-1">{{ novedad_form.archivo.label }}</label>
         {{ novedad_form.archivo }}
         <p class="text-xs text-black/50 dark:text-white/50 mt-1">
-          Foto (JPG/PNG/WEBP) o video (MP4). En el celular se puede tomar directo con la cámara.
-          Los videos se rechazan si pesan más de 60 MB: si tu cámara graba en 4K/60fps por defecto,
-          bájala a 720p antes de grabar para no quedarte sin poder subirlo.
+          Foto (JPG/PNG/WEBP). En el celular se puede tomar directo con la cámara.
         </p>
       </div>
       <div class="flex justify-end gap-2 mt-4">
@@ -231,5 +229,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="{% static 'js/mantencion_modales.js' %}?v=4"></script>
+<script src="{% static 'js/mantencion_modales.js' %}?v=5"></script>
 {% endblock %}
