@@ -18,6 +18,7 @@
       <tr>
         <th class="px-3 py-2">Tipo</th>
         <th class="px-3 py-2">Equipo</th>
+        <th class="px-3 py-2">N° de Serie</th>
         <th class="px-3 py-2">Ubicación</th>
         <th class="px-3 py-2">Estado</th>
         <th class="px-3 py-2"></th>
@@ -27,11 +28,11 @@
       {% for equipo in equipos %}
       <tr class="border-t border-black/5 dark:border-white/5">
         <td class="px-3 py-2">{{ equipo.get_tipo_display }}</td>
+        <td class="px-3 py-2">{{ equipo.marca_modelo }}</td>
         <td class="px-3 py-2">
-          {{ equipo.marca_modelo }}
           {% if equipo.numero_serie %}
-          <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs ml-1">{{ equipo.numero_serie }}</span>
-          {% else %}(s/n){% endif %}
+          <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs">{{ equipo.numero_serie }}</span>
+          {% else %}—{% endif %}
         </td>
         <td class="px-3 py-2">
           {% if equipo.ubicacion %}{{ equipo.ubicacion.piso.edificio.nombre }} · {{ equipo.ubicacion.nombre }}{% else %}—{% endif %}
@@ -54,7 +55,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5" class="px-3 py-6 text-center text-black/50 dark:text-white/50">Todavía no hay equipos inscritos.</td>
+        <td colspan="6" class="px-3 py-6 text-center text-black/50 dark:text-white/50">Todavía no hay equipos inscritos.</td>
       </tr>
       {% endfor %}
     </tbody>
