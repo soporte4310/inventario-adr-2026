@@ -442,7 +442,14 @@ def _generar_excel_response(df, nombre_archivo, nombre_hoja='Datos'):
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
         for idx, col in enumerate(df.columns):
-            worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 2, 15)
+            # El ancho se ajusta al contenido real, no solo al título: con
+            # un mínimo fijo (15), columnas como MARCA_MODELO (hasta 31
+            # caracteres en los datos reales) quedaban visualmente cortadas
+            # y el resto de la fila se veía apretado. Techo de 60 para que
+            # un comentario largo no vuelva la columna absurdamente ancha.
+            largo_contenido = df[col].astype(str).map(len).max() if len(df) else 0
+            ancho = max(len(col) + 2, int(largo_contenido) + 2, 15)
+            worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = min(ancho, 60)
 
     return response
 
