@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from common.validators import (
     validador_alfanumerico_nombres, validador_codigo_estricto, validador_mac,
@@ -364,7 +365,7 @@ class RegistroAuditoria(models.Model):
         ordering = ['-fecha']
 
     def __str__(self):
-        return f"{self.get_accion_display()} - {self.equipo_descripcion} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"
+        return f"{self.get_accion_display()} - {self.equipo_descripcion} ({timezone.localtime(self.fecha).strftime('%d/%m/%Y %H:%M')})"
 
 
 class EvidenciaRevision(models.Model):

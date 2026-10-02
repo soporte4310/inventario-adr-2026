@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.utils import timezone
 from common.validators import validador_solo_letras, validador_alfanumerico_nombres, validador_codigo_estricto, validador_nombre_red, validador_solo_numeros, validador_telefono, validador_texto_seguro
 
 
@@ -468,4 +469,4 @@ class AuditoriaActivo(models.Model):
         ordering = ['-fecha']
 
     def __str__(self):
-        return f"{self.get_accion_display()} por {self.usuario} - {self.fecha.strftime('%d/%m/%Y')}"
+        return f"{self.get_accion_display()} por {self.usuario} - {timezone.localtime(self.fecha).strftime('%d/%m/%Y')}"

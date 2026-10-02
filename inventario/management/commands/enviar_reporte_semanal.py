@@ -27,7 +27,7 @@ class Command(BaseCommand):
     help = 'Genera y envía la recapitulación semanal del inventario, comparada con la semana anterior'
 
     def handle(self, *args, **options):
-        hoy = timezone.now()
+        hoy = timezone.localtime()
         inicio_semana_actual = hoy - timedelta(days=7)
         inicio_semana_anterior = hoy - timedelta(days=14)
         limite_prestamo = hoy - timedelta(days=3)  # Alerta si lleva > 3 días

@@ -504,7 +504,9 @@ def _dataframe_revision(ciclo, tipo):
             'ESTADO': revision.get_estado_display(),
             'COMENTARIO': revision.comentario,
             'REVISADO_POR': revision.revisado_por.get_full_name() or revision.revisado_por.username if revision.revisado_por else '',
-            'FECHA_REVISION': revision.fecha_revision.strftime('%d/%m/%Y %H:%M') if revision.fecha_revision else '',
+            # fecha_revision se guarda en UTC (USE_TZ=True); sin localtime()
+            # strftime() imprime la hora UTC cruda en vez de la de Chile.
+            'FECHA_REVISION': timezone.localtime(revision.fecha_revision).strftime('%d/%m/%Y %H:%M') if revision.fecha_revision else '',
         })
     return pd.DataFrame(data)
 
