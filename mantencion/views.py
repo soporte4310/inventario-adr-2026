@@ -359,7 +359,22 @@ class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
             form = EnroqueImpresoraForm(request.POST, instance=equipo.impresora)
 
         if form.is_valid():
-            form.save()
+            try:
+                form.save()
+            except ValidationError as error:
+                # Activo.save() corre full_clean() sobre TODO el modelo, no
+                # solo 'ubicacion' (único campo de este form): si el Activo
+                # ya tenía un dato inválido guardado de antes en otro campo
+                # (ej. netbios con espacios), esto revienta acá aunque el
+                # enroque en sí sea válido. No debe tirar un 500 por eso.
+                mensajes_error = '; '.join(sum(error.message_dict.values(), [])) if hasattr(error, 'message_dict') else '; '.join(error.messages)
+                messages.error(
+                    request,
+                    f"No se pudo mover el equipo: el Activo tiene un dato inválido guardado de antes "
+                    f"({mensajes_error}). Corrígelo desde Inventario y vuelve a intentarlo."
+                )
+                return redirect(_url_lista(equipo.tipo))
+
             registrar_auditoria(
                 usuario=request.user, accion=RegistroAuditoria.Accion.ENROQUE,
                 equipo_descripcion=f"{equipo.marca_modelo} (S/N {equipo.numero_serie or '—'})",
@@ -621,20 +636,35 @@ class RosterAgregarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, 
         form.instance.agregado_por = self.request.user
         response = super().form_valid(form)
 
-        # Si el ADR confirmó/corrigió la sala al agregar el equipo,
-        # actualizamos el Activo real (mismo mecanismo que el 'enroque':
-        # queda auditado automáticamente por las señales de inventario).
-        ubicacion = form.cleaned_data.get('ubicacion')
-        if ubicacion:
-            activo = form.instance.activo
-            activo.ubicacion = ubicacion
-            activo.save()
-
         registrar_auditoria(
             usuario=self.request.user, accion=RegistroAuditoria.Accion.EQUIPO_AGREGADO,
             equipo_descripcion=f"{self.object.marca_modelo} (S/N {self.object.numero_serie or '—'})",
             tipo_equipo=self.object.tipo,
         )
+
+        # Si el ADR confirmó/corrigió la sala al agregar el equipo,
+        # actualizamos el Activo real (mismo mecanismo que el 'enroque':
+        # queda auditado automáticamente por las señales de inventario).
+        # El equipo YA quedó agregado arriba, así que un fallo acá no debe
+        # tirar un 500: activo.save() corre full_clean() sobre TODO el
+        # Activo (no solo 'ubicacion'), y puede rechazar el guardado por un
+        # dato inválido en otro campo que ya estaba mal desde antes (ej.
+        # netbios con espacios, cargado por otra vía).
+        ubicacion = form.cleaned_data.get('ubicacion')
+        if ubicacion:
+            activo = form.instance.activo
+            activo.ubicacion = ubicacion
+            try:
+                activo.save()
+            except ValidationError as error:
+                mensajes_error = '; '.join(sum(error.message_dict.values(), [])) if hasattr(error, 'message_dict') else '; '.join(error.messages)
+                messages.warning(
+                    self.request,
+                    f"El equipo se agregó, pero no se pudo actualizar su ubicación en Inventario "
+                    f"porque el Activo tiene un dato inválido guardado de antes ({mensajes_error}). "
+                    "Corrígelo desde Inventario y vuelve a mover el equipo de sala."
+                )
+                return response
 
         messages.success(self.request, "Equipo agregado a la lista.")
         return response

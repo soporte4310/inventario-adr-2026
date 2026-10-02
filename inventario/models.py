@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
-from common.validators import validador_solo_letras, validador_alfanumerico_nombres, validador_codigo_estricto, validador_solo_numeros, validador_telefono, validador_texto_seguro
+from common.validators import validador_solo_letras, validador_alfanumerico_nombres, validador_codigo_estricto, validador_nombre_red, validador_solo_numeros, validador_telefono, validador_texto_seguro
 
 
 class AreaAdministrativa(models.Model):
@@ -265,7 +265,10 @@ class Activo(models.Model):
     numero_serie = models.CharField(verbose_name="N° de serie", max_length=50, help_text="Ingrese el número de serie del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
     etiqueta = models.CharField(verbose_name="Etiqueta", max_length=50, help_text="Ingrese el código de la etiqueta del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
     bdo = models.CharField(verbose_name="Número BDO", max_length=50, help_text="Ingrese el número BDO del equipo", null=True, blank=True, validators=[validador_solo_numeros])
-    netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True, validators=[validador_codigo_estricto])
+    # La convención real de la institución para este campo es "IQQ_XXX" (con
+    # guion bajo), igual que Impresora.nombre_equipo en Mantención — por eso
+    # usa el mismo validador, no validador_codigo_estricto (que lo rechaza).
+    netbios = models.CharField(verbose_name="Código NetBios", max_length=50, help_text="Ingrese el código NetBios del equipo", null=True, blank=True, validators=[validador_nombre_red])
     estado = models.ForeignKey(Estado, on_delete=models.PROTECT, verbose_name="Estado", help_text="Seleccione el estado correspondiente")
     tipo_uso = models.CharField(max_length=3, choices=TipoUso.choices, default=TipoUso.PERSONAL, verbose_name="Propósito / Tipo de Uso", help_text="Define si el equipo es de uso regular, de laboratorio o reservado para eventos")
     tipo_red = models.CharField(max_length=4, choices=TipoRed.choices, default=TipoRed.DOMINIO, verbose_name='Tipo de Conexión/Red')
