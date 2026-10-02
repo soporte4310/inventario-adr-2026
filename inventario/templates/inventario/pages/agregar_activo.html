@@ -134,6 +134,31 @@
                     </div>
                 </div>
 
+                <!-- SECCIÓN EXTENDIDA: PROYECTORES (Oculta por defecto) -->
+                <div id="section-proyector" class="card shadow-sm border-0 mb-4" style="display: none;">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-video mr-1"></i> Información Extendida: Proyector
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.nombre_proyector.label }}</label>
+                                {{ form.nombre_proyector }}
+                                {% if form.nombre_proyector.errors %}<div class="text-danger small mt-1">{{ form.nombre_proyector.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.nombre_proyector.help_text }}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.conexion_proyector.label }}</label>
+                                {{ form.conexion_proyector }}
+                                {% if form.conexion_proyector.errors %}<div class="text-danger small mt-1">{{ form.conexion_proyector.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.conexion_proyector.help_text }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- SECCIÓN 2: NÚMEROS DE SERIE Y PLACAS -->
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
@@ -214,6 +239,7 @@
                     </div>
                 </div>
 
+                <!-- SECCIÓN 5: DOCUMENTACIÓN Y ACTAS -->
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                         <h6 class="text-uppercase text-muted font-weight-bold mb-0">
@@ -355,6 +381,44 @@
 
         // Ejecutar sincronización inicial para asegurar "OPERATIVO" al cargar
         sincronizarEstado();
+
+        // 6. Lógica Dinámica para Campos de Proyectores
+        function toggleProyectorSection() {
+            // Verificamos si la URL trae el parámetro de categoría (Flujo: Botón "Crear Proyector" desde la lista)
+            const urlParams = new URLSearchParams(window.location.search);
+            const categoriaUrl = urlParams.get('categoria_nombre');
+            
+            // Verificamos si en la pestaña de "Nuevo Catálogo" seleccionaron Proyectores
+            const categoriaSelect = $('#id_categoria option:selected').text();
+            
+            const esProyectorUrl = categoriaUrl && categoriaUrl.toUpperCase().includes('PROYECTOR');
+            const esProyectorSelect = categoriaSelect && categoriaSelect.toUpperCase().includes('PROYECTOR');
+            const creandoNuevoCatalogo = $('#id_crear_nuevo_catalogo').val() === 'true';
+
+            // Mostrar el recuadro si estamos en la vista de proyectores, o si al crear un catálogo seleccionan "Proyector"
+            if ((!creandoNuevoCatalogo && esProyectorUrl) || (creandoNuevoCatalogo && esProyectorSelect)) {
+                $('#section-proyector').fadeIn();
+            } else {
+                $('#section-proyector').hide();
+                // Limpiamos los campos en caso de que se oculte por error del usuario
+                $('#id_nombre_proyector').val('');
+                $('#id_conexion_proyector').prop('selectedIndex', 0);
+            }
+        }
+
+        // Inicializar al cargar la página
+        toggleProyectorSection();
+
+        // Escuchar cambios en el selector de categoría (Cuando crean un producto desde cero)
+        $('#id_categoria').change(function() {
+            toggleProyectorSection();
+        });
+
+        // Escuchar los botones de alternancia (Buscar existente vs Crear Nuevo)
+        $('#btn-toggle-catalogo, #btn-cancelar-catalogo').click(function() {
+            // Usamos un pequeño delay para permitir que el flag $('#id_crear_nuevo_catalogo') se actualice primero
+            setTimeout(toggleProyectorSection, 50); 
+        });
     });
 </script>
 

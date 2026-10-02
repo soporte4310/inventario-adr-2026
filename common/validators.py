@@ -1,5 +1,44 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 
+# Reglas de validación estricta
+validador_solo_letras = RegexValidator(
+    regex=r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$',
+    message='Solo se admiten letras y espacios. Sin números ni caracteres especiales.'
+)
+validador_alfanumerico_nombres = RegexValidator(
+    regex=r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-\.]+$',
+    message='Solo se admiten letras, números, espacios, guiones y puntos.'
+)
+validador_codigo_estricto = RegexValidator(
+    regex=r'^[a-zA-Z0-9\-]+$',
+    message='Solo se admiten letras, números y guiones medios. Sin espacios.'
+)
+validador_solo_numeros = RegexValidator(
+    regex=r'^\d+$',
+    message='Este campo debe contener estrictamente números enteros.'
+)
+validador_telefono = RegexValidator(
+    regex=r'^\+?56?\d{9}$',
+    message='Formato de teléfono no válido. Use solo números y un "+" opcional (Ej: +56912345678).'
+)
+validador_texto_seguro = RegexValidator(
+    regex=r'^[^<>{}]+$', # Previene inyección de etiquetas HTML/JS básicas
+    message='El texto contiene caracteres no permitidos (como <, >, {, }).'
+)
+# Nombres de red/hostname (ej: IQQ_E540_BODEGA): los guiones bajos son parte
+# habitual de esa convención, por eso necesita un validador propio en vez de
+# reutilizar validador_codigo_estricto (que no los admite).
+validador_nombre_red = RegexValidator(
+    regex=r'^[a-zA-Z0-9_\-]+$',
+    message='Solo se admiten letras, números, guiones y guiones bajos. Sin espacios.'
+)
+# MAC address: acepta con o sin separadores (los datos reales del proveedor
+# vienen sin separadores, ej: 644ED7D71BB2), pero solo caracteres hexadecimales.
+validador_mac = RegexValidator(
+    regex=r'^[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}$',
+    message='Formato de MAC no válido (use solo dígitos hexadecimales, con o sin separadores).'
+)
 
 def validar_extension_imagen(imagen):
     """
@@ -10,3 +49,5 @@ def validar_extension_imagen(imagen):
             f"Formato de imagen no válido detectado: {imagen.format}. "
             "Por favor sube archivos JPG, PNG o WEBP."
         )
+
+

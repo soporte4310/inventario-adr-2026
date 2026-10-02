@@ -1,0 +1,252 @@
+{% extends 'mantencion/base_mantencion.html' %}
+{% load static %}
+{% block title %}{{ tipo_label }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <h1 class="text-2xl font-bold">{{ tipo_label }}</h1>
+  <div class="flex gap-2">
+    <button type="button" id="mnt-abrir-de-baja"
+      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white text-sm font-medium">
+      <i class="fas fa-box-archive"></i> De baja ({{ equipos_de_baja|length }})
+    </button>
+    <a href="{% if tipo_code == 'PROY' %}{% url 'mantencion_lista_excel_proyectores' %}{% else %}{% url 'mantencion_lista_excel_impresoras' %}{% endif %}"
+      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">
+      <i class="fas fa-file-excel"></i> Excel
+    </a>
+    {% if es_adr %}
+      {% if tipo_code == 'PROY' %}
+      <a href="{% url 'mantencion_roster_agregar' %}?tipo=PROY"
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">
+        <i class="fas fa-plus"></i> Agregar proyector
+      </a>
+      {% else %}
+      <button type="button" id="mnt-abrir-gestionar-impresoras"
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">
+        <i class="fas fa-print"></i> Agregar impresora
+      </button>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% regroup equipos by ubicacion.piso.edificio as grupos_edificio %}
+{% for grupo in grupos_edificio %}
+<div class="mb-6">
+  <h2 class="font-semibold mb-2 flex items-center gap-2">
+    <i class="fas fa-building text-red-600"></i>
+    {% if grupo.grouper %}{{ grupo.grouper.nombre }}{% else %}Sin edificio asignado{% endif %}
+  </h2>
+  <div class="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
+    <table class="min-w-full text-sm">
+      <thead class="bg-black/5 dark:bg-white/10 text-left">
+        <tr>
+          <th class="px-3 py-2">Marca / Modelo</th>
+          {% if tipo_code == 'IMPR' %}<th class="px-3 py-2">Nombre de red</th>{% endif %}
+          <th class="px-3 py-2">N° de Serie</th>
+          <th class="px-3 py-2">Estado</th>
+          <th class="px-3 py-2">Sala / Oficina</th>
+          <th class="px-3 py-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for equipo in grupo.list %}
+        <tr class="border-t border-black/5 dark:border-white/5">
+          <td class="px-3 py-2">{{ equipo.marca_modelo }}</td>
+          {% if tipo_code == 'IMPR' %}<td class="px-3 py-2">{{ equipo.nombre_equipo|default:"—" }}</td>{% endif %}
+          <td class="px-3 py-2">
+            {% if equipo.numero_serie %}
+            <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs">{{ equipo.numero_serie }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-3 py-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full {% if equipo.estado_ok %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+              {{ equipo.estado_texto }}
+            </span>
+          </td>
+          <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap">
+            <button type="button" class="mnt-abrir-info text-xs px-2 py-1 rounded bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-white font-medium"
+              data-modal="mnt-modal-info-{{ equipo.pk }}">
+              Info
+            </button>
+            {% if es_adr %}
+            <button type="button" class="mnt-abrir-enroque text-xs px-2 py-1 rounded bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-black font-medium"
+              data-url-template="{% url 'mantencion_enroque' 0 %}" data-equipo="{{ equipo.pk }}">
+              <i class="fas fa-dolly"></i> Mover a
+            </button>
+            <form method="post" action="{% url 'mantencion_roster_pausar' equipo.pk %}" class="inline"
+              onsubmit="return confirm('¿Quitar este equipo de la revisión mensual? No se borra ningún dato, sólo deja de aparecer en las listas y revisiones. Se puede reactivar después desde \'Equipos en mantención\'.');">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" class="text-xs px-2 py-1 rounded bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white font-medium">
+                <i class="fas fa-eye-slash"></i> Quitar
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+  Un modal de info por equipo: evita cálculos de posición en JS (que un
+  popover anclado necesitaría) y no se recorta por el overflow-x-auto
+  de la tabla de arriba.
+  {% endcomment %}
+  {% for equipo in grupo.list %}
+  <div id="mnt-modal-info-{{ equipo.pk }}" class="mnt-modal-info hidden fixed inset-0 z-50 bg-black/60 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
+    <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-sm p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold"><i class="fas fa-circle-info text-gray-500"></i> {{ equipo.marca_modelo }}</h3>
+        <button type="button" class="mnt-cerrar-modal text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <dl class="text-xs space-y-1.5">
+        {% if tipo_code == 'PROY' %}
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Etiqueta</dt><dd class="font-medium text-right">{{ equipo.activo.etiqueta|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Nombre en red</dt><dd class="font-medium text-right">{{ equipo.activo.nombre_proyector|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Conexión</dt><dd class="font-medium text-right">{{ equipo.activo.get_conexion_proyector_display|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Tipo de uso</dt><dd class="font-medium text-right">{{ equipo.activo.get_tipo_uso_display|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Asignado a</dt><dd class="font-medium text-right">{{ equipo.activo.asignado_a.nombre|default:"Sin asignar" }}</dd></div>
+        {% else %}
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Tipo de impresión</dt><dd class="font-medium text-right">{{ equipo.impresora.tipo_impresion|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Rango contratado</dt><dd class="font-medium text-right">{{ equipo.impresora.rango_impresiones|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3">
+          <dt class="text-black/50 dark:text-white/50">IP</dt>
+          <dd class="font-medium text-right">{% if equipo.impresora.ip_automatica %}Automático (DHCP){% else %}{{ equipo.impresora.ip|default:"—" }}{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">MAC</dt><dd class="font-medium text-right">{{ equipo.impresora.mac|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-black/50 dark:text-white/50">Código proveedor</dt><dd class="font-medium text-right">{{ equipo.impresora.codigo_proveedor|default:"—" }}</dd></div>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% empty %}
+<p class="text-sm text-black/50 dark:text-white/50">Todavía no hay equipos de este tipo en mantención.</p>
+{% endfor %}
+
+{% if es_adr %}
+<!-- Modal: enroque (mover de sala requiere planificación previa: sólo ADR) -->
+<div id="mnt-modal-enroque" class="hidden fixed inset-0 z-50 bg-black/60 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
+  <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-md max-h-[85vh] overflow-y-auto p-4">
+    <h3 class="font-semibold mb-3"><i class="fas fa-dolly text-yellow-500"></i> Mover equipo de sala</h3>
+    <form method="post" id="mnt-form-enroque">
+      {% csrf_token %}
+      <label class="block text-sm font-medium mb-1">{{ enroque_form.ubicacion.label }}</label>
+      {{ enroque_form.ubicacion }}
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" class="mnt-cerrar-modal px-3 py-2 text-sm">Cancelar</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium">Confirmar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if tipo_code == 'IMPR' and es_adr %}
+<!-- Modal: agregar impresora (ajena a inventario, propia de este módulo).
+     El "dar de baja" ya no vive acá: el botón "Quitar" por fila (pausar) +
+     el modal "De baja" para verlas cubren esa necesidad sin duplicar UI. -->
+<div id="mnt-modal-impresoras" class="hidden fixed inset-0 z-50 bg-black/60 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
+  <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold"><i class="fas fa-print text-red-600"></i> Agregar impresora</h3>
+      <button type="button" class="mnt-cerrar-modal text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form method="post" action="{% url 'mantencion_impresora_agregar' %}" class="space-y-2">
+      {% csrf_token %}
+      {% for field in impresora_form %}
+      <div>
+        {% if field.name == 'ip_automatica' %}
+        <label class="flex items-center gap-2 text-xs font-medium mb-0.5">
+          {{ field }} {{ field.label }}
+        </label>
+        {% else %}
+        <label class="block text-xs font-medium mb-0.5">{{ field.label }}</label>
+        {{ field }}
+        {% endif %}
+        {% if field.errors %}<p class="text-red-600 text-xs mt-0.5">{{ field.errors|join:", " }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="w-full px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium mt-2">
+        <i class="fas fa-plus"></i> Agregar impresora
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: equipos de baja/pausados (visible para todos los que ven esta lista) -->
+<div id="mnt-modal-de-baja" class="hidden fixed inset-0 z-50 bg-black/60 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
+  <div class="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold"><i class="fas fa-box-archive text-black/50 dark:text-white/50"></i> {{ tipo_label }} de baja / pausados</h3>
+      <button type="button" class="mnt-cerrar-modal text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    {% if equipos_de_baja %}
+    <div class="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
+      <table class="min-w-full text-sm">
+        <thead class="bg-black/5 dark:bg-white/10 text-left">
+          <tr>
+            <th class="px-3 py-2">Marca / Modelo</th>
+            <th class="px-3 py-2">N° de Serie</th>
+            <th class="px-3 py-2">Estado</th>
+            <th class="px-3 py-2">Última ubicación</th>
+            {% if es_adr %}<th class="px-3 py-2"></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for equipo in equipos_de_baja %}
+          <tr class="border-t border-black/5 dark:border-white/5">
+            <td class="px-3 py-2">{{ equipo.marca_modelo }}</td>
+            <td class="px-3 py-2">
+              {% if equipo.numero_serie %}
+              <span class="inline-block px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-mono tracking-wider text-xs">{{ equipo.numero_serie }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full {% if equipo.estado_ok %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+                {{ equipo.estado_texto }}
+              </span>
+            </td>
+            <td class="px-3 py-2">{{ equipo.ubicacion.nombre|default:"—" }}</td>
+            {% if es_adr %}
+            <td class="px-3 py-2 text-right whitespace-nowrap">
+              <form method="post" action="{% url 'mantencion_roster_pausar' equipo.pk %}"
+                onsubmit="return confirm('¿Reactivar este equipo? Volverá a aparecer en la lista y en la revisión mensual, en la misma ubicación que tenía.');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="text-xs px-2 py-1 rounded bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-medium">
+                  <i class="fas fa-rotate-left"></i> Activar
+                </button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-black/50 dark:text-white/50">No hay equipos de este tipo dados de baja o pausados.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'js/mantencion_modales.js' %}?v=6"></script>
+{% endblock %}

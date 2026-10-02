@@ -7,9 +7,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
+from django.views.generic import ListView
 
 from .forms import CustomAuthenticationForm
-from .models import LoginAttempt, Profile
+from .mixins import GroupRequiredMixin
+from .models import LoginAttempt, Profile, RegistroAcceso
 from adr.decorators import add_group_name_to_context
 
 User = get_user_model()
@@ -80,3 +82,42 @@ class ProfilePasswordChangeView(LoginRequiredMixin, PasswordChangeView):
         """Manejo de formulario inválido con mensaje de error"""
         messages.error(self.request, 'Las contraseñas no coinciden o no cumple el estándar de seguridad')
         return super().form_invalid(form)
+
+
+class RegistroAccesoListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+    """
+    Auditoría de accesos (solo ADR): quién entró, cuándo, desde qué portal
+    (Inventario/Mantención) y el resultado (exitoso, contraseña incorrecta,
+    cuenta desactivada/bloqueada, usuario inexistente). Solo lectura.
+    """
+    group_required = ['ADR']
+    model = RegistroAcceso
+    template_name = 'profiles/registro_accesos.html'
+    context_object_name = 'registros'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('usuario')
+
+        username = self.request.GET.get('usuario')
+        if username:
+            queryset = queryset.filter(username_ingresado__icontains=username)
+
+        resultado = self.request.GET.get('resultado')
+        if resultado in RegistroAcceso.Resultado.values:
+            queryset = queryset.filter(resultado=resultado)
+
+        portal = self.request.GET.get('portal')
+        if portal in RegistroAcceso.Portal.values:
+            queryset = queryset.filter(portal=portal)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['resultados'] = RegistroAcceso.Resultado.choices
+        context['portales'] = RegistroAcceso.Portal.choices
+        context['usuario_filtro'] = self.request.GET.get('usuario', '')
+        context['resultado_filtro'] = self.request.GET.get('resultado', '')
+        context['portal_filtro'] = self.request.GET.get('portal', '')
+        return context

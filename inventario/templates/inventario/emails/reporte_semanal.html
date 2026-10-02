@@ -1,16 +1,69 @@
 {% extends "inventario/emails/base_email.html" %}
 
 {% block content %}
-    <h2 style="color: #2c3e50; margin-top: 0;">Reporte Semanal De Inventario</h2>
-    
+    <div style="margin-bottom: 20px;">
+        <h2 style="color: #2c3e50; margin-bottom: 5px;">Reporte Semanal de Inventario</h2>
+        <p style="color: #718096; font-size: 14px; margin-top: 0;">Recapitulación de actividad del {{ inicio_semana }} al {{ fin_semana }}.</p>
+    </div>
+
     <div style="background-color: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 25px;">
         <span style="font-size: 12px; text-transform: uppercase; opacity: 0.8; display: block;">Total Activos en Sistema</span>
         <span style="font-size: 42px; font-weight: bold;">{{ total_activos }}</span>
     </div>
 
+    <h3 style="border-bottom: 2px solid #edf2f7; padding-bottom: 10px; color: #4a5568; margin-top: 30px;">📅 Recapitulación: esta semana vs. la anterior</h3>
+    <table width="100%" style="border-collapse: collapse; font-size: 13px; margin-bottom: 15px;">
+        <thead>
+            <tr style="background-color: #f7fafc; color: #4a5568; text-transform: uppercase; font-size: 11px;">
+                <th align="left" style="padding: 10px; border-bottom: 2px solid #edf2f7;">Indicador</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7;">Esta semana</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7;">Semana anterior</th>
+                <th align="center" style="padding: 10px; border-bottom: 2px solid #edf2f7;">Variación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in comparativo %}
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #edf2f7;"><strong>{{ item.etiqueta }}</strong></td>
+                <td align="center" style="padding: 10px; border-bottom: 1px solid #edf2f7;">{{ item.actual }}</td>
+                <td align="center" style="padding: 10px; border-bottom: 1px solid #edf2f7; color: #a0aec0;">{{ item.anterior }}</td>
+                <td align="center" style="padding: 10px; border-bottom: 1px solid #edf2f7;">
+                    {% if item.tendencia == 'subio' %}
+                        <span style="color: #38a169; font-weight: bold;">▲ +{{ item.diferencia }}</span>
+                    {% elif item.tendencia == 'bajo' %}
+                        <span style="color: #e53e3e; font-weight: bold;">▼ {{ item.diferencia }}</span>
+                    {% else %}
+                        <span style="color: #a0aec0;">— sin cambios</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if usuario_mas_activo_anterior %}
+    <p style="font-size: 12px; color: #718096; margin-bottom: 25px;">
+        La semana pasada, <strong>{{ usuario_mas_activo_anterior.nombre }}</strong> fue quien más movimientos registró ({{ usuario_mas_activo_anterior.cantidad }} cambios).
+    </p>
+    {% endif %}
+
+    {% include 'inventario/emails/partials/_ranking_actividad.html' with titulo_ranking="Ranking de Actividad Semanal" %}
+
+    {% if actividad_diaria %}
+    <h3 style="border-bottom: 2px solid #edf2f7; padding-bottom: 10px; color: #4a5568; margin-top: 30px;">Actividad por Día</h3>
+    <table width="100%" style="border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
+        {% for dia in actividad_diaria %}
+        <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #edf2f7;">{{ dia.dia_semana }} {{ dia.fecha|date:"d/m" }}</td>
+            <td align="right" style="font-weight: bold; color: #2d3748;">{{ dia.total }} movimiento{{ dia.total|pluralize }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
     <h3 style="color: #2d3748; border-left: 4px solid #D32F2F; padding-left: 10px; margin-top: 30px;">Puntos de Control Críticos (ADR)</h3>
     <p style="font-size: 13px; color: #718096; margin-bottom: 15px;">Estado de equipos en las ubicaciones estratégicas de la sede.</p>
-    
+
     <table width="100%" style="border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
         <thead>
             <tr style="background-color: #f7fafc; color: #4a5568; text-transform: uppercase; font-size: 11px;">
@@ -52,7 +105,7 @@
     {% endif %}
 
     <h3 style="border-bottom: 2px solid #edf2f7; padding-bottom: 10px; color: #4a5568;">Resumen de Categorías</h3>
-    <table width="100%" style="border-collapse: collapse;">
+    <table width="100%" style="border-collapse: collapse; margin-bottom: 30px;">
         {% for cat in categorias %}
         {% if cat.total > 0 %}
         <tr>
@@ -62,4 +115,6 @@
         {% endif %}
         {% endfor %}
     </table>
+
+    {% include 'inventario/emails/partials/_tabla_logs.html' with titulo_tabla="Detalle de Movimientos de la Semana" %}
 {% endblock %}

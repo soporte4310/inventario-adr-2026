@@ -10,6 +10,7 @@ from django.views.generic import TemplateView, ListView, UpdateView, DetailView,
 from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from django.http import HttpResponse, HttpResponseRedirect
+from django.utils import timezone
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
@@ -825,8 +826,10 @@ class DescargarExcelActivosView(LoginRequiredMixin, PermissionRequiredMixin, Vie
                 'UBICACION': activo.ubicacion.nombre if activo.ubicacion else '',
                 'ASIGNATARIO': activo.asignado_a.nombre if activo.asignado_a else '',
                 'CARGO_ASIGNATARIO': activo.asignado_a.cargo.nombre if activo.asignado_a and activo.asignado_a.cargo else '',
-                'FECHA_REGISTRO': activo.created_at.strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
-                'ULTIMA_MODIFICACION': activo.updated_at.strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
+                # created_at/updated_at se guardan en UTC (USE_TZ=True); sin
+                # localtime() strftime() imprime la hora UTC cruda.
+                'FECHA_REGISTRO': timezone.localtime(activo.created_at).strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
+                'ULTIMA_MODIFICACION': timezone.localtime(activo.updated_at).strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
             })
 
         # 3. Convertimos a un DataFrame de Pandas
@@ -985,8 +988,10 @@ class DescargarExcelFiltradoView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                 'UBICACION': activo.ubicacion.nombre if activo.ubicacion else '',
                 'ASIGNATARIO': activo.asignado_a.nombre if activo.asignado_a else '',
                 'CARGO_ASIGNATARIO': activo.asignado_a.cargo.nombre if activo.asignado_a and activo.asignado_a.cargo else '',
-                'FECHA_REGISTRO': activo.created_at.strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
-                'ULTIMA_MODIFICACION': activo.updated_at.strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
+                # created_at/updated_at se guardan en UTC (USE_TZ=True); sin
+                # localtime() strftime() imprime la hora UTC cruda.
+                'FECHA_REGISTRO': timezone.localtime(activo.created_at).strftime("%d/%m/%Y %H:%M") if activo.created_at else '',
+                'ULTIMA_MODIFICACION': timezone.localtime(activo.updated_at).strftime("%d/%m/%Y %H:%M") if activo.updated_at else '',
             })
 
         df = pd.DataFrame(data)

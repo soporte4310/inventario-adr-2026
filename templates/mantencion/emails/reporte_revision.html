@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0; padding:0; background:#f4f4f5; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5; padding: 24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+          <!-- Encabezado: negro institucional con acento rojo, sobrio -->
+          <tr>
+            <td style="background:#111111; padding:20px 28px; border-top:4px solid #C8102E;">
+              <p style="margin:0; color:#ffffff; font-size:19px; font-weight:bold;">Revisión de {{ tipo }}</p>
+              <p style="margin:4px 0 0; color:#d4d4d8; font-size:13px;">Ciclo {{ ciclo }}</p>
+            </td>
+          </tr>
+
+          <!-- Resumen: tarjetas de estado, mismos códigos de color que la app -->
+          <tr>
+            <td style="padding:24px 28px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="25%" style="padding:0 6px 0 0;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111111; border-radius:6px;">
+                      <tr><td style="padding:12px 10px;">
+                        <p style="margin:0; font-size:22px; font-weight:bold; color:#d4d4d8;">{{ total }}</p>
+                        <p style="margin:2px 0 0; font-size:11px; color:#a1a1aa; text-transform:uppercase; letter-spacing:0.3px;">Total</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                  <td width="25%" style="padding:0 6px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#15803d; border-radius:6px;">
+                      <tr><td style="padding:12px 10px;">
+                        <p style="margin:0; font-size:22px; font-weight:bold; color:#bbf7d0;">{{ ok }}</p>
+                        <p style="margin:2px 0 0; font-size:11px; color:#86efac; text-transform:uppercase; letter-spacing:0.3px;">OK</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                  <td width="25%" style="padding:0 6px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#a16207; border-radius:6px;">
+                      <tr><td style="padding:12px 10px;">
+                        <p style="margin:0; font-size:22px; font-weight:bold; color:#fef08a;">{{ pendientes }}</p>
+                        <p style="margin:2px 0 0; font-size:11px; color:#fde047; text-transform:uppercase; letter-spacing:0.3px;">Pendientes</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                  <td width="25%" style="padding:0 0 0 6px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#C8102E; border-radius:6px;">
+                      <tr><td style="padding:12px 10px;">
+                        <p style="margin:0; font-size:22px; font-weight:bold; color:#fecaca;">{{ novedades|length }}</p>
+                        <p style="margin:2px 0 0; font-size:11px; color:#fca5a5; text-transform:uppercase; letter-spacing:0.3px;">Con novedad</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Novedades -->
+          <tr>
+            <td style="padding:20px 28px 28px;">
+              {% if novedades %}
+              <p style="margin:0 0 10px; font-size:15px; font-weight:bold; color:#111111;">Novedades reportadas</p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-size:13px;">
+                <thead>
+                  <tr style="background:#111111;">
+                    <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Equipo</th>
+                    <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Ubicación</th>
+                    <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">¿Operativo?</th>
+                    <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Comentario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for n in novedades %}
+                  <tr style="background:{% cycle '#ffffff' '#fafafa' %};">
+                    <td style="padding:9px 10px; border-bottom:1px solid #f0f0f0; color:#27272a;">{{ n.equipo.equipo_real }}</td>
+                    <td style="padding:9px 10px; border-bottom:1px solid #f0f0f0; color:#52525b;">
+                      {% if n.ubicacion_en_revision %}{{ n.ubicacion_en_revision.piso.edificio.nombre }} - {{ n.ubicacion_en_revision.nombre }}{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:9px 10px; border-bottom:1px solid #f0f0f0;">
+                      <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:bold;
+                        {% if n.sigue_operativo %}background:#fefce8; color:#a16207;{% else %}background:#fef2f2; color:#C8102E;{% endif %}">
+                        {% if n.sigue_operativo %}Sí{% else %}No{% endif %}
+                      </span>
+                    </td>
+                    <td style="padding:9px 10px; border-bottom:1px solid #f0f0f0; color:#52525b;">{{ n.comentario|default:"—" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4; border-radius:6px;">
+                <tr><td style="padding:14px; color:#166534; font-size:13px;">No se registraron novedades en este ciclo. Todos los equipos quedaron OK.</td></tr>
+              </table>
+              {% endif %}
+            </td>
+          </tr>
+
+          <!-- Pie -->
+          <tr>
+            <td style="padding:16px 28px; background:#fafafa; border-top:1px solid #f0f0f0;">
+              <p style="margin:0; font-size:11px; color:#a1a1aa;">
+                Sistema de Gestión ADR — Módulo de Mantención de Equipos · Generado automáticamente el {% now "d/m/Y H:i" %}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

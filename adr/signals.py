@@ -59,7 +59,7 @@ def on_user_login_failed(sender, credentials, request, **kwargs):
         if not cache.get(sent_key):
             from adr.email_template import notificacion_alerta_login
 
-            now = timezone.now().strftime("%d/%m/%Y %H:%M:%S")
+            now = timezone.localtime().strftime("%d/%m/%Y %H:%M:%S")
             html, plain = notificacion_alerta_login(
                 intentos=count,
                 username=username,

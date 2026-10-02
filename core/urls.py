@@ -16,6 +16,8 @@ urlpatterns = [
     path('inventario/', include('inventario.urls')),
     # Rutas de Gestión de Usuarios y Permisos
     path('usuarios/', include('usuarios.urls')),
+    # Módulo de Mantención de Equipos (revisión mensual de proyectores/impresoras)
+    path('mantencion/', include('mantencion.urls')),
     # Django Debug Toolbar
     path("__debug__/", include("debug_toolbar.urls")),
 ]

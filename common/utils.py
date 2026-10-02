@@ -7,7 +7,7 @@ from .validators import validar_extension_imagen
 
 
 # 5000 x 5000 = 25 Millones de píxeles
-MAX_PIXELS = 25_000_000 
+MAX_PIXELS = 25_000_000
 MAX_DIMENSION = 5000
 MAX_UPLOAD_SIZE_MB = 25 # 25MB
 
