@@ -79,3 +79,44 @@ class LoginAttempt(models.Model):
         self.failed_attempts = 0
         self.lockout_until = None
         self.save()
+
+
+class RegistroAcceso(models.Model):
+    """
+    Historial de cada intento de inicio de sesión (exitoso o no), nunca se
+    sobreescribe. A diferencia de LoginAttempt (que solo guarda el contador
+    vigente para el bloqueo de 5 intentos y se resetea con cada login
+    exitoso), esto queda para poder auditar después quién entró, cuándo,
+    y desde qué portal — Inventario y Mantención comparten el mismo
+    CustomAuthenticationForm, así que un solo modelo cubre ambos.
+    """
+    class Resultado(models.TextChoices):
+        EXITOSO = 'OK', 'Acceso exitoso'
+        CONTRASENA_INCORRECTA = 'PASS', 'Contraseña incorrecta'
+        CUENTA_DESACTIVADA = 'INACTIVA', 'Cuenta desactivada'
+        CUENTA_BLOQUEADA = 'BLOQUEADA', 'Cuenta bloqueada (intentos fallidos)'
+        USUARIO_INEXISTENTE = 'NOEXISTE', 'Usuario no existe'
+
+    class Portal(models.TextChoices):
+        INVENTARIO = 'INV', 'Inventario'
+        MANTENCION = 'MANT', 'Mantención'
+
+    usuario = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='accesos', verbose_name="Usuario"
+    )
+    # Aparte del FK: si el usuario no existe (o fue borrado después), no hay
+    # a quién apuntar, pero igual interesa saber qué username se intentó.
+    username_ingresado = models.CharField(max_length=150, verbose_name="Usuario ingresado")
+    resultado = models.CharField(max_length=10, choices=Resultado.choices, verbose_name="Resultado")
+    portal = models.CharField(max_length=4, choices=Portal.choices, verbose_name="Portal")
+    ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+
+    class Meta:
+        verbose_name = "Registro de acceso"
+        verbose_name_plural = "Registros de acceso"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.username_ingresado} · {self.get_resultado_display()} · {self.fecha:%d/%m/%Y %H:%M}"

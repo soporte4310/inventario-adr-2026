@@ -157,6 +157,9 @@
             <div class="dropdown-content">
                 <a href="{% url 'lista_auditoria' %}">Auditoría</a>
                 <a href="{% url 'lista_eliminados' %}">Papelera de Equipos</a>
+                {% if group_name_singular == 'ADR' %}
+                <a href="{% url 'registro_accesos' %}">Auditoría de Accesos</a>
+                {% endif %}
             </div>
         </details>
         {% endif %}
