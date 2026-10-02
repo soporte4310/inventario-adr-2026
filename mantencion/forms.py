@@ -32,7 +32,9 @@ def _agrupar_ubicaciones_por_edificio_y_piso(field, queryset=None):
     bodegas = []
     grupos = OrderedDict()
     for ubicacion in ubicaciones:
-        if 'bodega' in ubicacion.nombre.lower():
+        # 'empieza con' (no 'contiene'): oficinas como "Oficina Bodega" no
+        # son una bodega de retiro, son un lugar real dentro de su piso.
+        if ubicacion.nombre.lower().startswith('bodega'):
             bodegas.append((ubicacion.pk, ubicacion.nombre))
             continue
         etiqueta_grupo = f"{ubicacion.piso.edificio.nombre} · {ubicacion.piso.nombre}"
