@@ -162,7 +162,7 @@
           con nombre propio (ADR_Evidencia_Tipo_Ubicación_Fecha), separada de "ver".
           {% endcomment %}
           {% with nombre_descarga=ev|nombre_descarga_evidencia %}
-          <a href="{{ ev.archivo.url|descarga_forzada:nombre_descarga }}"
+          <a href="{{ ev.archivo.url|descarga_forzada:nombre_descarga }}" download="{{ nombre_descarga }}{{ ev.archivo|extension_archivo }}"
             class="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white text-[11px]"
             title="Descargar imagen" aria-label="Descargar imagen">
             <i class="fas fa-download text-xs"></i> Descargar
