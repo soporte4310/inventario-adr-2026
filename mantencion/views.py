@@ -464,13 +464,19 @@ def _dataframe_lista(tipo):
     data = []
     for equipo in equipos:
         ubicacion = equipo.ubicacion
-        data.append({
+        fila = {
             'EDIFICIO': ubicacion.piso.edificio.nombre if ubicacion else '',
             'SALA_OFICINA': ubicacion.nombre if ubicacion else '',
             'MARCA_MODELO': equipo.marca_modelo,
-            'NUMERO_SERIE': equipo.numero_serie,
-            'ESTADO': equipo.estado_texto,
-        })
+        }
+        # Nombre de red: solo tiene sentido para impresoras (los proyectores
+        # todavía no tienen este dato cargado en ningún Activo), igual que
+        # en la columna propia que ya existe en la página web.
+        if tipo == EquipoMantenible.Tipo.IMPRESORA:
+            fila['NOMBRE_RED'] = equipo.nombre_equipo
+        fila['NUMERO_SERIE'] = equipo.numero_serie
+        fila['ESTADO'] = equipo.estado_texto
+        data.append(fila)
     return pd.DataFrame(data)
 
 
@@ -503,10 +509,14 @@ def _dataframe_revision(ciclo, tipo):
 
     data = []
     for revision in revisiones:
-        data.append({
+        fila = {
             'EDIFICIO': revision.ubicacion_en_revision.piso.edificio.nombre if revision.ubicacion_en_revision else '',
             'SALA_OFICINA': revision.ubicacion_en_revision.nombre if revision.ubicacion_en_revision else '',
             'MARCA_MODELO': revision.equipo.marca_modelo,
+        }
+        if tipo == EquipoMantenible.Tipo.IMPRESORA:
+            fila['NOMBRE_RED'] = revision.equipo.nombre_equipo
+        fila.update({
             'NUMERO_SERIE': revision.equipo.numero_serie,
             'ESTADO': revision.get_estado_display(),
             'COMENTARIO': revision.comentario,
@@ -515,6 +525,7 @@ def _dataframe_revision(ciclo, tipo):
             # strftime() imprime la hora UTC cruda en vez de la de Chile.
             'FECHA_REVISION': timezone.localtime(revision.fecha_revision).strftime('%d/%m/%Y %H:%M') if revision.fecha_revision else '',
         })
+        data.append(fila)
     return pd.DataFrame(data)
 
 

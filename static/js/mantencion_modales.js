@@ -62,12 +62,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Botón "Tomar fotografía" (en realidad una <label> que dispara el input
   // de archivo oculto): como el input real ya no se ve, mostramos acá el
-  // nombre del archivo elegido para que quede claro que sí se seleccionó algo.
+  // nombre del archivo elegido y una vista previa, para que quede claro qué
+  // se seleccionó y se pueda volver a tomar otra si no convence (el input
+  // solo guarda un archivo a la vez, así que la nueva selección reemplaza
+  // sola a la anterior).
   const inputArchivo = document.getElementById('id_archivo');
   const nombreArchivo = document.querySelector('.mnt-archivo-nombre');
+  const previewArchivo = document.querySelector('.mnt-archivo-preview');
   if (inputArchivo && nombreArchivo) {
     inputArchivo.addEventListener('change', function () {
-      nombreArchivo.textContent = inputArchivo.files.length ? inputArchivo.files[0].name : '';
+      const archivo = inputArchivo.files[0];
+      nombreArchivo.textContent = archivo ? archivo.name : '';
+      if (previewArchivo) {
+        if (archivo) {
+          previewArchivo.src = URL.createObjectURL(archivo);
+          previewArchivo.classList.remove('hidden');
+        } else {
+          previewArchivo.classList.add('hidden');
+        }
+      }
+    });
+  }
+
+  // Evita que un doble clic/doble tap en "Guardar novedad" mande el
+  // formulario dos veces (y suba la misma evidencia duplicada): se
+  // deshabilita apenas se envía, la propia recarga de la página al volver
+  // (éxito o error) deja el botón fresco de nuevo.
+  if (formNovedad) {
+    formNovedad.addEventListener('submit', function () {
+      const boton = formNovedad.querySelector('.mnt-submit-novedad');
+      if (boton) {
+        boton.disabled = true;
+        boton.textContent = 'Guardando...';
+      }
     });
   }
 

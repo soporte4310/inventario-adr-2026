@@ -226,10 +226,16 @@
         texto del botón de un <input type=file> lo pone el navegador y no
         se puede cambiar directamente.
         {% endcomment %}
-        <label for="{{ novedad_form.archivo.id_for_label }}"
-          class="mnt-label-archivo inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium cursor-pointer">
-          <i class="fas fa-camera"></i> Tomar fotografía
-        </label>
+        <div class="flex items-center gap-2">
+          <label for="{{ novedad_form.archivo.id_for_label }}"
+            class="mnt-label-archivo inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium cursor-pointer">
+            <i class="fas fa-camera"></i> Tomar fotografía
+          </label>
+          {# Previsualización: así se ve qué se tomó antes de guardar, y si
+             no convence, basta volver a tocar el botón y elegir/tomar otra
+             — el input de archivo solo guarda una a la vez, se reemplaza sola. #}
+          <img class="mnt-archivo-preview hidden w-12 h-12 rounded-lg object-cover border border-black/10 dark:border-white/10" alt="Vista previa">
+        </div>
         {{ novedad_form.archivo }}
         <p class="mnt-archivo-nombre text-xs text-black/60 dark:text-white/60 mt-1"></p>
         <p class="text-xs text-black/50 dark:text-white/50 mt-1">
@@ -238,7 +244,7 @@
       </div>
       <div class="flex justify-end gap-2 mt-4">
         <button type="button" class="mnt-cerrar-modal px-3 py-2 text-sm">Cancelar</button>
-        <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Guardar novedad</button>
+        <button type="submit" class="mnt-submit-novedad px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium disabled:opacity-60">Guardar novedad</button>
       </div>
     </form>
   </div>
@@ -260,5 +266,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="{% static 'js/mantencion_modales.js' %}?v=6"></script>
+<script src="{% static 'js/mantencion_modales.js' %}?v=7"></script>
 {% endblock %}
