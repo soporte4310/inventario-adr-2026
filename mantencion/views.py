@@ -238,7 +238,7 @@ class MarcarOkView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
             RevisionEquipo.objects.select_related('equipo__activo', 'equipo__impresora', 'ciclo'), pk=pk
         )
 
-        if limite_alcanzado(request.user, 'marcar_ok'):
+        if limite_alcanzado(request, 'marcar_ok'):
             messages.error(request, "Demasiadas solicitudes seguidas. Espera un momento e intenta de nuevo.")
             return redirect(_url_revision(revision.equipo.tipo))
 
@@ -276,7 +276,7 @@ class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, Vie
             RevisionEquipo.objects.select_related('equipo__activo', 'equipo__impresora', 'ciclo'), pk=pk
         )
 
-        if limite_alcanzado(request.user, 'novedad'):
+        if limite_alcanzado(request, 'novedad'):
             messages.error(request, "Demasiadas solicitudes seguidas. Espera un momento e intenta de nuevo.")
             return redirect(_url_revision(revision.equipo.tipo))
 

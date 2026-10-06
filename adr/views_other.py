@@ -16,6 +16,7 @@ from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.sessions.models import Session
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -129,8 +130,9 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
         return bool(first_group and first_group.name == 'ADR')
 
     def handle_no_permission(self):
-        """Redirecciona a error si no tiene permisos"""
-        return redirect('error')
+        # No hay (ni hubo nunca) una url llamada 'error' en el proyecto;
+        # esto tiraba NoReverseMatch (500) en vez de un 403 claro.
+        raise PermissionDenied
 
     def get_context_data(self, **kwargs):
         """Agrega grupos al contexto"""
@@ -387,9 +389,19 @@ def _enviar_notificacion(asunto: str, mensaje: str, destinatarios: list[str] | t
 
 
 def _cerrar_sesiones_activas(user):
-    """Invalida de inmediato las sesiones ya iniciadas de un usuario recién desactivado."""
+    """
+    Invalida de inmediato las sesiones ya iniciadas de un usuario recién
+    desactivado. Se llama DESPUÉS de guardar is_active=False, así que una
+    sesión individual corrupta/ilegible no puede dejar la cuenta desactivada
+    a medias (is_active ya guardado) con un 500 y sin limpiar el resto de
+    las sesiones.
+    """
     for session in Session.objects.filter(expire_date__gte=timezone.now()):
-        if session.get_decoded().get(SESSION_KEY) == str(user.pk):
+        try:
+            coincide = session.get_decoded().get(SESSION_KEY) == str(user.pk)
+        except Exception:
+            continue
+        if coincide:
             session.delete()
 
 
@@ -404,8 +416,9 @@ class ToggleUserActiveView(LoginRequiredMixin, UserPassesTestMixin, View):
         return self.request.user.groups.filter(name='ADR').exists()
 
     def handle_no_permission(self):
-        messages.error(self.request, 'No tiene permisos para esta acción')
-        return redirect('error')
+        # Misma corrección que AddUserView.handle_no_permission: 'error' no
+        # es una url real, esto tiraba NoReverseMatch (500) en vez de 403.
+        raise PermissionDenied
 
     def post(self, request, pk, *args, **kwargs):
         user = get_object_or_404(User, pk=pk)

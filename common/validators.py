@@ -19,7 +19,10 @@ validador_solo_numeros = RegexValidator(
     message='Este campo debe contener estrictamente números enteros.'
 )
 validador_telefono = RegexValidator(
-    regex=r'^\+?56?\d{9}$',
+    # El "56" (código de país) es opcional COMO GRUPO: antes "56?" solo hacía
+    # opcional el "6" y dejaba el "5" obligatorio, rechazando un número local
+    # de 9 dígitos sin código de país (ej: 912345678).
+    regex=r'^\+?(56)?\d{9}$',
     message='Formato de teléfono no válido. Use solo números y un "+" opcional (Ej: +56912345678).'
 )
 validador_texto_seguro = RegexValidator(

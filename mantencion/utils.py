@@ -12,14 +12,19 @@ GRUPOS_REVISION = ['ADR', 'Alumno en Práctica', 'Auxiliar Operador ADR', 'Opera
 GRUPOS_ADMIN = ['ADR']
 
 
-def limite_alcanzado(user, accion, max_intentos=30, ventana_segundos=60):
+def limite_alcanzado(request, accion, max_intentos=30, ventana_segundos=60):
     """
     Throttle simple basado en caché para los endpoints de escritura (marcar
     OK / subir evidencia): evita que un usuario spamee el formulario en un
     lapso corto. Usa el mismo mecanismo (django.core.cache) que ya emplea el
     bloqueo de intentos de login del proyecto, sin sumar dependencias nuevas.
+
+    La clave combina usuario + IP (no solo uno de los dos): así no se
+    bloquea a todo un equipo/red detrás de NAT que comparte la misma IP,
+    pero una sesión robada desde otra IP tampoco hereda el contador de otro.
     """
-    clave = f"mantencion_rl:{accion}:{user.pk}"
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+    clave = f"mantencion_rl:{accion}:{request.user.pk}:{ip}"
     intentos = cache.get(clave, 0)
     if intentos >= max_intentos:
         return True
