@@ -231,9 +231,9 @@
             class="mnt-label-archivo inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black text-white dark:bg-white dark:text-black text-sm font-medium cursor-pointer">
             <i class="fas fa-camera"></i> Tomar fotografía
           </label>
-          {# Previsualización: así se ve qué se tomó antes de guardar, y si
+          {% comment %} Previsualización: así se ve qué se tomó antes de guardar, y si
              no convence, basta volver a tocar el botón y elegir/tomar otra
-             — el input de archivo solo guarda una a la vez, se reemplaza sola. #}
+             — el input de archivo solo guarda una a la vez, se reemplaza sola. {% endcomment %}
           <img class="mnt-archivo-preview hidden w-12 h-12 rounded-lg object-cover border border-black/10 dark:border-white/10" alt="Vista previa">
         </div>
         {{ novedad_form.archivo }}
