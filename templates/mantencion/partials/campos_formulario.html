@@ -1,0 +1,17 @@
+{% comment %}
+Recorre un formulario Django y pinta cada campo con su label y sus errores.
+Se reutiliza en los formularios simples de ADR (edificio, piso, ubicación,
+roster) para no repetir el mismo bloque en cuatro plantillas distintas.
+{% endcomment %}
+{% for field in form %}
+{% if field.is_hidden %}
+{{ field }}
+{% else %}
+<div>
+  <label class="block text-sm font-medium mb-1">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<p class="text-xs text-black/50 dark:text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="text-red-600 dark:text-red-400 text-xs mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+</div>
+{% endif %}
+{% endfor %}

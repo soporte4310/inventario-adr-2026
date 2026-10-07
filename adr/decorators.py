@@ -19,11 +19,11 @@ def get_group_and_color(user):
                 color = 'bg-zinc-950'
             elif group.name == 'ADR':
                 color = 'bg-gradient-to-tr from-amber-600 to-amber-900'
-            elif group.name == 'Operadores ADR':
+            elif group.name == 'Operador ADR':
                 color = 'bg-gradient-to-tr from-gray-600 to-gray-900'
-            elif group.name == 'Auxiliares Operadores ADR':
+            elif group.name == 'Auxiliar Operador ADR':
                 color = 'bg-gradient-to-tr from-lime-600 to-lime-900'
-            elif group.name == 'Alumnos en Práctica':
+            elif group.name == 'Alumno en Práctica':
                 color = 'bg-gradient-to-tr from-purple-600 to-purple-900'
 
             group_id = group.id # Asignamos el id del grupo

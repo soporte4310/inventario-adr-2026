@@ -33,6 +33,7 @@ LOCAL_APPS = [
     'usuarios',
     'inventario',
     'accounts.apps.AccountsConfig',
+    'mantencion',
     'core',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -66,6 +67,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 "core.context_processors.group_and_user",
+                "mantencion.context_processors.es_adr",
             ],
         },
     },

@@ -6,12 +6,34 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import LoginAttempt
+from .models import LoginAttempt, RegistroAcceso
 
 
 UserModel = get_user_model()
 
 class CustomAuthenticationForm(AuthenticationForm):
+    def _portal_actual(self):
+        # Inventario y Mantención comparten este mismo formulario; se
+        # distingue por el path de la URL que originó el POST.
+        path = self.request.path if self.request else ''
+        return RegistroAcceso.Portal.MANTENCION if path.startswith('/mantencion/') else RegistroAcceso.Portal.INVENTARIO
+
+    def _ip_actual(self):
+        if not self.request:
+            return None
+        # Render reenvía la IP real del visitante en X-Forwarded-For; sin
+        # eso, REMOTE_ADDR sería la IP interna del proxy, no la del usuario.
+        adelante = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if adelante:
+            return adelante.split(',')[0].strip()
+        return self.request.META.get('REMOTE_ADDR')
+
+    def _registrar_acceso(self, username, resultado, usuario=None):
+        RegistroAcceso.objects.create(
+            usuario=usuario, username_ingresado=username or '', resultado=resultado,
+            portal=self._portal_actual(), ip=self._ip_actual(),
+        )
+
     def clean(self):
         username = self.cleaned_data.get('username')
         password = self.cleaned_data.get('password')
@@ -20,19 +42,30 @@ class CustomAuthenticationForm(AuthenticationForm):
             try:
                 user = UserModel._default_manager.get(username=username)
             except UserModel.DoesNotExist:
+                self._registrar_acceso(username, RegistroAcceso.Resultado.USUARIO_INEXISTENTE)
                 raise ValidationError(
                     self.error_messages['invalid_login'],
                     code='invalid_login',
                     params={'username': self.username_field.verbose_name},
                 )
 
+            # Cuenta desactivada por ADR: se corta aquí, ANTES de contar como intento fallido
+            # (si no, el usuario vería "contraseña incorrecta" y se ganaría bloqueos injustos).
+            if not user.is_active:
+                self._registrar_acceso(username, RegistroAcceso.Resultado.CUENTA_DESACTIVADA, usuario=user)
+                raise ValidationError(
+                    'Esta cuenta ha sido desactivada. Contacte al administrador.',
+                    code='inactive',
+                )
+
             login_attempt, created = LoginAttempt.objects.get_or_create(user=user)
 
             if login_attempt.is_locked():
+                self._registrar_acceso(username, RegistroAcceso.Resultado.CUENTA_BLOQUEADA, usuario=user)
                 lockout_time_left = login_attempt.lockout_until - timezone.now()
                 minutes_left = int(lockout_time_left.total_seconds() // 60)
                 seconds_left = int(lockout_time_left.total_seconds() % 60)
-                
+
                 raise ValidationError(
                     f"Su cuenta ha sido bloqueada temporalmente debido a múltiples intentos fallidos. "
                     f"Por favor, inténtelo de nuevo en {minutes_left} minutos y {seconds_left} segundos.",
@@ -42,6 +75,7 @@ class CustomAuthenticationForm(AuthenticationForm):
             user_autenticado = authenticate(username=username, password=password)
 
             if user_autenticado is None:
+                self._registrar_acceso(username, RegistroAcceso.Resultado.CONTRASENA_INCORRECTA, usuario=user)
                 login_attempt.increment_failed_attempts()
                 
                 # INTEGRACIÓN: Envío de correo electrónico al segundo intento fallido
@@ -89,7 +123,8 @@ class CustomAuthenticationForm(AuthenticationForm):
                             code='invalid_login_attempts_left',
                         )
             else:
+                self._registrar_acceso(username, RegistroAcceso.Resultado.EXITOSO, usuario=user)
                 login_attempt.reset_attempts()
                 self.user_cache = user_autenticado
-        
+
         return self.cleaned_data

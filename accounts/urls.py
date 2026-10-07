@@ -1,12 +1,13 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LogoutView
-from .views import CustomLoginView, ProfilePasswordChangeView
+from .views import CustomLoginView, ProfilePasswordChangeView, RegistroAccesoListView
 
 
 urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('accesos/', RegistroAccesoListView.as_view(), name='registro_accesos'),
 
     path('password_reset/', auth_views.PasswordResetView.as_view(
         email_template_name='registration/password_reset_email.txt',

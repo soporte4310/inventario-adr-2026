@@ -5,16 +5,18 @@ Contiene todas las vistas para manejar las diferentes funcionalidades del sistem
 
 import os
 
-from django.db.models import Q, F
+from django.db.models import Q, F, Case, When, Value, IntegerField
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash, SESSION_KEY
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.sessions.models import Session
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -128,8 +130,9 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
         return bool(first_group and first_group.name == 'ADR')
 
     def handle_no_permission(self):
-        """Redirecciona a error si no tiene permisos"""
-        return redirect('error')
+        # No hay (ni hubo nunca) una url llamada 'error' en el proyecto;
+        # esto tiraba NoReverseMatch (500) en vez de un 403 claro.
+        raise PermissionDenied
 
     def get_context_data(self, **kwargs):
         """Agrega grupos al contexto"""
@@ -161,7 +164,7 @@ class AddUserView(UserPassesTestMixin, LoginRequiredMixin, CreateView):
                 # El usuario nunca la usará porque entrará directo por el token del correo.
                 user.set_password(get_random_string(32))
 
-                if group.name in ['ADR', 'Operadores ADR']:
+                if group.name in ['ADR', 'Operador ADR']:
                     user.is_staff = True
 
                 user.save()
@@ -199,11 +202,28 @@ class ProfileListView(LoginRequiredMixin, ListView):
         """
         Obtiene y configura el queryset de perfiles
         Añade el nombre del grupo y ordena por grupo y nombre de usuario
+        Por defecto solo muestra cuentas activas; ?estado=inactivos o ?estado=todos cambian el filtro
         """
         queryset = super().get_queryset()
+        estado = self.request.GET.get('estado', 'activos')
+        if estado == 'inactivos':
+            queryset = queryset.filter(user__is_active=False)
+        elif estado != 'todos':
+            queryset = queryset.filter(user__is_active=True)
+        # Orden por jerarquía de rol (no alfabético): ADR primero, Usuario al final.
+        orden_por_rol = Case(
+            When(user__groups__name='ADR', then=Value(0)),
+            When(user__groups__name='Operador ADR', then=Value(1)),
+            When(user__groups__name='Auxiliar Operador ADR', then=Value(2)),
+            When(user__groups__name='Alumno en Práctica', then=Value(3)),
+            When(user__groups__name='Usuario', then=Value(4)),
+            default=Value(5),
+            output_field=IntegerField(),
+        )
         queryset = queryset.annotate(
-            group_name=F('user__groups__name')
-        ).order_by('-group_name', 'user__username')
+            group_name=F('user__groups__name'),
+            orden_rol=orden_por_rol,
+        ).order_by('orden_rol', 'user__username')
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -211,6 +231,7 @@ class ProfileListView(LoginRequiredMixin, ListView):
         Añade datos adicionales al contexto de la plantilla
         - Información del grupo del usuario actual
         - Lista de perfiles con sus grupos en formato singular
+        - Estado del filtro activo/inactivo/todos actualmente seleccionado
         """
         context = super().get_context_data(**kwargs)
         user = self.request.user
@@ -218,14 +239,16 @@ class ProfileListView(LoginRequiredMixin, ListView):
         context['group_name'] = group_name
         context['group_name_singular'] = group_name_singular
         context['color'] = color
-        
+        context['estado_actual'] = self.request.GET.get('estado', 'activos')
+
         profiles_with_singular_groups = []
         for profile in context['profiles']:
             groups = [group.name for group in profile.user.groups.all()]
 
             profiles_with_singular_groups.append({
                 'profile': profile,
-                'singular_groups': groups
+                'singular_groups': groups,
+                'is_active': profile.user.is_active,
             })
 
         context['profiles_with_singular_groups'] = profiles_with_singular_groups
@@ -365,79 +388,83 @@ def _enviar_notificacion(asunto: str, mensaje: str, destinatarios: list[str] | t
         pass
 
 
-class ProfileDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
-    model = User
-    success_url = reverse_lazy('profile_list')
-    template_name = 'profiles/profile_confirm_delete.html'
+def _cerrar_sesiones_activas(user):
+    """
+    Invalida de inmediato las sesiones ya iniciadas de un usuario recién
+    desactivado. Se llama DESPUÉS de guardar is_active=False, así que una
+    sesión individual corrupta/ilegible no puede dejar la cuenta desactivada
+    a medias (is_active ya guardado) con un 500 y sin limpiar el resto de
+    las sesiones.
+    """
+    for session in Session.objects.filter(expire_date__gte=timezone.now()):
+        try:
+            coincide = session.get_decoded().get(SESSION_KEY) == str(user.pk)
+        except Exception:
+            continue
+        if coincide:
+            session.delete()
+
+
+class ToggleUserActiveView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Activa o desactiva una cuenta (is_active) sin borrar el registro.
+    El dato del usuario nunca se elimina; solo se le impide volver a iniciar sesión.
+    """
 
     def test_func(self):
-        """Solo ADR puede eliminar perfiles"""
+        """Solo ADR puede activar/desactivar cuentas"""
         return self.request.user.groups.filter(name='ADR').exists()
 
     def handle_no_permission(self):
-        messages.error(self.request, 'No tiene permisos para esta acción')
-        return redirect('error')
+        # Misma corrección que AddUserView.handle_no_permission: 'error' no
+        # es una url real, esto tiraba NoReverseMatch (500) en vez de 403.
+        raise PermissionDenied
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if self.request.user.groups.exists():
-            group_name = self.request.user.groups.first().name
-            context['group_name_singular'] = group_name.replace('es ADR', ' ADR').replace('s ADR', ' ADR')
-        return context
+    def post(self, request, pk, *args, **kwargs):
+        user = get_object_or_404(User, pk=pk)
 
-    def delete(self, request, *args, **kwargs):
-        """Procesa la eliminación de un usuario y envía notificación (sin romper si el correo falla)"""
-        try:
-            self.object = self.get_object()
-
-            # --- Evitar auto-eliminación (opcional, recomendado) ---
-            if self.object == request.user:
-                messages.error(request, 'No puedes eliminar tu propia cuenta.')
-                return redirect(self.success_url)
-
-            nombre_usuario = self.object.username
-            nombre_completo = f"{self.object.first_name} {self.object.last_name}".strip()
-            grupo = self.object.groups.first().name if self.object.groups.exists() else "Sin grupo asignado"
-
-            # Eliminar el usuario
-            self.object.delete()
-
-            # Preparar y enviar notificación HTML
-            try:
-                from adr.email_template import notificacion_usuario
-
-                ejecutor = request.user.get_full_name() or request.user.username
-                datos = [
-                    ('Nombre de Usuario', nombre_usuario),
-                    ('Nombre Completo', nombre_completo or '-'),
-                    ('Grupo Asignado', grupo),
-                ]
-
-                html, plain = notificacion_usuario(
-                    accion='Eliminación de Perfil de Usuario',
-                    ejecutor_nombre=ejecutor,
-                    datos_usuario=datos,
-                )
-
-                enviar_notificacion_asunto(
-                    asunto='Eliminación de Perfil de Usuario',
-                    mensaje=plain,
-                    destinatarios=getattr(settings, 'EMAIL_RECIPIENTS', []),
-                    html_content=html,
-                )
-            except Exception:
-                pass  # No romper el flujo por fallo de correo
-
-            messages.success(self.request, f'Usuario {nombre_usuario} eliminado exitosamente')
-            return HttpResponseRedirect(self.get_success_url())
-
-        except Exception as e:
-            messages.error(self.request, f'Error al eliminar usuario: {e}')
+        if user == request.user:
+            messages.error(request, 'No puedes desactivar tu propia cuenta.')
             return redirect('profile_list')
 
-    def post(self, request, *args, **kwargs):
-        # El botón del template hace POST, así que delegamos en delete()
-        return self.delete(request, *args, **kwargs)
+        user.is_active = not user.is_active
+        user.save(update_fields=['is_active'])
+
+        if not user.is_active:
+            _cerrar_sesiones_activas(user)
+
+        accion = 'activada' if user.is_active else 'desactivada'
+        messages.success(request, f'La cuenta de {user.username} fue {accion} exitosamente.')
+
+        # Notificación HTML (sin romper el flujo si el correo falla)
+        try:
+            from adr.email_template import notificacion_usuario
+
+            ejecutor = request.user.get_full_name() or request.user.username
+            grupo = user.groups.first().name if user.groups.exists() else "Sin grupo asignado"
+            datos = [
+                ('Nombre de Usuario', user.username),
+                ('Nombre Completo', f'{user.first_name} {user.last_name}'.strip() or '-'),
+                ('Grupo Asignado', grupo),
+                ('Nuevo Estado', 'Activo' if user.is_active else 'Inactivo'),
+            ]
+
+            html, plain = notificacion_usuario(
+                accion=f'{"Reactivación" if user.is_active else "Desactivación"} de Perfil de Usuario',
+                ejecutor_nombre=ejecutor,
+                datos_usuario=datos,
+            )
+
+            enviar_notificacion_asunto(
+                asunto=f'Cuenta {accion}: {user.username}',
+                mensaje=plain,
+                destinatarios=getattr(settings, 'EMAIL_RECIPIENTS', []),
+                html_content=html,
+            )
+        except Exception:
+            pass  # No romper el flujo por fallo de correo
+
+        return redirect('profile_list')
 
 
 

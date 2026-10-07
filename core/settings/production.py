@@ -12,6 +12,14 @@ if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
     CSRF_TRUSTED_ORIGINS = [f'https://{RENDER_EXTERNAL_HOSTNAME}']
 
+# Render termina el HTTPS en su proxy y nos reenvía la conexión como HTTP
+# simple; sin esto, request.is_secure() da False aunque el visitante esté
+# en https://, lo que puede derivar en fallos de CSRF/cookies intermitentes
+# (el error típico que reportó Emilio: "La verificación CSRF ha fallado").
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 # 1. Base de Datos (MySQL - Render)
 DATABASES = {
     'default': {
