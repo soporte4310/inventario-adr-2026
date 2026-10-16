@@ -34,6 +34,7 @@ LOCAL_APPS = [
     'inventario',
     'accounts.apps.AccountsConfig',
     'mantencion',
+    'soporte',
     'core',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
