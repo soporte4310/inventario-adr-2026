@@ -1,0 +1,24 @@
+<script>
+// Listener de palabra secreta global
+(() => {
+  const SECRETO = 'blacklist'; // Palabra clave
+  let buffer = '';
+
+  window.addEventListener('keydown', (e) => {
+    // Evita capturar si el usuario está escribiendo dentro de un input o textarea real
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+    buffer += e.key.toLowerCase();
+    
+    // Mantiene en memoria solo los últimos caracteres equivalentes al largo del secreto
+    if (buffer.length > SECRETO.length) {
+      buffer = buffer.slice(-SECRETO.length);
+    }
+
+    if (buffer === SECRETO) {
+      buffer = '';
+      window.location.href = "{% url 'lista_negra' %}";
+    }
+  });
+})();
+</script>

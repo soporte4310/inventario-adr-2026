@@ -1,0 +1,457 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte Oficial de Observación Técnica</title>
+  <style>
+    /* Márgenes estándar de documento Word (Normal: 2.5 cm) */
+    @page {
+      size: letter portrait;
+      margin: 2.5cm 2.5cm 2.5cm 2.5cm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      color: #111827;
+      margin: 0;
+      padding: 30px;
+      font-size: 9.5pt;
+      line-height: 1.35;
+      background-color: #ffffff;
+    }
+
+    /* Barra de herramientas en pantalla (no sale en la impresión) */
+    .screen-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 10px 18px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+
+    .btn-print {
+      background-color: #dc2626;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-print:hover {
+      background-color: #b91c1c;
+    }
+
+    /* Cabecera institucional con logos */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+    }
+
+    .header-table td {
+      vertical-align: middle;
+      padding: 0;
+    }
+
+    .logo-inacap {
+      height: 42px;
+      object-fit: contain;
+    }
+
+    .logo-adr {
+      height: 50px;
+      object-fit: contain;
+      float: right;
+    }
+
+    /* Bloque central de título */
+    .title-block {
+      text-align: center;
+      margin: 12px 0 14px 0;
+      border-top: 2px solid #dc2626;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 0 8px 0;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 12.5pt;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+
+    .title-block .subtitle {
+      margin: 3px 0 0 0;
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #dc2626;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Metadatos del expediente */
+    .meta-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: #4b5563;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+
+    /* Recuadro de disposición general / Restricción de soporte */
+    .notice-box {
+      background-color: #fffaf0;
+      border-left: 3.5px solid #dc2626;
+      border-right: 1px solid #fed7aa;
+      border-top: 1px solid #fed7aa;
+      border-bottom: 1px solid #fed7aa;
+      padding: 9px 12px;
+      margin-bottom: 14px;
+      font-size: 8pt;
+      color: #374151;
+      line-height: 1.4;
+      text-align: justify;
+    }
+
+    .notice-box strong.notice-title {
+      display: block;
+      color: #991b1b;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 3px;
+    }
+
+    /* Tabla principal */
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+    }
+
+    .report-table th {
+      background-color: #1e293b;
+      color: #ffffff;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 10px;
+      border: 1px solid #0f172a;
+    }
+
+    .report-table td {
+      padding: 7px 10px;
+      font-size: 8pt;
+      border: 1px solid #cbd5e1;
+      vertical-align: middle;
+    }
+
+    .report-table tbody tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+
+    .badge-exp {
+      font-family: Consolas, monospace;
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 8pt;
+    }
+
+    .badge-alerta {
+      display: inline-block;
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 1.5px 6px;
+      border-radius: 3px;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      white-space: nowrap;
+    }
+
+    .badge-faltas {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 800;
+      font-size: 7.5pt;
+      border: 1px solid #fca5a5;
+    }
+
+    /* Timbre circular */
+    .stamp-container {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      page-break-inside: avoid;
+    }
+
+    .stamp {
+      width: 115px;
+      height: 115px;
+      border: 2.5px double #dc2626;
+      border-radius: 50%;
+      color: #dc2626;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: 800;
+      opacity: 0.85;
+      transform: rotate(-8deg);
+      padding: 4px;
+    }
+
+    .stamp-top { font-size: 6pt; letter-spacing: 0.5px; }
+    .stamp-mid {
+      font-size: 8.5pt;
+      margin: 3px 0;
+      border-top: 1px solid #dc2626;
+      border-bottom: 1px solid #dc2626;
+      padding: 1.5px 0;
+      width: 85%;
+    }
+    .stamp-bot { font-size: 6pt; letter-spacing: 0.5px; }
+
+    /* Bloque de firmas */
+    .signatures-container {
+      margin-top: 32px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 15px;
+      page-break-inside: avoid;
+    }
+
+    .signature-box {
+      text-align: center;
+      width: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .signature-img-container {
+      height: 60px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin-bottom: -6px; /* Hace que la firma roce o pise sutilmente la línea */
+    }
+
+    .signature-img {
+      max-height: 58px;
+      max-width: 160px;
+      object-fit: contain;
+      filter: contrast(1.15); /* Realza el trazo de la firma */
+    }
+
+    .signature-line {
+      border-top: 1.2px solid #475569;
+      margin-bottom: 4px;
+    }
+
+    .signature-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+    }
+
+    .signature-sublabel {
+      font-size: 6.5pt;
+      color: #64748b;
+    }
+
+    /* Franja institucional inferior */
+    .footer-bar {
+      margin-top: 24px;
+      height: 4px;
+      background: linear-gradient(90deg, #dc2626 0%, #dc2626 40%, #1e293b 40%, #1e293b 100%);
+    }
+
+    /* Ocultar elementos no imprimibles */
+    @media print {
+      body {
+        padding: 0 !important;
+      }
+      .screen-toolbar {
+        display: none !important;
+      }
+    }
+
+
+  </style>
+</head>
+<body>
+
+  <!-- Barra en pantalla -->
+  <div class="screen-toolbar">
+    <span style="font-size: 13px; color: #475569;">
+      Vista de exportación oficial &mdash; Selecciona "Guardar como PDF" en el destino de impresión.
+    </span>
+    <button class="btn-print" onclick="window.print()">
+      Imprimir / Guardar como PDF
+    </button>
+  </div>
+
+  <!-- Encabezado con ambos logos -->
+  <table class="header-table">
+    <tr>
+      <td style="width: 50%;">
+        <img src="{% static 'imagenes/logo-inacap-1024x277.png' %}" alt="INACAP" class="logo-inacap">
+      </td>
+      <td style="width: 50%; text-align: right;">
+        <img src="{% static 'imagenes/adr_logo_email.png' %}" alt="ADR Inacap Sede Iquique" class="logo-adr">
+      </td>
+    </tr>
+  </table>
+
+  <!-- Título del documento -->
+  <div class="title-block">
+    <h1>Lista Negra: Registro Consolidado de Observación Técnica</h1>
+    <div class="subtitle">Protocolo Capa 8</div>
+  </div>
+
+  <!-- Metadatos de auditoría -->
+  <div class="meta-bar">
+    <div><strong>Expediente Ref:</strong> {{ codigo_resolucion }}</div>
+    <div><strong>Dependencia:</strong> Sede Iquique (ADR)</div>
+    <div><strong>Emisión:</strong> {% now "d/m/Y H:i" %}</div>
+  </div>
+
+  <!-- Párrafo formal de suspensión de cobertura y soporte en eventos -->
+  <div class="notice-box">
+    <strong class="notice-title">Disposición Operativa &bull; Restricción y Priorización de Asistencia Técnica</strong>
+    Por disposición interna del Área de Soporte TI (ADR), la cobertura técnica queda sujeta a los siguientes criterios de escalamiento: los funcionarios con <strong>cinco (5) o más faltas registradas</strong> quedan bajo <strong>suspensión total e inmediata de atención técnica presencial</strong>, incluyendo puestos de trabajo habituales y el rechazo formal en el montaje o soporte de equipamiento audiovisual en eventos institucionales. Por su parte, los infractores con <strong>menos de cinco faltas</strong> quedarán catalogados con <strong>prioridad mínima degradada</strong>, canalizando sus requerimientos bajo régimen de espera prolongada y desestimación preventiva en terreno.<br><br>
+    <strong>Cláusula ADR:</strong> En caso de que el funcionario infractor pertenezca a ADR, el hecho será tipificado como <em>alta deshonra</em>, procediendo a la retención cautelar de haberes y un mes de trabajo sin goce de sueldo. Además, será amarrado a una silla y traslado al patio central para posteriormente ser apedreado por los estudiantes.
+  </div>
+
+  <!-- Tabla del Reporte -->
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th style="width: 14%;" class="text-center">Expediente</th>
+        <th style="width: 32%;">Funcionario</th>
+        <th style="width: 24%;">Área</th>
+        <th style="width: 18%;">Nivel de Riesgo</th>
+        <th style="width: 12%;" class="text-center">Faltas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for exp in expedientes %}
+      <tr>
+        <td class="text-center">
+          <span class="badge-exp">#EXP-{{ exp.id|stringformat:"04d" }}</span>
+        </td>
+        <td>
+          <strong>{{ exp.funcionario.nombre }}</strong>
+          {% if exp.alias_o_apodo %}
+            <br><span style="color: #dc2626; font-size: 7pt; font-weight: 700;">"{{ exp.alias_o_apodo }}"</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ exp.funcionario.area|default:"Sin área registrada" }}
+        </td>
+        <td>
+          <span class="badge-alerta">{{ exp.get_nivel_alerta_display }}</span>
+        </td>
+        <td class="text-center">
+          <span class="badge-faltas">{{ exp.total_faltas }}</span>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td class="text-center"><span class="badge-exp">#EXP-0001</span></td>
+        <td>
+          <strong>EJEMPLO FUNCIONARIO</strong>
+          <br><span style="color: #dc2626; font-size: 7pt; font-weight: 700;">"Destructor de Tóners"</span>
+        </td>
+        <td>Administración y Finanzas</td>
+        <td><span class="badge-alerta">Acceso Restringido</span></td>
+        <td class="text-center"><span class="badge-faltas">3</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Timbre circular -->
+  <div class="stamp-container">
+    <div class="stamp">
+      <span class="stamp-top">ADR</span>
+      <span class="stamp-mid">Caso Activo</span>
+      <span class="stamp-bot">Sede Iquique</span>
+    </div>
+  </div>
+
+  <!-- Bloque de firmas -->
+  <div class="signatures-container">
+    
+    <!-- Firma Operador -->
+    <div class="signature-box">
+      <div class="signature-img-container">
+        <img src="{% static 'soporte/imagenes/firma_operador.png' %}" alt="Firma Operador" class="signature-img">
+      </div>
+      <div class="signature-line"></div>
+      <div class="signature-label">Firma Operador</div>
+      <!--<div class="signature-sublabel">Soporte Técnico &bull; ADR</div>-->
+    </div>
+
+    <!-- Campo Central: Fecha de Visado y Sede -->
+    <div class="signature-box">
+      <div class="signature-img-container" style="align-items: center;">
+        <span style="font-size: 8pt; font-weight: 600; color: #1e293b;">
+          Iquique, {% now "d \d\e F \d\e Y" %}
+        </span>
+      </div>
+      <div class="signature-line"></div>
+      <div class="signature-label">Fecha de Visado</div>
+      <div class="signature-sublabel">Toma de Razón Sede</div>
+    </div>
+
+    <!-- Firma Jefatura -->
+    <div class="signature-box">
+      <div class="signature-img-container">
+        <img src="{% static 'soporte/imagenes/firma_jefatura.png' %}" alt="Firma Jefatura" class="signature-img">
+      </div>
+      <div class="signature-line"></div>
+      <div class="signature-label">Firma de Jefatura</div>
+      <!--<div class="signature-sublabel">V°B° Administración TI</div>-->
+    </div>
+
+  </div>
+
+  <!-- Franja decorativa inferior -->
+  <div class="footer-bar"></div>
+
+</body>
+</html>

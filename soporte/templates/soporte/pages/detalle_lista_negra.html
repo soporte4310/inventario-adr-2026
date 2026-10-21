@@ -1,0 +1,243 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}Expediente #EXP-{{ expediente.id|stringformat:"04d" }} - {{ expediente.funcionario.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+  <!-- Migas de pan y cabecera -->
+  <div class="mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
+    <div>
+      <a href="{% url 'lista_negra' %}" class="inline-flex items-center text-xs font-semibold text-gray-500 hover:text-red-600 transition mb-2">
+        <i class="fas fa-arrow-left mr-1.5"></i> Volver a la Lista Negra
+      </a>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold tracking-tight text-gray-900">
+          Expediente: {{ expediente.funcionario.nombre }}
+        </h1>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+          <i class="fas fa-shield-alt mr-1"></i> {{ expediente.get_nivel_alerta_display }}
+        </span>
+      </div>
+      {% if expediente.alias_o_apodo %}
+        <p class="text-sm font-semibold text-red-600 italic mt-0.5">
+          <i class="fas fa-tag text-xs mr-1"></i> Alias técnico: "{{ expediente.alias_o_apodo }}"
+        </p>
+      {% endif %}
+    </div>
+
+    <!-- Acciones -->
+    <div class="flex items-center gap-2">
+      <button type="button" id="btnAbrirModalFalta"
+              class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition">
+        <i class="fas fa-plus-circle mr-2"></i> Registrar Nueva Falta
+      </button>
+    </div>
+  </div>
+
+  <!-- Ficha de Información del Funcionario -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Área Administrativa</span>
+      <span class="text-sm font-semibold text-gray-800 mt-1 block">
+        {{ expediente.funcionario.area|default:"Sin área registrada" }}
+      </span>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Cargo</span>
+      <span class="text-sm font-semibold text-gray-800 mt-1 block">
+        {{ expediente.funcionario.cargo|default:"Sin cargo registrado" }}
+      </span>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Fecha de Fichaje</span>
+      <span class="text-sm font-semibold text-gray-800 mt-1 block">
+        {{ expediente.fecha_ingreso|date:"d/m/Y" }}
+      </span>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Total Incidentes</span>
+      <span class="text-sm font-bold text-red-600 mt-1 block">
+        {{ faltas.count }} registrada{% if faltas.count != 1 %}s{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- Listado de Incidentes / Faltas -->
+  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+        <i class="fas fa-history text-red-600"></i> Historial de Infracciones y Cagadas Operativas
+      </h2>
+      <span class="text-xs text-gray-500">Expediente #EXP-{{ expediente.id|stringformat:"04d" }}</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+        <thead class="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-3.5" style="width: 14%;">Fecha Suceso</th>
+            <th class="px-6 py-3.5" style="width: 20%;">Gravedad</th>
+            <th class="px-6 py-3.5" style="width: 40%;">Descripción del Incidente</th>
+            <th class="px-6 py-3.5" style="width: 16%;">Tributo Exigido</th>
+            <th class="px-6 py-3.5 text-right" style="width: 10%;">Acción</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for falta in faltas %}
+          <tr class="hover:bg-gray-50/70 transition">
+            <td class="px-6 py-4 font-mono text-xs text-gray-700">
+              {{ falta.fecha_suceso|date:"d/m/Y" }}
+            </td>
+            <td class="px-6 py-4">
+              {% if falta.gravedad == 'GRAVE' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                  <i class="fas fa-skull-crossbones mr-1 text-[10px]"></i> Grave
+                </span>
+              {% elif falta.gravedad == 'MODERADA' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  <i class="fas fa-exclamation-triangle mr-1 text-[10px]"></i> Moderada
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                  <i class="fas fa-info-circle mr-1 text-[10px]"></i> Leve
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-gray-800 leading-snug">
+              {{ falta.descripcion }}
+            </td>
+            <td class="px-6 py-4 text-xs font-medium text-gray-600 italic">
+              {{ falta.compensacion }}
+            </td>
+            <td class="px-6 py-4 text-right">
+              <form action="{% url 'eliminar_falta' falta.id %}" method="POST" class="inline form-eliminar-falta">
+                {% csrf_token %}
+                <button type="submit" class="text-xs font-semibold text-gray-400 hover:text-red-600 transition" title="Desestimar falta">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-400">
+              <i class="fas fa-check-double text-gray-300 text-3xl mb-2 block"></i>
+              Aún no se han documentado faltas específicas en este expediente.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal para Registrar Falta -->
+  <div id="modalFalta" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+    <div class="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 transition-all">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <i class="fas fa-feather-alt text-red-600"></i> Documentar Falta Operativa
+        </h3>
+        <button type="button" id="btnCerrarModalX" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-base"></i>
+        </button>
+      </div>
+
+      <form action="{% url 'agregar_falta' expediente.pk %}" method="POST" class="mt-4 space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Fecha del Suceso</label>
+            <input type="date" name="fecha_suceso" required value="{% now 'Y-m-d' %}"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Nivel de Gravedad</label>
+            <select name="gravedad" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+              {% for valor, etiqueta in gravedades %}
+                <option value="{{ valor }}">{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Descripción del Incidente</label>
+          <textarea name="descripcion" rows="3" required
+                    placeholder="Ej: Intentó imprimir con el equipo apagado; desconectó el cable de red con la silla..."
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Tributo / Sanción Simbólica</label>
+          <input type="text" name="compensacion" value=""
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+          <button id="btnCancelarModal" type="button"
+                  class="px-3.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition">
+            Cancelar
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition shadow-sm">
+            Guardar Incidencia
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- Control de Modales y SweetAlert2 -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modalFalta');
+    const btnAbrir = document.getElementById('btnAbrirModalFalta');
+    const btnCerrar = document.getElementById('btnCancelarModal');
+    const btnCerrarX = document.getElementById('btnCerrarModalX');
+
+    const toggleModal = (show) => {
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    };
+
+    if (btnAbrir) btnAbrir.addEventListener('click', () => toggleModal(true));
+    if (btnCerrar) btnCerrar.addEventListener('click', () => toggleModal(false));
+    if (btnCerrarX) btnCerrarX.addEventListener('click', () => toggleModal(false));
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) toggleModal(false);
+    });
+
+    // Confirmación al eliminar falta individual
+    document.querySelectorAll('.form-eliminar-falta').forEach(form => {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        Swal.fire({
+          title: '¿Desestimar incidente?',
+          text: 'Esta falta será borrada del historial del funcionario.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#dc2626',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Sí, borrar',
+          cancelButtonText: 'Cancelar'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            this.submit();
+          }
+        });
+      });
+    });
+  });
+</script>
+{% endblock content %}

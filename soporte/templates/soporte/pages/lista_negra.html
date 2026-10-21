@@ -1,0 +1,221 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}Registro de Observación Técnica TI - Lista Negra{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+  <!-- Header y Acciones -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between pb-5 border-b border-gray-200 gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-bold tracking-tight text-gray-800">
+          <i class="fas fa-clipboard-list text-red-600 mr-1"></i> Lista Negra
+        </h1>
+        <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700 border border-red-200">
+          Capa 8 / Confidencial ADR
+        </span>
+      </div>
+      <p class="mt-1 text-sm text-gray-500">
+        Control y seguimiento preventivo de funcionarios con incidencias en suministros o periféricos.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Botón para generar PDF / imprimir -->
+      <a href="{% url 'reporte_pdf' %}" target="_blank"
+         class="inline-flex items-center px-3.5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition">
+        <i class="fas fa-file-pdf text-red-600 mr-2"></i>
+        Generar PDF
+      </a>
+
+      <!-- Botón para abrir modal de registrar -->
+      <button type="button" id="btnAbrirModal"
+              class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition">
+        <i class="fas fa-user-plus mr-2"></i>
+        Fichar Funcionario
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla de Funcionarios -->
+  <div class="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+        <thead class="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-3.5">Funcionario</th>
+            <th class="px-6 py-3.5">Área / Cargo</th>
+            <th class="px-6 py-3.5">Nivel de Riesgo</th>
+            <th class="px-6 py-3.5 text-center">Faltas</th>
+            <th class="px-6 py-3.5">Fecha Ingreso</th>
+            <th class="px-6 py-3.5 text-right">Acción</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for exp in expedientes %}
+          <tr class="hover:bg-gray-50/70 transition">
+            <td class="px-6 py-4">
+              <div class="font-bold text-gray-900">
+                <a href="{% url 'detalle_expediente' exp.pk %}">
+                  {{ exp.funcionario.nombre }}</div>
+                </a>
+              {% if exp.alias_o_apodo %}
+                <div class="text-xs font-semibold text-red-600 italic">
+                  <i class="fas fa-tag text-[10px] mr-1"></i>"{{ exp.alias_o_apodo }}"
+                </div>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-gray-600">
+              <div class="font-medium text-gray-700">{{ exp.funcionario.area|default:"Sin área asignada" }}</div>
+              <div class="text-xs text-gray-400">{{ exp.funcionario.cargo|default:"Sin cargo" }}</div>
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                <i class="fas fa-exclamation-triangle mr-1 text-[10px]"></i>
+                {{ exp.get_nivel_alerta_display }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 font-bold text-gray-700 text-xs border border-gray-200">
+                {{ exp.faltas.count }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-gray-500 text-xs">
+              {{ exp.fecha_ingreso|date:"d/m/Y" }}
+            </td>
+            <td class="px-6 py-4 text-right">
+              <form action="{% url 'eliminar_lista_negra' exp.pk %}" method="POST" class="inline form-eliminar" data-nombre="{{ exp.funcionario.nombre }}">
+                {% csrf_token %}
+                <button type="submit" class="text-xs font-semibold text-gray-500 hover:text-red-700 transition inline-flex items-center gap-1">
+                  <i class="fas fa-user-check"></i> Indultar
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-400">
+              <i class="fas fa-check-circle text-green-500 text-2xl mb-2 block"></i>
+              No hay funcionarios en el registro de observación técnica actualmente.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Nativo con Tailwind para Fichar Funcionario -->
+  <div id="modalFichar" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 transition-all">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <i class="fas fa-user-tag text-red-600"></i> Fichar en Lista Negra
+        </h3>
+        <button type="button" id="btnCerrarModalX" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-base"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-gray-500 mt-2">
+        Selecciona un funcionario del sistema para abrir su expediente de observación técnica.
+      </p>
+
+      <form action="{% url 'agregar_lista_negra' %}" method="POST" class="mt-4 space-y-4">
+        {% csrf_token %}
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Funcionario</label>
+          <select name="funcionario_id" required
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+            <option value="" disabled selected>Selecciona un funcionario...</option>
+            {% for func in funcionarios_disponibles %}
+              <option value="{{ func.id }}">{{ func.nombre }} ({{ func.area|default:"Sin área" }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Nivel de Riesgo</label>
+          <select name="nivel_alerta"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+            {% for valor, etiqueta in niveles_alerta %}
+              <option value="{{ valor }}">{{ etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Alias / Apodo Técnico (Opcional)</label>
+          <input type="text" name="alias" placeholder="Ej: Atascadora Serial, Terror de la Bandeja 1"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+          <button id="btnCancelarModal" type="button"
+                  class="px-3.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition">
+            Cancelar
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition shadow-sm">
+            Fichar Funcionario
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- Scripts de control de Modal y SweetAlert2 -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modalFichar');
+    const btnAbrir = document.getElementById('btnAbrirModal');
+    const btnCerrar = document.getElementById('btnCancelarModal');
+    const btnCerrarX = document.getElementById('btnCerrarModalX');
+
+    const toggleModal = (show) => {
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    };
+
+    if (btnAbrir) btnAbrir.addEventListener('click', () => toggleModal(true));
+    if (btnCerrar) btnCerrar.addEventListener('click', () => toggleModal(false));
+    if (btnCerrarX) btnCerrarX.addEventListener('click', () => toggleModal(false));
+
+    // Cerrar haciendo clic en el backdrop oscuro
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) toggleModal(false);
+    });
+
+    // Confirmación estilizada con SweetAlert2 para el indulto
+    document.querySelectorAll('.form-eliminar').forEach(form => {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const nombre = this.getAttribute('data-nombre') || 'este funcionario';
+
+        Swal.fire({
+          title: '¿Conceder indulto?',
+          text: `¿Seguro que deseas eliminar el expediente de ${nombre}? Asegúrate de que haya saldado la deuda con Soporte.`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#dc2626',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Sí, indultar',
+          cancelButtonText: 'Cancelar'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            this.submit();
+          }
+        });
+      });
+    });
+  });
+</script>
+{% endblock content %}
