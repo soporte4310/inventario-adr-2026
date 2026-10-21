@@ -1,34 +1,50 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.views.generic import ListView, DetailView, TemplateView, View
 from django.db.models import Count
+
 from .models import RegistroListaNegra, FaltaListaNegra
 from inventario.models import Funcionario
 
-def lista_negra_view(request):
-    """Vista principal para ver y gestionar funcionarios en la lista negra."""
-    # Obtenemos expedientes con sus datos relacionados
-    expedientes = (
-        RegistroListaNegra.objects.select_related('funcionario', 'funcionario__cargo', 'funcionario__area')
-        .prefetch_related('faltas')
-        .order_by('-fecha_ingreso')
-    )
-    
-    # Funcionarios que aún no están en la lista negra para el <select>
-    funcionarios_disponibles = Funcionario.objects.exclude(
-        lista_negra__isnull=False
-    ).order_by('nombre')
 
-    context = {
-        'expedientes': expedientes,
-        'funcionarios_disponibles': funcionarios_disponibles,
-        'niveles_alerta': RegistroListaNegra.NivelAlerta.choices,
-    }
-    return render(request, 'soporte/pages/lista_negra.html', context)
+class ListaNegraView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """
+    Vista principal para listar funcionarios fichados en la lista negra.
+    Permite visualizar el registro general y cargar datos para el modal de ingreso.
+    """
+    model = RegistroListaNegra
+    template_name = 'soporte/pages/lista_negra.html'
+    context_object_name = 'expedientes'
+    permission_required = 'soporte.view_registrolistanegra'
+
+    def get_queryset(self):
+        return (
+            RegistroListaNegra.objects.select_related(
+                'funcionario', 'funcionario__cargo', 'funcionario__area'
+            )
+            .prefetch_related('faltas')
+            .order_by('-fecha_ingreso')
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Funcionarios que aún no tienen expediente abierto
+        context['funcionarios_disponibles'] = Funcionario.objects.exclude(
+            lista_negra__isnull=False
+        ).order_by('nombre')
+        context['niveles_alerta'] = RegistroListaNegra.NivelAlerta.choices
+        return context
 
 
-def agregar_a_lista_negra(request):
-    """Acción POST para fichar a un funcionario."""
-    if request.method == 'POST':
+class AgregarAListaNegraView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Acción POST para crear un nuevo expediente de lista negra.
+    """
+    permission_required = 'soporte.add_registrolistanegra'
+
+    def post(self, request, *args, **kwargs):
         funcionario_id = request.POST.get('funcionario_id')
         nivel_alerta = request.POST.get('nivel_alerta', RegistroListaNegra.NivelAlerta.OBSERVACION)
         alias = request.POST.get('alias', '').strip()
@@ -41,40 +57,54 @@ def agregar_a_lista_negra(request):
                 alias_o_apodo=alias or None
             )
             messages.success(request, f"{funcionario.nombre} ha sido ingresado al registro especial.")
-    
-    return redirect('lista_negra')
+        else:
+            messages.error(request, "Debe seleccionar un funcionario válido.")
+
+        return redirect('lista_negra')
 
 
-def eliminar_de_lista_negra(request, pk):
-    """Acción POST para indultar/eliminar a un funcionario de la lista."""
-    if request.method == 'POST':
+class EliminarDeListaNegraView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Acción POST para conceder el indulto y eliminar el expediente de la lista negra.
+    """
+    permission_required = 'soporte.delete_registrolistanegra'
+
+    def post(self, request, pk, *args, **kwargs):
         expediente = get_object_or_404(RegistroListaNegra, pk=pk)
         nombre = expediente.funcionario.nombre
         expediente.delete()
         messages.info(request, f"Se ha concedido el indulto a {nombre}. Expediente eliminado.")
-    
-    return redirect('lista_negra')
+        return redirect('lista_negra')
 
 
-def detalle_expediente_view(request, pk):
-    """Muestra el expediente del funcionario y su historial de faltas."""
-    expediente = get_object_or_404(
-        RegistroListaNegra.objects.select_related('funcionario', 'funcionario__cargo', 'funcionario__area')
-        .prefetch_related('faltas'),
-        pk=pk
-    )
-    
-    context = {
-        'expediente': expediente,
-        'faltas': expediente.faltas.all(),
-        'gravedades': FaltaListaNegra.Gravedad.choices,
-    }
-    return render(request, 'soporte/pages/detalle_lista_negra.html', context)
+class DetalleExpedienteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """
+    Muestra el detalle individual del expediente de un funcionario y el historial de sus faltas.
+    """
+    model = RegistroListaNegra
+    template_name = 'soporte/pages/detalle_lista_negra.html'
+    context_object_name = 'expediente'
+    permission_required = 'soporte.view_registrolistanegra'
+
+    def get_queryset(self):
+        return RegistroListaNegra.objects.select_related(
+            'funcionario', 'funcionario__cargo', 'funcionario__area'
+        ).prefetch_related('faltas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['faltas'] = self.object.faltas.all()
+        context['gravedades'] = FaltaListaNegra.Gravedad.choices
+        return context
 
 
-def agregar_falta(request, pk):
-    """Registra una nueva falta asociada al expediente."""
-    if request.method == 'POST':
+class AgregarFaltaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Acción POST para registrar una falta específica a un expediente existente.
+    """
+    permission_required = 'soporte.add_faltalistanegra'
+
+    def post(self, request, pk, *args, **kwargs):
         expediente = get_object_or_404(RegistroListaNegra, pk=pk)
         descripcion = request.POST.get('descripcion', '').strip()
         fecha_suceso = request.POST.get('fecha_suceso')
@@ -87,18 +117,22 @@ def agregar_falta(request, pk):
                 descripcion=descripcion,
                 fecha_suceso=fecha_suceso if fecha_suceso else None,
                 gravedad=gravedad,
-                compensacion=compensacion or "1 paquete de galletas / 1 café para Soporte"
+                compensacion=compensacion
             )
             messages.success(request, f"Falta registrada en el expediente de {expediente.funcionario.nombre}.")
         else:
             messages.error(request, "La descripción del incidente no puede estar vacía.")
 
-    return redirect('detalle_expediente', pk=pk)
+        return redirect('detalle_expediente', pk=pk)
 
 
-def eliminar_falta(request, falta_id):
-    """Elimina una falta específica del expediente."""
-    if request.method == 'POST':
+class EliminarFaltaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Acción POST para desestimar y borrar una falta del historial.
+    """
+    permission_required = 'soporte.delete_faltalistanegra'
+
+    def post(self, request, falta_id, *args, **kwargs):
         falta = get_object_or_404(FaltaListaNegra, pk=falta_id)
         expediente_id = falta.registro.id
         falta.delete()
@@ -106,20 +140,20 @@ def eliminar_falta(request, falta_id):
         return redirect('detalle_expediente', pk=expediente_id)
 
 
-def reporte_lista_negra_pdf(request):
+class ReporteListaNegraPDFView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     """
-    Renderiza la plantilla imprimible del reporte oficial consolidado.
-    Optimiza la query precalculando la cantidad de faltas por funcionario.
+    Renderiza la plantilla oficial optimizada para guardado/impresión en PDF.
     """
-    expedientes = (
-        RegistroListaNegra.objects.filter(activo=True)
-        .select_related('funcionario', 'funcionario__area', 'funcionario__cargo')
-        .annotate(total_faltas=Count('faltas'))
-        .order_by('-total_faltas', '-fecha_ingreso')
-    )
+    template_name = 'soporte/pages/reporte_lista_negra_pdf.html'
+    permission_required = 'soporte.view_registrolistanegra'
 
-    context = {
-        'expedientes': expedientes,
-        'codigo_resolucion': 'RES-EXP-TI-2026/04',
-    }
-    return render(request, 'soporte/pages/reporte_lista_negra_pdf.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['expedientes'] = (
+            RegistroListaNegra.objects.filter(activo=True)
+            .select_related('funcionario', 'funcionario__area', 'funcionario__cargo')
+            .annotate(total_faltas=Count('faltas'))
+            .order_by('-total_faltas', '-fecha_ingreso')
+        )
+        context['codigo_resolucion'] = 'RES-EXP-TI-2026/04'
+        return context

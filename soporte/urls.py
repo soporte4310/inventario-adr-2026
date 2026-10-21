@@ -1,14 +1,14 @@
 from django.urls import path
-from . import views
+from .views import *
 
 urlpatterns = [
     # Funcionalidades de webeo (Ignorar)
-    path('blacklist830/', views.lista_negra_view, name='lista_negra'),
-    path('blacklist830/agregar/', views.agregar_a_lista_negra, name='agregar_lista_negra'),
-    path('blacklist830/<int:pk>/eliminar/', views.eliminar_de_lista_negra, name='eliminar_lista_negra'),
-    path('blacklist830/reporte-pdf/', views.reporte_lista_negra_pdf, name='reporte_pdf'),
+    path('blacklist830/', ListaNegraView.as_view(), name='lista_negra'),
+    path('blacklist830/agregar/', AgregarAListaNegraView.as_view(), name='agregar_lista_negra'),
+    path('blacklist830/<int:pk>/eliminar/', EliminarDeListaNegraView.as_view(), name='eliminar_lista_negra'),
+    path('blacklist830/reporte-pdf/', ReporteListaNegraPDFView.as_view(), name='reporte_pdf'),
 
-    path('blacklist830/<int:pk>/', views.detalle_expediente_view, name='detalle_expediente'),
-    path('blacklist830/<int:pk>/agregar-falta/', views.agregar_falta, name='agregar_falta'),
-    path('blacklist830/falta/<int:falta_id>/eliminar/', views.eliminar_falta, name='eliminar_falta'),
+    path('blacklist830/<int:pk>/', DetalleExpedienteView.as_view(), name='detalle_expediente'),
+    path('blacklist830/<int:pk>/agregar-falta/', AgregarFaltaView.as_view(), name='agregar_falta'),
+    path('blacklist830/falta/<int:falta_id>/eliminar/', EliminarFaltaView.as_view(), name='eliminar_falta'),
 ]
