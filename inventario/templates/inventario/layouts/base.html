@@ -54,6 +54,9 @@
   <script src="{% static 'inventario/js/profileMenu.js' %}"></script>
   <script src="{% static 'inventario/js/sidebar.js' %}"></script>
 
+  <!-- Easter egg -->
+   {% include "soporte/partials/_blacklist_trigger.html" %}
+
   <!-- Manejo de mensajes con SweetAlert -->
   {% if messages %}
       {% for message in messages %}
