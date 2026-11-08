@@ -1,6 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Count, Q
-from django.views.generic import ListView, View
+from django.views.generic import ListView, DetailView, View
 
 from .models import CicloRevision, RevisionSala
 
@@ -101,9 +101,104 @@ class CerrarRevisionView(View):
     def get():
         pass
 
-class TableroSalasView(View):
-    def get():
-        pass
+class TableroSalasView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = CicloRevision
+    pk_url_kwarg = 'ciclo_id'
+    template_name = 'mantencion/pages/tablero_salas.html'
+    context_object_name = 'ciclo'
+    permission_required = 'mantencion.view_ciclomantenimiento'
+
+    def get_queryset(self):
+        return CicloRevision.objects.filter(tipo=CicloRevision.TipoCiclo.SALAS)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ciclo = self.object
+
+        # 1. Traer todas las revisiones del ciclo optimizando las relaciones
+        revisiones = (
+            ciclo.revisiones_salas
+            .select_related(
+                'ubicacion',
+                'ubicacion__piso',
+                'ubicacion__piso__edificio',
+                'proyector',
+                'proyector__catalogo',
+                'proyector__catalogo__marca',
+                'operador'
+            )
+            .order_by(
+                'ubicacion__piso__edificio__nombre',
+                'ubicacion__piso__nombre',
+                'ubicacion__nombre'
+            )
+        )
+
+        # 2. Agrupación jerárquica en memoria: Edificio -> Piso -> Salas
+        edificios_dict = {}
+
+        for rev in revisiones:
+            ubicacion = rev.ubicacion
+            piso = ubicacion.piso
+            edificio = piso.edificio if piso else None
+
+            ed_id = edificio.id if edificio else 0
+            ed_nombre = edificio.nombre if edificio else "Sin Edificio Asignado"
+
+            if ed_id not in edificios_dict:
+                edificios_dict[ed_id] = {
+                    'id': ed_id,
+                    'nombre': ed_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'criticas': 0,
+                    'con_observaciones': 0,
+                    'pisos': {}
+                }
+
+            piso_id = piso.id if piso else 0
+            piso_nombre = piso.nombre if piso else "Sin Piso"
+
+            if piso_id not in edificios_dict[ed_id]['pisos']:
+                edificios_dict[ed_id]['pisos'][piso_id] = {
+                    'id': piso_id,
+                    'nombre': piso_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'salas': []
+                }
+
+            # Acumuladores de métricas
+            es_revisada = rev.estado_general != RevisionSala.EstadoGeneralSala.PENDIENTE
+
+            edificios_dict[ed_id]['total'] += 1
+            edificios_dict[ed_id]['pisos'][piso_id]['total'] += 1
+
+            if es_revisada:
+                edificios_dict[ed_id]['revisadas'] += 1
+                edificios_dict[ed_id]['pisos'][piso_id]['revisadas'] += 1
+
+            if rev.estado_general == RevisionSala.EstadoGeneralSala.CRITICA:
+                edificios_dict[ed_id]['criticas'] += 1
+            elif rev.estado_general == RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES:
+                edificios_dict[ed_id]['con_observaciones'] += 1
+
+            # Incorporar la revisión a la lista
+            edificios_dict[ed_id]['pisos'][piso_id]['salas'].append(rev)
+
+        # 3. Convertir a listas ordenadas para renderizar fácilmente en el template
+        arbol_edificios = []
+        for ed in edificios_dict.values():
+            ed['pisos_lista'] = list(ed['pisos'].values())
+            # Porcentaje de avance por edificio
+            ed['porcentaje'] = round((ed['revisadas'] / ed['total']) * 100) if ed['total'] > 0 else 0
+            for p in ed['pisos_lista']:
+                p['porcentaje'] = round((p['revisadas'] / p['total']) * 100) if p['total'] > 0 else 0
+            arbol_edificios.append(ed)
+
+        context['arbol_edificios'] = arbol_edificios
+        context['titulo_pagina'] = f"Tablero: {ciclo.nombre}"
+        return context
 
 class FragmentoTableroSalasView(View):
     def get():

@@ -1,0 +1,296 @@
+{% extends 'inventario/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    
+    <!-- Barra superior de navegación y métricas -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 small text-muted">
+                            <li class="breadcrumb-item"><a href="{% url 'mantencion:lista_revisiones' %}" class="text-decoration-none text-muted">Revisiones</a></li>
+                            <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">{{ ciclo.nombre }}</li>
+                        </ol>
+                    </nav>
+                    <h2 class="h3 mb-0 font-weight-bold text-dark">{{ ciclo.nombre }}</h2>
+                    <p class="text-muted small mb-0">Tablero de control y avance de inspección por recinto docente</p>
+                </div>
+                
+                <div class="d-flex gap-2 mt-3 mt-md-0">
+                    <a href="{% url 'mantencion:lista_revisiones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Volver a Ciclos
+                    </a>
+                    <button type="button" class="btn btn-light border btn-sm shadow-sm" onclick="setAllAccordions(true)">
+                        <i class="fas fa-expand-arrows-alt me-1"></i> Expandir Todo
+                    </button>
+                    <button type="button" class="btn btn-light border btn-sm shadow-sm" onclick="setAllAccordions(false)">
+                        <i class="fas fa-compress-arrows-alt me-1"></i> Colapsar Todo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resumen numérico -->
+            <div class="row g-2 pt-2 border-top">
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Total Salas</span>
+                        <span class="h5 fw-bold mb-0 text-dark">{{ ciclo.total_salas }}</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Revisadas</span>
+                        <span class="h5 fw-bold mb-0 text-success">{{ ciclo.total_revisadas }} ({{ ciclo.porcentaje_avance }}%)</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Con Observación</span>
+                        <span class="h5 fw-bold mb-0 text-warning">{{ ciclo.total_con_observaciones }}</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Críticas / Inoperativas</span>
+                        <span class="h5 fw-bold mb-0 text-danger">{{ ciclo.total_criticas }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Edificios -->
+    <div id="contenedor-edificios">
+        {% for ed in arbol_edificios %}
+        <div class="card shadow-sm border-0 mb-3 overflow-hidden">
+            
+            <!-- Cabecera Edificio -->
+            <div class="card-header bg-white p-0 border-0">
+                <button class="btn btn-custom-accordion w-100 p-3 d-flex justify-content-between align-items-center text-dark text-decoration-none shadow-none" 
+                        type="button" 
+                        data-accordion-target="collapse-ed-{{ ed.id }}"
+                        onclick="toggleCustomAccordion('collapse-ed-{{ ed.id }}', this)">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-building text-danger fa-lg me-1"></i>
+                        <span class="h5 mb-0 fw-bold">{{ ed.nombre }}</span>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-none d-sm-block text-end me-2" style="width: 140px;">
+                            <div class="small text-muted mb-1">{{ ed.revisadas }}/{{ ed.total }} salas ({{ ed.porcentaje }}%)</div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-dark" style="width: {{ ed.porcentaje }}%;"></div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down text-muted transition-icon"></i>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Contenedor Pisos -->
+            <div id="collapse-ed-{{ ed.id }}" class="accordion-content-custom show">
+                <div class="card-body bg-light border-top p-3 p-md-4">
+                    
+                    {% for p in ed.pisos_lista %}
+                    <div class="card border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                        
+                        <!-- Cabecera Piso -->
+                        <div class="card-header bg-white p-0 border-0">
+                            <button class="btn btn-custom-accordion w-100 p-3 d-flex justify-content-between align-items-center text-dark text-decoration-none shadow-none" 
+                                    type="button" 
+                                    data-accordion-target="collapse-piso-{{ ed.id }}-{{ p.id }}"
+                                    onclick="toggleCustomAccordion('collapse-piso-{{ ed.id }}-{{ p.id }}', this)">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-layer-group text-secondary me-1"></i>
+                                    <span class="fw-bold">{{ p.nombre }}</span>
+                                    <span class="badge bg-light text-secondary border font-weight-normal ms-2">
+                                        {{ p.revisadas }}/{{ p.total }} revisadas
+                                    </span>
+                                </div>
+                                <i class="fas fa-chevron-down text-muted transition-icon"></i>
+                            </button>
+                        </div>
+
+                        <!-- Contenedor Salas -->
+                        <div id="collapse-piso-{{ ed.id }}-{{ p.id }}" class="accordion-content-custom show">
+                            <div class="card-body p-3 bg-white border-top">
+                                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                                    {% for sala in p.salas %}
+                                    <div class="col">
+                                        <div class="card h-100 border transition-card {% if sala.estado_general == 'OPERATIVA' %}border-success{% elif sala.estado_general == 'OBSERVACION' %}border-warning{% elif sala.estado_general == 'CRITICA' %}border-danger{% else %}border-light-subtle{% endif %}">
+                                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                                <div>
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <h6 class="fw-bold mb-0 text-dark">{{ sala.ubicacion.nombre }}</h6>
+                                                        
+                                                        {% if sala.estado_general == 'OPERATIVA' %}
+                                                            <span class="badge bg-success" style="font-size: 0.7rem;">Operativa</span>
+                                                        {% elif sala.estado_general == 'OBSERVACION' %}
+                                                            <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Con Obs.</span>
+                                                        {% elif sala.estado_general == 'CRITICA' %}
+                                                            <span class="badge bg-danger" style="font-size: 0.7rem;">Crítica</span>
+                                                        {% else %}
+                                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">Pendiente</span>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    <div class="small mb-2 text-muted">
+                                                        {% if sala.proyector %}
+                                                            <div class="text-truncate" title="{{ sala.proyector.catalogo.marca.nombre }} {{ sala.proyector.catalogo.modelo }}">
+                                                                <i class="fas fa-video me-1 text-primary"></i> 
+                                                                {{ sala.proyector.catalogo.marca.nombre }} {{ sala.proyector.catalogo.modelo|default:"" }}
+                                                            </div>
+                                                        {% elif sala.ubicacion.requiere_proyeccion %}
+                                                            <div class="text-danger fw-bold">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i> Sin proyector
+                                                            </div>
+                                                        {% else %}
+                                                            <div class="text-muted">
+                                                                <i class="fas fa-minus me-1"></i> No requiere
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    {% if sala.operador %}
+                                                    <div class="small text-muted mt-2 border-top pt-2" style="font-size: 0.75rem;">
+                                                        <i class="fas fa-user-check me-1"></i> {{ sala.operador.username }}
+                                                        <span class="d-block text-truncate">{{ sala.fecha_revision|date:"d/m H:i" }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+
+                                                <div class="mt-3 pt-2">
+                                                    <a href="{% url 'mantencion:revisar_sala' sala.id %}" 
+                                                       class="btn btn-sm w-100 {% if sala.estado_general == 'PENDIENTE' %}btn-danger{% else %}btn-outline-dark{% endif %} shadow-sm">
+                                                        {% if sala.estado_general == 'PENDIENTE' %}
+                                                            <i class="fas fa-clipboard-check me-1"></i> Revisar
+                                                        {% else %}
+                                                            <i class="fas fa-edit me-1"></i> Modificar
+                                                        {% endif %}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+
+        </div>
+        {% empty %}
+        <div class="card shadow-sm border-0 py-5 text-center text-muted">
+            <div class="card-body">
+                <i class="fas fa-door-closed fa-3x mb-3 opacity-50"></i>
+                <p class="h5">No hay salas asignadas a este ciclo</p>
+                <p class="small">Verifica que existan ubicaciones con el tipo 'SALA_CLASES' y la casilla 'aplica_mantenimiento' habilitada.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- CSS directo e independiente de Bootstrap Collapse -->
+<style>
+.accordion-content-custom {
+    display: none;
+}
+.accordion-content-custom.show {
+    display: block !important;
+}
+
+.transition-icon {
+    transition: transform 0.2s ease-in-out;
+    transform: rotate(180deg); /* Abierto: flecha hacia arriba */
+}
+.btn-custom-accordion.collapsed .transition-icon {
+    transform: rotate(0deg);   /* Cerrado: flecha hacia abajo */
+}
+
+.transition-card {
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.transition-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.08) !important;
+}
+</style>
+
+<!-- JS nativo para apertura/cierre y persistencia con localStorage -->
+<script>
+const STORAGE_KEY = 'tablero_salas_v3_ciclo_{{ ciclo.id }}';
+
+function getStoredState() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch(e) {
+        return {};
+    }
+}
+
+function toggleCustomAccordion(targetId, btn) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    
+    // Alternar visibilidad
+    const isNowOpen = target.classList.toggle('show');
+    btn.classList.toggle('collapsed', !isNowOpen);
+    
+    // Guardar estado en localStorage
+    const state = getStoredState();
+    state[targetId] = isNowOpen;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function setAllAccordions(open) {
+    const state = {};
+    document.querySelectorAll('.accordion-content-custom').forEach(target => {
+        if (open) {
+            target.classList.add('show');
+        } else {
+            target.classList.remove('show');
+        }
+        state[target.id] = open;
+    });
+
+    document.querySelectorAll('.btn-custom-accordion').forEach(btn => {
+        btn.classList.toggle('collapsed', !open);
+    });
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// Al cargar la página: todo nace abierto a menos que el usuario lo haya cerrado antes
+document.addEventListener('DOMContentLoaded', function () {
+    const state = getStoredState();
+
+    document.querySelectorAll('.accordion-content-custom').forEach(target => {
+        // Si no está registrado en el almacenamiento, se mantiene abierto (true)
+        const isOpen = state[target.id] !== false;
+        
+        if (isOpen) {
+            target.classList.add('show');
+        } else {
+            target.classList.remove('show');
+        }
+
+        const btn = document.querySelector(`[data-accordion-target="${target.id}"]`);
+        if (btn) {
+            btn.classList.toggle('collapsed', !isOpen);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -161,9 +161,9 @@
   <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Scripts base del módulo -->
-  <script src="{% static 'mantencion/js/mantencion_navbar.js' %}?v=3"></script>
+  <!--<script src="{% static 'mantencion/js/mantencion_navbar.js' %}?v=3"></script>-->
   <!-- Fallback por si la ruta estática no tiene el prefijo mantencion/ -->
-  <!-- <script src="{% static 'js/mantencion_navbar.js' %}?v=3"></script> -->
+  <script src="{% static 'js/mantencion_navbar.js' %}?v=3"></script>
 
   <!-- Feedback con SweetAlert2 para mensajes Django -->
   {% if messages %}
