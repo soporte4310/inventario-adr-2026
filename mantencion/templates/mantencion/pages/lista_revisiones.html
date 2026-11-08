@@ -85,7 +85,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for ciclo in ciclos %}
+                        {% for ciclo in revisiones %}
                         <tr>
                             <td class="text-center text-muted fw-bold">#{{ ciclo.id }}</td>
                             <td>
@@ -175,7 +175,7 @@
                                     {% endif %}
 
                                     <!-- Ver resumen / detalle -->
-                                    <a href="{% url 'mantencion:detalle_revision' ciclo.id %}" class="btn btn-sm btn-light border" title="Ver Resumen">
+                                    <a href="{% url 'mantencion:ver_revision' ciclo.id %}" class="btn btn-sm btn-light border" title="Ver Resumen">
                                         <i class="fas fa-eye text-dark"></i>
                                     </a>
 
