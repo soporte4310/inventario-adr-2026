@@ -1,7 +1,11 @@
 import os
 import uuid
 from PIL import Image
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from .utils import procesar_imagen_en_memoria, generar_thumbnail_en_memoria, MAX_PIXELS, MAX_UPLOAD_SIZE_MB
+from .validators import validar_extension_imagen
 
 
 class ImageProcessingFormMixin:
@@ -10,6 +14,32 @@ class ImageProcessingFormMixin:
     Utiliza las funciones personalizadas: procesar_imagen_en_memoria y generar_thumbnail_en_memoria.
     Es dinámico: funciona para 'imagen', 'logo', 'foto_perfil', etc.
     """
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Inspecciona automáticamente todos los campos del formulario
+        for field_name, field in self.fields.items():
+            if isinstance(field, forms.ImageField):
+                archivo = self.files.get(field_name)
+
+                # Solo validamos si es un archivo nuevo subido en el request
+                # (evitamos validar instancias existentes FieldFile cuando no se cambia la imagen)
+                if archivo and isinstance(archivo, UploadedFile):
+                    try:
+                        archivo.seek(0)
+                        with Image.open(archivo) as img:
+                            validar_extension_imagen(img)
+                        archivo.seek(0)  # Rebobinar el puntero para el posterior procesamiento
+                    except ValidationError as e:
+                        # Extrae el texto limpio evitando listas anidadas
+                        mensaje = e.messages[0] if hasattr(e, 'messages') else str(e)
+                        self.add_error(field_name, mensaje)
+                    except Exception:
+                        self.add_error(field_name, "El archivo seleccionado está dañado o no es una imagen válida.")
+
+        return cleaned_data
+    
 
     def process_image_upload(self, instance, field_name='imagen', max_dim=(1024, 1024), crop=False, image_prefix=''):
         """
@@ -26,10 +56,7 @@ class ImageProcessingFormMixin:
         ext = '.jpg'
         uuid_str = str(uuid.uuid4())
         # Construir el nombre base con el prefijo (si existe)
-        if image_prefix:
-            base_name = f"{image_prefix}_{uuid_str}"
-        else:
-            base_name = uuid_str
+        base_name = f"{image_prefix}_{uuid_str}" if image_prefix else uuid_str
         
         main_name = f"{base_name}{ext}"
         medium_name = f"{base_name}_medium{ext}"

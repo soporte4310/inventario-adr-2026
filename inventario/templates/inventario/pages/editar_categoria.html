@@ -54,6 +54,16 @@
                             {% endif %}
                             
                             {{ form.imagen }}
+                        
+                            <!-- Mensaje de error para el campo imagen -->
+                            {% if form.imagen.errors %}
+                              <div class="text-danger small mt-2">
+                                {% for error in form.imagen.errors %}
+                                  <div><i class="fas fa-exclamation-circle mr-1"></i> {{ error }}</div>
+                                {% endfor %}
+                              </div>
+                            {% endif %}
+                          
                             <small class="text-muted d-block mt-1">Si seleccionas una nueva imagen, se reemplazarán la original y los thumbnails.</small>
                         </div>
 
