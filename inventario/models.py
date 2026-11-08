@@ -94,7 +94,7 @@ class Ubicacion(models.Model):
     """Modelo para registrar la ubicación final de los equipos. Estas pueden ser, salas, pasillos, bodegas, etc."""
 
     class TipoUbicacion(models.TextChoices):
-        SALA_CLASES = 'SALA_CLASES', 'Sala de Clases / Auditorio'
+        SALA_CLASES = 'SALA_CLASES', 'Sala de Clases / Aula'
         LABORATORIO = 'LABORATORIO', 'Laboratorio / Taller'
         OFICINA = 'OFICINA', 'Oficina Administrativa'
         INFRAESTRUCTURA_TI = 'INFRAESTRUCTURA_TI', 'Infraestructura TI / Rack'
