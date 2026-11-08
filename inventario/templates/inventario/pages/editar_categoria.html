@@ -44,8 +44,12 @@
                             
                             {% if object.imagen %}
                             <div class="mb-3">
-                                <p class="small text-muted mb-2">Imagen actual:</p>
+                              <p class="small text-muted mb-2">Imagen actual:</p>
+                              {% if object.imagen_thumb_medium %}
                                 <img src="{{ object.imagen_thumb_medium.url }}" class="img-thumbnail shadow-sm" style="max-height: 150px;">
+                              {% else %}
+                                <img src="{{ object.imagen.url }}" class="img-thumbnail shadow-sm" style="max-height: 150px;">
+                              {% endif %}
                             </div>
                             {% endif %}
                             
