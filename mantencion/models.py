@@ -277,7 +277,7 @@ class CicloRevision(models.Model):
 
 
 class RevisionSala(models.Model):
-    """Contiene la auditoría técnica y audiovisual de un recinto en un ciclo mensual."""
+    """Contiene la auditoría técnica y audiovisual de una ubicación en un ciclo de revisión mensual."""
     class NivelEstado(models.TextChoices):
         BUENO = 'BUENO', 'Bueno (OK)'
         REGULAR = 'REGULAR', 'Regular (Con Observaciones / Falso contacto)'
