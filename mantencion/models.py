@@ -282,6 +282,7 @@ class RevisionSala(models.Model):
         BUENO = 'BUENO', 'Bueno (OK)'
         REGULAR = 'REGULAR', 'Regular (Con Observaciones / Falso contacto)'
         MALO = 'MALO', 'Malo (Inoperativo)'
+        NO_APLICA = 'NA', 'No Aplica'
 
     class EstadoGeneralSala(models.TextChoices):
         PENDIENTE = 'PENDIENTE', 'Pendiente de Revisión'
@@ -297,7 +298,7 @@ class RevisionSala(models.Model):
     estado_general = models.CharField(
         max_length=20, 
         choices=EstadoGeneralSala.choices, 
-        default=EstadoGeneralSala.OPERATIVA
+        default=EstadoGeneralSala.PENDIENTE
     )
 
     # ----------------------------------------------------
@@ -307,9 +308,10 @@ class RevisionSala(models.Model):
     
     # Encendido general
     proyector_encendido = models.CharField(
-        max_length=10, 
+        max_length=10,
+        null=True,
+        blank=True, 
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Bueno: OK | Regular: Demora, imagen opaca o advertencia de lámpara | Malo: No prende/quemado",
     )
 
@@ -322,51 +324,58 @@ class RevisionSala(models.Model):
     # Red y conectividad del proyector
     red_proyector_conectada = models.CharField(
         max_length=10, 
+        null=True,
+        blank=True,
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="¿Cable conectado y con link de red?"
     )
     proyeccion_inalambrica = models.CharField(
         max_length=10, 
+        null=True,
+        blank=True,
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Disponibilidad de casting / red inalámbrica"
     )
     candado_proyector = models.CharField(
-            max_length=10, 
-            choices=NivelEstado.choices, 
-            default=NivelEstado.BUENO,
-            help_text="¿La jaula del proyector está con candado?"
-        )
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="¿La jaula del proyector está con candado?"
+    )
 
     # ----------------------------------------------------
     # INFRAESTRUCTURA DE LA SALA (Mesa docente / Muros)
     # ----------------------------------------------------
     copla_hdmi = models.CharField(
         max_length=10, 
+        null=True,
+        blank=True,
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Bueno: firme y con señal | Regular: suelta/parpadea si se mueve | Malo: quebrada/sin video"
     )
     
     panel_control = models.CharField(
         max_length=10, 
+        null=True,
+        blank=True,
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Bueno: todo ok | Regular: enciende pero fallan otros botones | Malo: no responde"
     )
     
     puerto_red_pared = models.CharField(
-        max_length=10, 
+        max_length=10,
+        null=True,
+        blank=True, 
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Punto de red en pared para el computador docente"
     )
     
     audio_sala = models.CharField(
         max_length=10, 
+        null=True,
+        blank=True,
         choices=NivelEstado.choices, 
-        default=NivelEstado.BUENO,
         help_text="Bueno: audio limpio | Regular: chicharreo / un parlante mudo | Malo: sin audio"
     )
 
@@ -374,12 +383,12 @@ class RevisionSala(models.Model):
     # EVIDENCIA Y REGISTRO
     # ----------------------------------------------------
     # Almacena la URL devuelta por Cloudinary
-    video_evidencia_url = models.URLField(
+    video_evidencia_url = models.CharField(
         max_length=500, 
         blank=True, 
         null=True,
-        verbose_name="Video de evidencia (Audio/Video)",
-        help_text="URL del video corto de prueba almacenado en Cloudinary"
+        verbose_name="Video de evidencia",
+        help_text="Ruta local o URL remota de Cloudinary"
     )
     # Trazabilidad
     fecha_revision = models.DateTimeField(null=True, blank=True)
@@ -396,40 +405,69 @@ class RevisionSala(models.Model):
         ordering = ['ubicacion__nombre']
 
     def save(self, *args, **kwargs):
-        """Calcula el estado general de la sala una vez inspeccionada."""
-        # Si ya fue revisada (hay fecha o video de evidencia cargado)
-        if self.fecha_revision or self.video_evidencia_url:
+        """
+        Calcula el estado general de forma automatizada:
+        1. Si la sala exige proyector y no tiene ninguno físico/asignado -> CRITICA.
+        2. Si algún campo obligatorio sigue en None o vacío -> PENDIENTE.
+        3. Excluye del cálculo los ítems marcados como 'NA' (No Aplica).
+        4. Jerarquía semafórica sobre los elementos evaluables:
+           - MALO en proyección o copla -> CRITICA.
+           - MALO o REGULAR en cualquier elemento -> CON_OBSERVACIONES.
+           - Todos los evaluables en BUENO (o si todo es NA) -> OPERATIVA.
+        """
+        # Regla 1: Sala requiere proyección por catálogo y carece de proyector
+        if self.ubicacion.requiere_proyeccion and not self.proyector:
+            self.estado_general = self.EstadoGeneralSala.CRITICA
             if not self.fecha_revision:
                 self.fecha_revision = timezone.now()
+            super().save(*args, **kwargs)
+            return
 
-            estados = [
+        # Lista completa de campos evaluados
+        todos_los_campos = [
+            self.copla_hdmi,
+            self.panel_control,
+            self.puerto_red_pared,
+            self.audio_sala,
+        ]
+
+        if self.proyector:
+            todos_los_campos.extend([
                 self.proyector_encendido,
-                self.estado_lampara,
                 self.red_proyector_conectada,
                 self.proyeccion_inalambrica,
                 self.candado_proyector,
-                self.copla_hdmi,
-                self.panel_control,
-                self.puerto_red_pared,
-                self.audio_sala,
-            ]
+            ])
 
-            # Si falla algo indispensable para dictar clase
-            if (
-                self.proyector_encendido == self.NivelEstado.MALO
-                or self.copla_hdmi == self.NivelEstado.MALO
-                or self.estado_lampara == self.NivelEstado.MALO
-            ):
-                self.estado_general = self.EstadoGeneralSala.CRITICA
-            elif self.NivelEstado.MALO in estados or self.NivelEstado.REGULAR in estados:
-                self.estado_general = self.EstadoGeneralSala.CON_OBSERVACIONES
-            else:
-                self.estado_general = self.EstadoGeneralSala.OPERATIVA
-        else:
-            # Si nadie ha enviado la revisión formal aún
+        # Regla 2: Si aún hay campos sin responder (None o ''), permanece PENDIENTE
+        if any(v in (None, '') for v in todos_los_campos):
             self.estado_general = self.EstadoGeneralSala.PENDIENTE
+            super().save(*args, **kwargs)
+            return
+
+        # Si llegamos aquí, el técnico respondió todo el checklist
+        if not self.fecha_revision:
+            self.fecha_revision = timezone.now()
+
+        # Filtrar únicamente los ítems evaluables (ignoramos los 'NA')
+        evaluables = [v for v in todos_los_campos if v != self.NivelEstado.NO_APLICA]
+
+        # Regla 3: Clasificación semafórica
+        # Falla crítica docente: el proyector no funciona o la copla está rota
+        es_falla_critica = (
+            (self.proyector and self.proyector_encendido == self.NivelEstado.MALO) or
+            (self.copla_hdmi == self.NivelEstado.MALO)
+        )
+
+        if es_falla_critica:
+            self.estado_general = self.EstadoGeneralSala.CRITICA
+        elif self.NivelEstado.MALO in evaluables or self.NivelEstado.REGULAR in evaluables:
+            self.estado_general = self.EstadoGeneralSala.CON_OBSERVACIONES
+        elif all(v == self.NivelEstado.BUENO for v in evaluables):
+            self.estado_general = self.EstadoGeneralSala.OPERATIVA
+        else:
+            self.estado_general = self.EstadoGeneralSala.OPERATIVA
 
         super().save(*args, **kwargs)
-
     def __str__(self):
         return f"{self.ubicacion.nombre} - {self.ciclo.nombre} [{self.get_estado_general_display()}]"
