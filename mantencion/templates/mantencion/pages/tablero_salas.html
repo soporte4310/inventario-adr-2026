@@ -31,6 +31,11 @@
                     <button type="button" class="btn btn-light border btn-sm shadow-sm" onclick="setAllAccordions(false)">
                         <i class="fas fa-compress-arrows-alt me-1"></i> Colapsar Todo
                     </button>
+                    {% if request.user.is_superuser and ciclo.estado == 'EN_CURSO' %}
+                        <a href="{% url 'mantencion:cerrar_revision' ciclo.id %}" class="btn btn-danger btn-sm shadow-sm">
+                            <i class="fas fa-lock me-1"></i> Cerrar Ciclo
+                        </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -122,23 +127,34 @@
                                 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
                                     {% for sala in p.salas %}
                                     <div class="col">
-                                        <div class="card h-100 border transition-card {% if sala.estado_general == 'OPERATIVA' %}border-success{% elif sala.estado_general == 'OBSERVACION' %}border-warning{% elif sala.estado_general == 'CRITICA' %}border-danger{% else %}border-light-subtle{% endif %}">
+                                        <!-- Tarjeta con estado visual enriquecido -->
+                                        <div class="card h-100 shadow-sm transition-card {% if sala.estado_general == 'OPERATIVA' %}card-sala-operativa{% elif sala.estado_general == 'OBSERVACION' %}card-sala-observacion{% elif sala.estado_general == 'CRITICA' %}card-sala-critica{% else %}card-sala-pendiente{% endif %}">
                                             <div class="card-body p-3 d-flex flex-column justify-content-between">
                                                 <div>
+                                                    <!-- Cabecera de la tarjeta: Nombre y Estado -->
                                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                                         <h6 class="fw-bold mb-0 text-dark">{{ sala.ubicacion.nombre }}</h6>
                                                         
                                                         {% if sala.estado_general == 'OPERATIVA' %}
-                                                            <span class="badge bg-success" style="font-size: 0.7rem;">Operativa</span>
+                                                            <span class="badge bg-success shadow-sm" style="font-size: 0.7rem;">
+                                                                <i class="fas fa-check me-1"></i> Operativa
+                                                            </span>
                                                         {% elif sala.estado_general == 'OBSERVACION' %}
-                                                            <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Con Obs.</span>
+                                                            <span class="badge bg-warning text-dark shadow-sm" style="font-size: 0.7rem;">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i> Con Obs.
+                                                            </span>
                                                         {% elif sala.estado_general == 'CRITICA' %}
-                                                            <span class="badge bg-danger" style="font-size: 0.7rem;">Crítica</span>
+                                                            <span class="badge bg-danger shadow-sm" style="font-size: 0.7rem;">
+                                                                <i class="fas fa-times-circle me-1"></i> Crítica
+                                                            </span>
                                                         {% else %}
-                                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">Pendiente</span>
+                                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
+                                                                <i class="far fa-clock me-1"></i> Pendiente
+                                                            </span>
                                                         {% endif %}
                                                     </div>
 
+                                                    <!-- Información del Proyector -->
                                                     <div class="small mb-2 text-muted">
                                                         {% if sala.proyector %}
                                                             <div class="text-truncate" title="{{ sala.proyector.catalogo.marca.nombre }} {{ sala.proyector.catalogo.modelo }}">
@@ -154,26 +170,53 @@
                                                                 <i class="fas fa-minus me-1"></i> No requiere
                                                             </div>
                                                         {% endif %}
+
+                                                        <!-- Badge del Video de Evidencia -->
+                                                        <div class="mt-2" id="badge-video-status-{{ sala.id }}">
+                                                            {% if sala.video_evidencia_url %}
+                                                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                                                                    <i class="fas fa-check-circle me-1"></i> Video Adjunto
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.7rem;">
+                                                                    <i class="fas fa-video-slash me-1"></i> Sin Video
+                                                                </span>
+                                                            {% endif %}
+                                                        </div>
                                                     </div>
 
+                                                    <!-- Datos de Auditoría -->
                                                     {% if sala.operador %}
                                                     <div class="small text-muted mt-2 border-top pt-2" style="font-size: 0.75rem;">
-                                                        <i class="fas fa-user-check me-1"></i> {{ sala.operador.username }}
-                                                        <span class="d-block text-truncate">{{ sala.fecha_revision|date:"d/m H:i" }}</span>
+                                                        <div class="d-flex align-items-center gap-1 text-dark fw-bold">
+                                                            <i class="fas fa-user-check text-success"></i> {{ sala.operador.username }}
+                                                        </div>
+                                                        <span class="d-block text-muted">{{ sala.fecha_revision|date:"d/m H:i" }}</span>
                                                     </div>
                                                     {% endif %}
                                                 </div>
 
-                                                <div class="mt-3 pt-2">
-                                                    <a href="{% url 'mantencion:revisar_sala' sala.id %}" 
-                                                       class="btn btn-sm w-100 {% if sala.estado_general == 'PENDIENTE' %}btn-danger{% else %}btn-outline-dark{% endif %} shadow-sm">
-                                                        {% if sala.estado_general == 'PENDIENTE' %}
-                                                            <i class="fas fa-clipboard-check me-1"></i> Revisar
-                                                        {% else %}
-                                                            <i class="fas fa-edit me-1"></i> Modificar
-                                                        {% endif %}
-                                                    </a>
+                                                <!-- Botones Desacoplados -->
+                                                <div class="mt-3 pt-2 border-top">
+                                                    <div class="btn-group w-100 shadow-sm" role="group">
+                                                        <!-- Botón Checklist: Cambia de estilo si ya está completado -->
+                                                        <a href="{% url 'mantencion:revisar_sala' sala.id %}" 
+                                                           class="btn btn-sm {% if sala.estado_general == 'PENDIENTE' %}btn-danger fw-bold{% else %}btn-light border text-dark{% endif %}" 
+                                                           title="Completar o editar el checklist">
+                                                            <i class="fas fa-clipboard-check me-1"></i> 
+                                                            {% if sala.estado_general == 'PENDIENTE' %}Revisar{% else %}Editar{% endif %}
+                                                        </a>
+
+                                                        <!-- Botón Video: Dispara el Modal de forma segura -->
+                                                        <button type="button" 
+                                                                class="btn btn-sm {% if sala.video_evidencia_url %}btn-light border text-success{% else %}btn-outline-secondary{% endif %}" 
+                                                                onclick="abrirModalEvidencia('{{ sala.id }}', '{{ sala.ubicacion.nombre }}', '{{ sala.video_evidencia_url|default:'' }}')"
+                                                                title="Grabar o adjuntar video">
+                                                            <i class="fas fa-camera"></i> Video
+                                                        </button>
+                                                    </div>
                                                 </div>
+
                                             </div>
                                         </div>
                                     </div>
@@ -202,8 +245,90 @@
 
 </div>
 
-<!-- CSS directo e independiente de Bootstrap Collapse -->
+<!-- Modal Universal de Evidencia en Video (Compatible con y sin Bootstrap JS) -->
+<div class="modal fade" id="modalEvidenciaVideo" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow">
+            
+            <div class="modal-header border-bottom py-3">
+                <div>
+                    <h5 class="modal-title h6 fw-bold mb-0">Evidencia Audiovisual</h5>
+                    <span class="small text-muted" id="modal-sala-nombre">Sala</span>
+                </div>
+                <button type="button" class="btn-close" onclick="cerrarModalSeguro()" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body p-4 text-center">
+                
+                <!-- Estado 1: Sin Video -->
+                <div id="m-state-empty" class="py-3">
+                    <div class="avatar-md bg-light border rounded-circle mx-auto d-flex align-items-center justify-content-center shadow-sm mb-2" style="width: 55px; height: 55px;">
+                        <i class="fas fa-video-slash fa-lg text-muted"></i>
+                    </div>
+                    <div class="small fw-bold text-dark">No hay video registrado</div>
+                    <span class="text-muted small d-block mb-3">Graba con tu cámara o selecciona un video desde tu galería (máx. 30s).</span>
+                </div>
+
+                <!-- Estado 2: Barra de Progreso Dinámica -->
+                <div id="m-state-uploading" class="py-3 d-none">
+                    <div class="spinner-border text-danger mb-2" role="status" style="width: 2.2rem; height: 2.2rem;"></div>
+                    <div class="small fw-bold text-dark mb-1">Subiendo y procesando video...</div>
+                    <div class="progress mx-auto shadow-sm my-2" style="height: 8px; max-width: 260px;">
+                        <div id="m-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" style="width: 0%;"></div>
+                    </div>
+                    <span class="text-muted d-block small" id="m-progress-text">0% subido</span>
+                </div>
+
+                <!-- Estado 3: Reproductor de Video Adjunto -->
+                <div id="m-state-success" class="d-none">
+                    <div class="d-flex align-items-center justify-content-center gap-2 text-success mb-2">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="small fw-bold">Video guardado correctamente</span>
+                    </div>
+                    <video id="m-video-player" controls class="rounded border w-100 shadow-sm mb-3" style="max-height: 220px;"></video>
+                </div>
+
+                <!-- Estado 4: Error -->
+                <div id="m-state-error" class="py-2 d-none">
+                    <div class="text-danger mb-1"><i class="fas fa-exclamation-circle fa-2x"></i></div>
+                    <div class="small fw-bold text-danger">Error al subir el video</div>
+                    <span class="text-muted d-block small" id="m-error-desc">Verifica tu conexión e inténtalo nuevamente.</span>
+                </div>
+                
+                <!-- Botones de Acción en el Modal -->
+                <div class="d-flex flex-column gap-2 mt-2">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button type="button" class="btn btn-danger btn-sm w-100 py-2 fw-bold shadow-sm btn-captura-video" onclick="triggerCaptura('camara')">
+                                <i class="fas fa-camera me-1"></i> Grabar Cámara
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-bold shadow-sm btn-captura-video" onclick="triggerCaptura('galeria')">
+                                <i class="fas fa-photo-video me-1"></i> Desde Galería
+                            </button>
+                        </div>
+                    </div>
+                
+                    <!-- Input 1: Cámara -->
+                    <input type="file" id="input-video-camara" accept="video/*" capture="environment" class="d-none" onchange="procesarVideoModal(this)">
+                    
+                    <!-- Input 2: Galería / Archivos -->
+                    <input type="file" id="input-video-galeria" accept="video/*" class="d-none" onchange="procesarVideoModal(this)">
+                </div>
+
+            </div>
+
+            <div class="modal-footer bg-light py-2 border-0">
+                <button type="button" class="btn btn-secondary btn-sm px-4" onclick="cerrarModalSeguro()">Cerrar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <style>
+/* Acordeones independientes */
 .accordion-content-custom {
     display: none;
 }
@@ -213,10 +338,10 @@
 
 .transition-icon {
     transition: transform 0.2s ease-in-out;
-    transform: rotate(180deg); /* Abierto: flecha hacia arriba */
+    transform: rotate(180deg);
 }
 .btn-custom-accordion.collapsed .transition-icon {
-    transform: rotate(0deg);   /* Cerrado: flecha hacia abajo */
+    transform: rotate(0deg);
 }
 
 .transition-card {
@@ -226,10 +351,48 @@
     transform: translateY(-2px);
     box-shadow: 0 .25rem .5rem rgba(0,0,0,.08) !important;
 }
+
+/* ===================================================
+   ESTILOS DE RETROALIMENTACIÓN VISUAL EN LAS SALAS
+   =================================================== */
+/* Sala Pendiente: Borde gris y fondo blanco neutro */
+.card-sala-pendiente {
+    border: 1px dashed #ced4da !important;
+    background-color: #ffffff;
+}
+
+/* Sala Operativa: Borde verde grueso lateral y fondo verde muy suave */
+.card-sala-operativa {
+    border: 1px solid #d1e7dd !important;
+    border-left: 5px solid #198754 !important;
+    background-color: #f8fdfa !important;
+}
+
+/* Sala con Observación: Borde ámbar lateral y fondo amarillo suave */
+.card-sala-observacion {
+    border: 1px solid #fff3cd !important;
+    border-left: 5px solid #ffc107 !important;
+    background-color: #fffdf5 !important;
+}
+
+/* Sala Crítica: Borde rojo lateral y fondo rojo suave */
+.card-sala-critica {
+    border: 1px solid #f8d7da !important;
+    border-left: 5px solid #dc3545 !important;
+    background-color: #fdf7f7 !important;
+}
+
+/* Clases de apoyo para Bootstrap en versiones previas */
+.bg-success-subtle { background-color: #d1e7dd !important; }
+.text-success-emphasis { color: #0a3622 !important; }
+.bg-warning-subtle { background-color: #fff3cd !important; }
+.text-warning-emphasis { color: #664d03 !important; }
 </style>
 
-<!-- JS nativo para apertura/cierre y persistencia con localStorage -->
 <script>
+// ==========================================
+// 1. MANEJO DE ACORDEONES Y PERSISTENCIA LOCAL
+// ==========================================
 const STORAGE_KEY = 'tablero_salas_v3_ciclo_{{ ciclo.id }}';
 
 function getStoredState() {
@@ -244,11 +407,9 @@ function toggleCustomAccordion(targetId, btn) {
     const target = document.getElementById(targetId);
     if (!target) return;
     
-    // Alternar visibilidad
     const isNowOpen = target.classList.toggle('show');
     btn.classList.toggle('collapsed', !isNowOpen);
     
-    // Guardar estado en localStorage
     const state = getStoredState();
     state[targetId] = isNowOpen;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -272,12 +433,10 @@ function setAllAccordions(open) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-// Al cargar la página: todo nace abierto a menos que el usuario lo haya cerrado antes
 document.addEventListener('DOMContentLoaded', function () {
     const state = getStoredState();
 
     document.querySelectorAll('.accordion-content-custom').forEach(target => {
-        // Si no está registrado en el almacenamiento, se mantiene abierto (true)
         const isOpen = state[target.id] !== false;
         
         if (isOpen) {
@@ -292,5 +451,284 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+// ==========================================
+// 2. MODAL SEGURO (INDEPENDIENTE DE BOOTSTRAP JS)
+// ==========================================
+function triggerCaptura(origen) {
+    if (origen === 'camara') {
+        document.getElementById('input-video-camara').click();
+    } else {
+        document.getElementById('input-video-galeria').click();
+    }
+}
+
+// Función auxiliar para habilitar/deshabilitar los botones de captura
+function setBotonesModalDisabled(disabled) {
+    document.querySelectorAll('.btn-captura-video').forEach(btn => {
+        btn.disabled = disabled;
+    });
+}
+
+let salaActivaId = null;
+
+const ES_DESARROLLO = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' || 
+                       window.location.hostname.startsWith('192.168.');
+
+function abrirModalEvidencia(salaId, nombreSala, videoUrl) {
+    salaActivaId = salaId;
+    document.getElementById('modal-sala-nombre').innerText = nombreSala;
+    
+    const sEmpty = document.getElementById('m-state-empty');
+    const sUpload = document.getElementById('m-state-uploading');
+    const sSuccess = document.getElementById('m-state-success');
+    const sError = document.getElementById('m-state-error');
+    const player = document.getElementById('m-video-player');
+
+    sUpload.classList.add('d-none');
+    sError.classList.add('d-none');
+    setBotonesModalDisabled(false);
+
+    // Limpiar inputs de archivo para permitir seleccionar el mismo archivo si se desea reintentar
+    document.getElementById('input-video-camara').value = '';
+    document.getElementById('input-video-galeria').value = '';
+
+    if (videoUrl && videoUrl.trim() !== '') {
+        player.src = videoUrl;
+        sEmpty.classList.add('d-none');
+        sSuccess.classList.remove('d-none');
+    } else {
+        player.src = '';
+        sEmpty.classList.remove('d-none');
+        sSuccess.classList.add('d-none');
+    }
+
+    const modalEl = document.getElementById('modalEvidenciaVideo');
+
+    // Apertura segura del modal
+    if (window.bootstrap && bootstrap.Modal) {
+        const m = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        m.show();
+    } else if (window.$ && $.fn.modal) {
+        $(modalEl).modal('show');
+    } else {
+        modalEl.style.display = 'block';
+        modalEl.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        let backdrop = document.getElementById('custom-modal-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'custom-modal-backdrop';
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+    }
+}
+
+function pausarVideoModal() {
+    const player = document.getElementById('m-video-player');
+    if (player) {
+        player.pause();
+        player.currentTime = 0; // Reinicia el video al inicio
+    }
+}
+
+function cerrarModalSeguro() {
+    pausarVideoModal();
+
+    const modalEl = document.getElementById('modalEvidenciaVideo');
+    if (window.bootstrap && bootstrap.Modal) {
+        const m = bootstrap.Modal.getInstance(modalEl);
+        if (m) m.hide();
+    } else if (window.$ && $.fn.modal) {
+        $(modalEl).modal('hide');
+    }
+    
+    modalEl.style.display = 'none';
+    modalEl.classList.remove('show');
+    document.body.classList.remove('modal-open');
+    const backdrop = document.getElementById('custom-modal-backdrop');
+    if (backdrop) backdrop.remove();
+}
+
+function triggerSelectorVideo() {
+    // Al no tener capture="environment", el teléfono abre el menú: Cámara o Galería
+    document.getElementById('modal-file-input').click();
+}
+
+async function procesarVideoModal(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+
+    const sEmpty = document.getElementById('m-state-empty');
+    const sUpload = document.getElementById('m-state-uploading');
+    const sSuccess = document.getElementById('m-state-success');
+    const sError = document.getElementById('m-state-error');
+
+    sEmpty.classList.add('d-none');
+    sSuccess.classList.add('d-none');
+    sError.classList.add('d-none');
+    sUpload.classList.remove('d-none');
+    setBotonesModalDisabled(true);
+
+    if (ES_DESARROLLO) {
+        await subirVideoLocalAjax(file);
+    } else {
+        await subirVideoCloudinaryAjax(file);
+    }
+}
+
+function subirVideoLocalAjax(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/mantencion/api/subir-video-local/${salaActivaId}/`);
+    
+    const csrftoken = getCookie('csrftoken');
+    if (csrftoken) xhr.setRequestHeader('X-CSRFToken', csrftoken);
+
+    actualizarProgresoModal(xhr);
+
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                finalizarCargaExitosa(data.secure_url);
+            } catch (e) {
+                mostrarErrorModal('Respuesta del servidor inválida.');
+            }
+        } else {
+            // Lee el error devuelto por Django o muestra el código HTTP (404, 500, etc.)
+            let detalle = `HTTP ${xhr.status} (${xhr.statusText})`;
+            try {
+                const errData = JSON.parse(xhr.responseText);
+                if (errData.error) detalle = errData.error;
+            } catch (e) {
+                // Si viene HTML (error de Django Debug), mostramos el código
+            }
+            mostrarErrorModal(`Error al subir: ${detalle}`);
+        }
+    };
+
+    xhr.onerror = function() {
+        mostrarErrorModal('Fallo de red o conexión interrumpida.');
+    };
+
+    xhr.send(formData);
+}
+
+async function subirVideoCloudinaryAjax(file) {
+    try {
+        const authRes = await fetch(`{% url 'mantencion:firmar_cloudinary' %}?sala_id=${salaActivaId}`);
+        const authData = await authRes.json();
+            
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', authData.api_key);
+        formData.append('timestamp', authData.timestamp);
+        formData.append('signature', authData.signature);
+        formData.append('folder', authData.folder);
+        formData.append('public_id', authData.public_id);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${authData.cloud_name}/video/upload`);
+
+        actualizarProgresoModal(xhr);
+
+        xhr.onload = async function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                await asociarUrlASala(salaActivaId, data.secure_url);
+                finalizarCargaExitosa(data.secure_url);
+            } else {
+                mostrarErrorModal('Error al subir el video a Cloudinary.');
+            }
+        };
+
+        xhr.onerror = function() {
+            mostrarErrorModal('Fallo de conexión con Cloudinary.');
+        };
+
+        xhr.send(formData);
+
+    } catch (e) {
+        mostrarErrorModal('No se pudo autenticar la subida del video.');
+    }
+}
+
+function actualizarProgresoModal(xhr) {
+    const bar = document.getElementById('m-progress-bar');
+    const text = document.getElementById('m-progress-text');
+
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = percent + '%';
+            text.innerText = percent + '% subido...';
+        }
+    };
+}
+
+function finalizarCargaExitosa(url) {
+    document.getElementById('m-state-uploading').classList.add('d-none');
+    document.getElementById('m-state-success').classList.remove('d-none');
+    document.getElementById('m-video-player').src = url;
+    setBotonesModalDisabled(false);
+
+    // Actualiza la pastilla en la tarjeta de la sala
+    const badgeContainer = document.getElementById(`badge-video-status-${salaActivaId}`);
+    if (badgeContainer) {
+        badgeContainer.innerHTML = `
+            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                <i class="fas fa-check-circle me-1"></i> Video Adjunto
+            </span>
+        `;
+    }
+}
+
+function mostrarErrorModal(msg) {
+    document.getElementById('m-state-uploading').classList.add('d-none');
+    document.getElementById('m-state-error').classList.remove('d-none');
+    document.getElementById('m-error-desc').innerText = msg;
+    setBotonesModalDisabled(false);
+}
+
+async function asociarUrlASala(salaId, url) {
+    const csrftoken = getCookie('csrftoken');
+    await fetch(`/mantencion/api/asociar-video/${salaId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ video_url: url })
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('modalEvidenciaVideo');
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', pausarVideoModal);
+    }
+});
+
 </script>
 {% endblock %}

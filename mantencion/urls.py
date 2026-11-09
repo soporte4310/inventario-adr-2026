@@ -13,7 +13,9 @@ from .views import (
     FormularioRevisionImpresoraView,
     GenerarReportePdfView,
     ExportarExcelRevisionView,
-    FirmarSubidaCloudinaryView
+    FirmarSubidaCloudinaryView,
+    subir_video_local,
+    AsociarVideoSalaView
 )
 
 app_name = "mantencion"
@@ -43,5 +45,7 @@ urlpatterns = [
     
     # Endpoints utilitarios
     path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
+    path("api/subir-video-local/<int:pk>/", subir_video_local, name="subir_video_local"),
+    path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
 
 ]
