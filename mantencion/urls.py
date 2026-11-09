@@ -15,7 +15,8 @@ from .views import (
     ExportarExcelRevisionView,
     FirmarSubidaCloudinaryView,
     subir_video_local,
-    AsociarVideoSalaView
+    AsociarVideoSalaView,
+    RestablecerRevisionSalaView
 )
 
 app_name = "mantencion"
@@ -34,6 +35,7 @@ urlpatterns = [
     path("ciclos/<int:ciclo_id>/salas/", TableroSalasView.as_view(), name="tablero_salas"),
     path("ciclos/<int:ciclo_id>/salas/fragmento/", FragmentoTableroSalasView.as_view(), name="fragmento_tablero_salas"),
     path("revisiones/sala/<int:pk>/", FormularioRevisionSalaView.as_view(), name="revisar_sala"),
+    path("revisiones/sala/<int:pk>/restablecer/", RestablecerRevisionSalaView.as_view(), name="restablecer_revision_sala"),
     
     # Revisión de Impresoras
     path("ciclos/<int:ciclo_id>/impresoras/", TableroImpresorasView.as_view(), name="tablero_impresoras"),

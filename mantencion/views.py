@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import cloudinary
@@ -291,6 +292,87 @@ class FragmentoTableroSalasView(View):
 
 
 
+@login_required
+def subir_video_local(request, pk):
+    """Guarda el video con nombre normalizado y lo asocia a la RevisionSala."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    if not request.FILES.get('file'):
+        return JsonResponse({'error': 'No se recibió ningún archivo de video.'}, status=400)
+
+    revision = get_object_or_404(
+        RevisionSala.objects.select_related('ciclo', 'ubicacion'), 
+        pk=pk
+    )
+    video = request.FILES['file']
+
+    # 1. Extraer extensión original (.mp4, .mov, etc.)
+    _, ext = os.path.splitext(video.name)
+    ext = ext.lower() if ext else '.mp4'
+
+    # 2. Construir los componentes estandarizados
+    ahora = timezone.now()
+    periodo = ahora.strftime('%Y-%m')           # ej: '2026-11'
+    hora_marca = ahora.strftime('%H%M%S')        # ej: '184522'
+    sala_slug = slugify(revision.ubicacion.nombre) # ej: 'sala-301-a'
+
+    # Nombre final: evidencia_2026-11_sala-301-a_184522.mp4
+    nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
+    ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
+
+    # 3. Guardar y actualizar
+    ruta_guardada = default_storage.save(ruta_relativa, video)
+    url_publica = default_storage.url(ruta_guardada)
+
+    revision.video_evidencia_url = url_publica
+    revision.save(update_fields=['video_evidencia_url'])
+
+    return JsonResponse({
+        'status': 'ok',
+        'secure_url': url_publica
+    })
+
+
+
+
+def eliminar_archivo_video_evidencia(video_url):
+    """
+    Elimina físicamente el archivo de video ya sea que esté
+    almacenado en Cloudinary o en el almacenamiento local.
+    """
+    if not video_url:
+        return
+
+    try:
+        # Caso 1: Video en Cloudinary
+        if 'cloudinary.com' in video_url:
+            # Extraer el public_id (ej: 'evidencias_salas/evidencia_2026-11_sala-1_123456')
+            # Busca lo que esté tras '/upload/(v12345/)?' excluyendo la extensión (.mp4, etc.)
+            match = re.search(r'/upload/(?:v\d+/)?([^\.]+)', video_url)
+            if match:
+                public_id = match.group(1)
+                cloudinary.uploader.destroy(public_id, resource_type="video")
+
+        # Caso 2: Almacenamiento local (MEDIA_ROOT / default_storage)
+        else:
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            ruta_relativa = video_url
+            if video_url.startswith(media_url):
+                ruta_relativa = video_url[len(media_url):]
+
+            ruta_relativa = ruta_relativa.lstrip('/')
+
+            if default_storage.exists(ruta_relativa):
+                default_storage.delete(ruta_relativa)
+
+    except Exception as e:
+        # Se captura para que una falla externa de red no impida restablecer la revisión
+        print(f"[ADVERTENCIA] No se pudo eliminar el video ({video_url}): {e}")
+
+
+
+
 class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'mantencion.change_revisionsala'
 
@@ -404,6 +486,62 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Vi
 
 
 
+class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Invalida y limpia una revisión previamente realizada, borrando
+    la evidencia multimedia asociada y devolviendo el registro al estado 'PENDIENTE'.
+    """
+    permission_required = 'mantencion.change_revisionsala'
+
+    def post(self, request, pk):
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related('ciclo', 'ubicacion'),
+            pk=pk
+        )
+
+        if revision.ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            messages.error(request, "No es posible restablecer una sala de un ciclo ya cerrado.")
+            return redirect('mantencion:revisar_sala', pk=revision.id)
+
+        # 1. Eliminar físicamente el video de Cloudinary o del disco si existía
+        if revision.video_evidencia_url:
+            eliminar_archivo_video_evidencia(revision.video_evidencia_url)
+
+        # 2. Obtener el proyector que figura actualmente en inventario para esta sala
+        proyector_inventario = Activo.objects.filter(
+            ubicacion=revision.ubicacion,
+            catalogo__categoria__nombre__icontains="proyect",
+            is_deleted=False
+        ).first()
+
+        # 3. Limpieza en base de datos devolviendo a PENDIENTE
+        RevisionSala.objects.filter(pk=revision.pk).update(
+            proyector=proyector_inventario,
+            proyector_encendido=None,
+            horas_lampara=None,
+            red_proyector_conectada=None,
+            proyeccion_inalambrica=None,
+            candado_proyector=None,
+            copla_hdmi=None,
+            panel_control=None,
+            puerto_red_pared=None,
+            audio_sala=None,
+            observaciones="",
+            operador=None,
+            fecha_revision=None,
+            video_evidencia_url=None,
+            estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
+        )
+
+        messages.info(
+            request,
+            f"La revisión de la sala '{revision.ubicacion.nombre}' fue restablecida a Pendiente y se purgó la evidencia asociada."
+        )
+        return redirect('mantencion:revisar_sala', pk=revision.id)
+
+
+
+
 class TableroImpresorasView(View):
     def get():
         pass
@@ -487,47 +625,3 @@ class AsociarVideoSalaView(LoginRequiredMixin, View):
             'status': 'ok',
             'video_url': revision.video_evidencia_url
         })
-
-
-
-
-@login_required
-def subir_video_local(request, pk):
-    """Guarda el video con nombre normalizado y lo asocia a la RevisionSala."""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
-
-    if not request.FILES.get('file'):
-        return JsonResponse({'error': 'No se recibió ningún archivo de video.'}, status=400)
-
-    revision = get_object_or_404(
-        RevisionSala.objects.select_related('ciclo', 'ubicacion'), 
-        pk=pk
-    )
-    video = request.FILES['file']
-
-    # 1. Extraer extensión original (.mp4, .mov, etc.)
-    _, ext = os.path.splitext(video.name)
-    ext = ext.lower() if ext else '.mp4'
-
-    # 2. Construir los componentes estandarizados
-    ahora = timezone.now()
-    periodo = ahora.strftime('%Y-%m')           # ej: '2026-11'
-    hora_marca = ahora.strftime('%H%M%S')        # ej: '184522'
-    sala_slug = slugify(revision.ubicacion.nombre) # ej: 'sala-301-a'
-
-    # Nombre final: evidencia_2026-11_sala-301-a_184522.mp4
-    nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
-    ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
-
-    # 3. Guardar y actualizar
-    ruta_guardada = default_storage.save(ruta_relativa, video)
-    url_publica = default_storage.url(ruta_guardada)
-
-    revision.video_evidencia_url = url_publica
-    revision.save(update_fields=['video_evidencia_url'])
-
-    return JsonResponse({
-        'status': 'ok',
-        'secure_url': url_publica
-    })

@@ -36,6 +36,19 @@
                     {% else %}
                         <span class="badge bg-secondary px-3 py-2">Pendiente</span>
                     {% endif %}
+
+                    {% if revision.estado_general != 'PENDIENTE' %}
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalRestablecerRevision"
+                                data-toggle="modal" 
+                                data-target="#modalRestablecerRevision"
+                                onclick="abrirModalRestablecer()"
+                                title="Restablecer revisión a Pendiente">
+                            <i class="fas fa-undo-alt me-1"></i> Restablecer
+                        </button>
+                    {% endif %}
                 </div>
             </div>
 
@@ -342,6 +355,37 @@
             </a>
         </div>
     </form>
+
+    <!-- Modal Confirmar Restablecer Revisión (Fuera del form principal) -->
+    <div class="modal fade" id="modalRestablecerRevision" tabindex="-1" aria-labelledby="modalRestablecerLabel" aria-hidden="true" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark" id="modalRestablecerLabel">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i> Restablecer Revisión
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar" onclick="cerrarModalRestablecer()"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="mb-2">
+                        ¿Estás seguro de que deseas restablecer la revisión de <strong>{{ ubicacion.nombre }}</strong>?
+                    </p>
+                    <p class="small text-muted mb-0">
+                        Se anularán todas las evaluaciones registradas, observaciones y evidencias. La sala volverá al estado <strong>Pendiente</strong> tal y como al crearse el ciclo.
+                    </p>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-end">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-dismiss="modal" onclick="cerrarModalRestablecer()">Cancelar</button>
+                    <form method="POST" action="{% url 'mantencion:restablecer_revision_sala' revision.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm fw-bold">
+                            <i class="fas fa-undo-alt me-1"></i> Sí, restablecer a Pendiente
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -379,108 +423,88 @@ const PROYECTOR_INVENTARIO_ID = "{{ proyector_inventario.id|default:'' }}";
 const PROYECTOR_INVENTARIO_LABEL = "{{ proyector_inventario.catalogo.marca.nombre|default:'' }} {{ proyector_inventario.catalogo.modelo|default:'' }}";
 const PROYECTOR_INVENTARIO_DETALLE = "Serie: {{ proyector_inventario.numero_serie|default:'S/N' }} | BDO: {{ proyector_inventario.bdo|default:'N/A' }}";
 
-// Selector robusto: busca id_proyector o cualquier input con name="proyector" dentro del formulario
+// Almacena el estado con el que cargó la página para todas las secciones
+let estadoInicialFormulario = {};
+
 function getProyectorInput() {
     return document.getElementById('id_proyector') || document.querySelector('form#form-revision-sala [name="proyector"]');
 }
 
-function seleccionarProyectorEspecifico(id, nombre, detalle) {
-    const inputProyector = getProyectorInput();
-    if (inputProyector) {
-        inputProyector.value = id;
-    }
-
-    const infoTexto = document.getElementById('info-proyector-texto');
-    if (infoTexto) {
-        infoTexto.innerHTML = `
-            <strong class="text-primary">${nombre}</strong>
-            <span class="text-muted d-block small">${detalle}</span>
-        `;
-    }
-
-    mostrarSeccionProyector(true);
-
-    const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
-    const btnRestaurar = document.getElementById('btn-restaurar-proyector');
-    if (btnDeclarar) btnDeclarar.classList.remove('d-none');
-    if (btnRestaurar) btnRestaurar.classList.add('d-none');
+function getHorasLamparaInput() {
+    return document.getElementById('id_horas_lampara') || document.querySelector('form#form-revision-sala [name="horas_lampara"]');
 }
 
-function sincronizarConInventario() {
-    const inputProyector = getProyectorInput();
-    if (inputProyector) {
-        inputProyector.value = PROYECTOR_INVENTARIO_ID;
-    }
+function getObservacionesInput() {
+    return document.getElementById('id_observaciones') || document.querySelector('form#form-revision-sala [name="observaciones"]');
+}
 
-    if (PROYECTOR_INVENTARIO_ID !== '') {
-        const infoTexto = document.getElementById('info-proyector-texto');
-        if (infoTexto) {
-            infoTexto.innerHTML = `
-                <strong class="text-success">${PROYECTOR_INVENTARIO_LABEL} (Sincronizado)</strong>
-                <span class="text-muted d-block small">${PROYECTOR_INVENTARIO_DETALLE}</span>
-            `;
+// Guarda la selección inicial de ambas secciones (Proyector e Infraestructura)
+function guardarEstadoInicialFormulario() {
+    estadoInicialFormulario = {};
+    const form = document.getElementById('form-revision-sala');
+    if (!form) return;
+
+    form.querySelectorAll('input[type="radio"]').forEach(r => {
+        if (r.checked) {
+            estadoInicialFormulario[r.name] = r.value;
         }
-        
-        limpiarCamposProyector();
-        mostrarSeccionProyector(true);
+    });
 
-        const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
-        const btnRestaurar = document.getElementById('btn-restaurar-proyector');
-        if (btnDeclarar) btnDeclarar.classList.remove('d-none');
-        if (btnRestaurar) btnRestaurar.classList.add('d-none');
-    } else {
-        declararSinProyector();
+    const horasInput = getHorasLamparaInput();
+    if (horasInput) {
+        estadoInicialFormulario['horas_lampara'] = horasInput.value;
     }
 
-    const alerta = document.getElementById('alerta-discrepancia');
-    if (alerta) alerta.classList.add('d-none');
+    const obsInput = getObservacionesInput();
+    if (obsInput) {
+        estadoInicialFormulario['observaciones'] = obsInput.value;
+    }
 }
 
-function declararSinProyector() {
-    const inputProyector = getProyectorInput();
-    if (inputProyector) {
-        inputProyector.value = '';
-    }
-    
-    const infoTexto = document.getElementById('info-proyector-texto');
-    if (infoTexto) {
-        infoTexto.innerHTML = `
-            <strong class="text-danger">⚠️ Declarado Sin Proyector Físico</strong>
-            <span class="text-muted d-block small">Evaluación de proyección omitida.</span>
-        `;
+// Resetea todos los botones de radio (Sección 1 y 2) y el campo de horas
+function limpiarTodosLosCampos() {
+    const form = document.getElementById('form-revision-sala');
+    if (!form) return;
+
+    form.querySelectorAll('input[type="radio"]').forEach(r => {
+        r.checked = false;
+        r.required = false;
+    });
+
+    const horasInput = getHorasLamparaInput();
+    if (horasInput) {
+        horasInput.value = '';
     }
 
-    const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
-    const btnRestaurar = document.getElementById('btn-restaurar-proyector');
-    if (btnDeclarar) btnDeclarar.classList.add('d-none');
-    if (btnRestaurar) btnRestaurar.classList.remove('d-none');
-
-    mostrarSeccionProyector(false);
+    const obsInput = getObservacionesInput();
+    if (obsInput) {
+        obsInput.value = '';
+    }
 }
 
-function restaurarProyectorOriginal() {
-    const inputProyector = getProyectorInput();
-    if (inputProyector) {
-        inputProyector.value = PROYECTOR_ORIGINAL_ID;
-    }
+// Vuelve los campos al valor exacto que tenían al cargar la página
+function restaurarValoresInicialesCampos() {
+    limpiarTodosLosCampos();
 
-    if (PROYECTOR_ORIGINAL_ID !== '') {
-        const infoTexto = document.getElementById('info-proyector-texto');
-        if (infoTexto) {
-            infoTexto.innerHTML = `
-                <strong class="text-dark">${PROYECTOR_ORIGINAL_LABEL}</strong>
-                <span class="text-muted d-block small">${PROYECTOR_ORIGINAL_DETALLE}</span>
-            `;
+    const form = document.getElementById('form-revision-sala');
+    if (!form) return;
+
+    Object.keys(estadoInicialFormulario).forEach(name => {
+        if (name !== 'horas_lampara' && name !== 'observaciones') {
+            const radio = form.querySelector(`input[name="${name}"][value="${estadoInicialFormulario[name]}"]`);
+            if (radio) radio.checked = true;
         }
-        mostrarSeccionProyector(true);
-    } else {
-        declararSinProyector();
+    });
+
+    const horasInput = getHorasLamparaInput();
+    if (horasInput && estadoInicialFormulario['horas_lampara'] !== undefined) {
+        horasInput.value = estadoInicialFormulario['horas_lampara'];
     }
 
-    const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
-    const btnRestaurar = document.getElementById('btn-restaurar-proyector');
-    if (btnDeclarar) btnDeclarar.classList.remove('d-none');
-    if (btnRestaurar) btnRestaurar.classList.add('d-none');
+    const obsInput = getObservacionesInput();
+    if (obsInput && estadoInicialFormulario['observaciones'] !== undefined) {
+        obsInput.value = estadoInicialFormulario['observaciones'];
+    }
 }
 
 function mostrarSeccionProyector(mostrar) {
@@ -499,23 +523,183 @@ function mostrarSeccionProyector(mostrar) {
         if (banner) banner.classList.remove('d-none');
         if (cuerpo) cuerpo.classList.add('d-none');
         if (badge) badge.classList.remove('d-none');
-        limpiarCamposProyector();
     }
 }
 
-function limpiarCamposProyector() {
-    const cuerpo = document.getElementById('cuerpo-seccion-proyector');
-    if (!cuerpo) return;
-    cuerpo.querySelectorAll('input[type="radio"]').forEach(r => {
-        r.checked = false;
-        r.required = false;
-    });
-    const horasInput = document.getElementById('id_horas_lampara');
-    if (horasInput) horasInput.value = '';
+function declararSinProyector() {
+    const inputProyector = getProyectorInput();
+    if (inputProyector) {
+        inputProyector.value = '';
+    }
+    
+    const infoTexto = document.getElementById('info-proyector-texto');
+    if (infoTexto) {
+        infoTexto.innerHTML = `
+            <strong class="text-danger">⚠️ Declarado Sin Proyector Físico</strong>
+            <span class="text-muted d-block small">Evaluación de proyección omitida.</span>
+        `;
+    }
+
+    const icono = document.getElementById('icono-proyector-header');
+    if (icono) {
+        icono.classList.remove('text-primary');
+        icono.classList.add('text-muted', 'opacity-50');
+    }
+
+    const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
+    const btnRestaurar = document.getElementById('btn-restaurar-proyector');
+    if (btnDeclarar) btnDeclarar.classList.add('d-none');
+    if (btnRestaurar) btnRestaurar.classList.remove('d-none');
+
+    limpiarTodosLosCampos();
+    mostrarSeccionProyector(false);
+}
+
+function sincronizarConInventario() {
+    const inputProyector = getProyectorInput();
+    if (inputProyector) {
+        inputProyector.value = PROYECTOR_INVENTARIO_ID;
+    }
+
+    if (PROYECTOR_INVENTARIO_ID !== '') {
+        const infoTexto = document.getElementById('info-proyector-texto');
+        if (infoTexto) {
+            infoTexto.innerHTML = `
+                <strong class="text-success">${PROYECTOR_INVENTARIO_LABEL} (Sincronizado)</strong>
+                <span class="text-muted d-block small">${PROYECTOR_INVENTARIO_DETALLE}</span>
+            `;
+        }
+
+        const icono = document.getElementById('icono-proyector-header');
+        if (icono) {
+            icono.classList.remove('text-muted', 'opacity-50');
+            icono.classList.add('text-primary');
+        }
+        
+        limpiarTodosLosCampos();
+        mostrarSeccionProyector(true);
+
+        const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
+        const btnRestaurar = document.getElementById('btn-restaurar-proyector');
+        if (btnDeclarar) btnDeclarar.classList.remove('d-none');
+        if (btnRestaurar) btnRestaurar.classList.remove('d-none');
+    } else {
+        declararSinProyector();
+    }
+
+    const alerta = document.getElementById('alerta-discrepancia');
+    if (alerta) alerta.classList.add('d-none');
+}
+
+function restaurarProyectorOriginal() {
+    const inputProyector = getProyectorInput();
+    
+    if (PROYECTOR_ORIGINAL_ID !== '') {
+        if (inputProyector) inputProyector.value = PROYECTOR_ORIGINAL_ID;
+
+        const infoTexto = document.getElementById('info-proyector-texto');
+        if (infoTexto) {
+            infoTexto.innerHTML = `
+                <strong class="text-dark">${PROYECTOR_ORIGINAL_LABEL}</strong>
+                <span class="text-muted d-block small">${PROYECTOR_ORIGINAL_DETALLE}</span>
+            `;
+        }
+
+        const icono = document.getElementById('icono-proyector-header');
+        if (icono) {
+            icono.classList.remove('text-muted', 'opacity-50');
+            icono.classList.add('text-primary');
+        }
+
+        mostrarSeccionProyector(true);
+        restaurarValoresInicialesCampos();
+
+        const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
+        const btnRestaurar = document.getElementById('btn-restaurar-proyector');
+        if (btnDeclarar) btnDeclarar.classList.remove('d-none');
+        if (btnRestaurar) btnRestaurar.classList.add('d-none');
+
+        const alerta = document.getElementById('alerta-discrepancia');
+        if (alerta) alerta.classList.remove('d-none');
+    } else {
+        declararSinProyector();
+    }
+}
+
+function seleccionarProyectorEspecifico(id, nombre, detalle) {
+    const inputProyector = getProyectorInput();
+    if (inputProyector) {
+        inputProyector.value = id;
+    }
+
+    const infoTexto = document.getElementById('info-proyector-texto');
+    if (infoTexto) {
+        infoTexto.innerHTML = `
+            <strong class="text-primary">${nombre}</strong>
+            <span class="text-muted d-block small">${detalle}</span>
+        `;
+    }
+
+    const icono = document.getElementById('icono-proyector-header');
+    if (icono) {
+        icono.classList.remove('text-muted', 'opacity-50');
+        icono.classList.add('text-primary');
+    }
+
+    limpiarTodosLosCampos();
+    mostrarSeccionProyector(true);
+
+    const btnDeclarar = document.getElementById('btn-declarar-sin-proyector');
+    const btnRestaurar = document.getElementById('btn-restaurar-proyector');
+    if (btnDeclarar) btnDeclarar.classList.remove('d-none');
+    if (btnRestaurar) btnRestaurar.classList.remove('d-none');
+}
+
+/* MODAL PARA RESTABLECER REVISIÓN */
+function abrirModalRestablecer() {
+    const modalEl = document.getElementById('modalRestablecerRevision');
+    if (!modalEl) return;
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    } else if (window.$ && $.fn && $.fn.modal) {
+        $('#modalRestablecerRevision').modal('show');
+    } else {
+        // Fallback visual directo si Bootstrap JS no está inicializado
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+        let backdrop = document.getElementById('modal-backdrop-custom');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'modal-backdrop-custom';
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+    }
+}
+
+function cerrarModalRestablecer() {
+    const modalEl = document.getElementById('modalRestablecerRevision');
+    if (!modalEl) return;
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    } else if (window.$ && $.fn && $.fn.modal) {
+        $('#modalRestablecerRevision').modal('hide');
+    } else {
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        const backdrop = document.getElementById('modal-backdrop-custom');
+        if (backdrop) backdrop.remove();
+    }
 }
 
 // Al cargar la página: si la revisión nace sin proyector, se oculta la sección de inmediato
 document.addEventListener('DOMContentLoaded', function() {
+    guardarEstadoInicialFormulario();
+
     if (!TIENE_PROYECTOR_INICIAL) {
         mostrarSeccionProyector(false);
     }
