@@ -390,6 +390,28 @@ class RevisionSala(models.Model):
         verbose_name="Video de evidencia",
         help_text="Ruta local o URL remota de Cloudinary"
     )
+    # Se guarda una captura del primer frame del video subido
+    imagen_evidencia = models.ImageField(
+        verbose_name="Miniatura de Evidencia",
+        upload_to="evidencias_salas/thumbnails/main/",
+        blank=True,
+        null=True
+    )
+    imagen_thumb_medium = models.ImageField(
+        verbose_name="Thumbnail (600x600)",
+        upload_to="evidencias_salas/thumbnails/medium/",
+        blank=True,
+        null=True,
+        editable=False
+    )
+    imagen_thumb_small = models.ImageField(
+        verbose_name="Thumbnail (50x50)",
+        upload_to="evidencias_salas/thumbnails/small/",
+        blank=True,
+        null=True,
+        editable=False
+    )
+
     # Trazabilidad
     fecha_revision = models.DateTimeField(null=True, blank=True)
     # Notas para justificar cualquier elemento en Amarillo o Rojo
@@ -397,6 +419,29 @@ class RevisionSala(models.Model):
         blank=True, 
         help_text="Ej: Copla HDMI suelta; Foco con advertencia de 3500 hrs"
     )
+
+    @property
+    def tiene_video(self):
+        """Indica si la sala cuenta con un video de evidencia cargado."""
+        return bool(self.video_evidencia_url and self.video_evidencia_url.strip())
+
+    @property
+    def checklist_completado(self):
+        """Indica si todos los campos obligatorios del formulario fueron respondidos."""
+        campos_obligatorios = [
+            self.copla_hdmi,
+            self.panel_control,
+            self.puerto_red_pared,
+            self.audio_sala,
+        ]
+        if self.proyector_id:
+            campos_obligatorios.extend([
+                self.proyector_encendido,
+                self.red_proyector_conectada,
+                self.proyeccion_inalambrica,
+                self.candado_proyector,
+            ])
+        return not any(v in (None, '') for v in campos_obligatorios)
 
     class Meta:
         verbose_name = "Revisión de Sala"
@@ -406,20 +451,28 @@ class RevisionSala(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Calcula el estado general de forma automatizada:
-        1. Si la sala exige proyector y no tiene ninguno físico/asignado -> CRITICA.
-        2. Si algún campo obligatorio sigue en None o vacío -> PENDIENTE.
-        3. Excluye del cálculo los ítems marcados como 'NA' (No Aplica).
-        4. Jerarquía semafórica sobre los elementos evaluables:
-           - MALO en proyección o copla -> CRITICA.
-           - MALO o REGULAR en cualquier elemento -> CON_OBSERVACIONES.
-           - Todos los evaluables en BUENO (o si todo es NA) -> OPERATIVA.
+        Calcula el estado general de forma automatizada solo cuando
+        el checklist está respondido Y el video de evidencia fue subido.
         """
-        # Regla 1: Sala requiere proyección por catálogo y carece de proyector
+        # Si se llamó save(update_fields=[...]), garantizamos que estado_general se actualice en BD
+        if kwargs.get('update_fields') is not None:
+            fields = set(kwargs['update_fields'])
+            fields.update({'estado_general', 'fecha_revision'})
+            kwargs['update_fields'] = list(fields)
+
+        # Regla 1: Si falta el checklist O falta el video, la revisión sigue PENDIENTE
+        if not self.checklist_completado or not self.tiene_video:
+            self.estado_general = self.EstadoGeneralSala.PENDIENTE
+            super().save(*args, **kwargs)
+            return
+
+        # Si llegamos aquí, están completos TANTO el checklist COMO el video
+        if not self.fecha_revision:
+            self.fecha_revision = timezone.now()
+
+        # Regla 2: Sala requiere proyección por catálogo y carece de proyector -> CRITICA
         if self.ubicacion.requiere_proyeccion and not self.proyector:
             self.estado_general = self.EstadoGeneralSala.CRITICA
-            if not self.fecha_revision:
-                self.fecha_revision = timezone.now()
             super().save(*args, **kwargs)
             return
 
@@ -430,7 +483,6 @@ class RevisionSala(models.Model):
             self.puerto_red_pared,
             self.audio_sala,
         ]
-
         if self.proyector:
             todos_los_campos.extend([
                 self.proyector_encendido,
@@ -439,21 +491,10 @@ class RevisionSala(models.Model):
                 self.candado_proyector,
             ])
 
-        # Regla 2: Si aún hay campos sin responder (None o ''), permanece PENDIENTE
-        if any(v in (None, '') for v in todos_los_campos):
-            self.estado_general = self.EstadoGeneralSala.PENDIENTE
-            super().save(*args, **kwargs)
-            return
-
-        # Si llegamos aquí, el técnico respondió todo el checklist
-        if not self.fecha_revision:
-            self.fecha_revision = timezone.now()
-
         # Filtrar únicamente los ítems evaluables (ignoramos los 'NA')
         evaluables = [v for v in todos_los_campos if v != self.NivelEstado.NO_APLICA]
 
         # Regla 3: Clasificación semafórica
-        # Falla crítica docente: el proyector no funciona o la copla está rota
         es_falla_critica = (
             (self.proyector and self.proyector_encendido == self.NivelEstado.MALO) or
             (self.copla_hdmi == self.NivelEstado.MALO)
@@ -463,11 +504,7 @@ class RevisionSala(models.Model):
             self.estado_general = self.EstadoGeneralSala.CRITICA
         elif self.NivelEstado.MALO in evaluables or self.NivelEstado.REGULAR in evaluables:
             self.estado_general = self.EstadoGeneralSala.CON_OBSERVACIONES
-        elif all(v == self.NivelEstado.BUENO for v in evaluables):
-            self.estado_general = self.EstadoGeneralSala.OPERATIVA
         else:
             self.estado_general = self.EstadoGeneralSala.OPERATIVA
 
         super().save(*args, **kwargs)
-    def __str__(self):
-        return f"{self.ubicacion.nombre} - {self.ciclo.nombre} [{self.get_estado_general_display()}]"

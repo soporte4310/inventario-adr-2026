@@ -16,7 +16,8 @@ from .views import (
     FirmarSubidaCloudinaryView,
     subir_video_local,
     AsociarVideoSalaView,
-    RestablecerRevisionSalaView
+    RestablecerRevisionSalaView,
+    SalasMantenimientoListView
 )
 
 app_name = "mantencion"
@@ -49,5 +50,8 @@ urlpatterns = [
     path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
     path("api/subir-video-local/<int:pk>/", subir_video_local, name="subir_video_local"),
     path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
+
+    # Salas de clases
+    path('salas/', SalasMantenimientoListView.as_view(), name='salas_clases'),
 
 ]

@@ -17,7 +17,7 @@
                     <a href="{% url 'mantencion:lista_revisiones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
-                    {% if perms.mantencion.add_ciclomantenimiento %}
+                    {% if request.user.is_superuser %}
                     <a href="{% url 'mantencion:crear_revision' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                         <i class="fas fa-plus"></i> Iniciar Ciclo Extraordinario
                     </a>

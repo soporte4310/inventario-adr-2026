@@ -3,26 +3,31 @@ import re
 import json
 import time
 import cloudinary
+from django import forms
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
-from django.views.generic import ListView, DetailView, View
+from django.db.models import Count, Q, Prefetch
+from django.views.generic import ListView, DetailView, View, TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.text import slugify
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import UploadedFile
 from django.http import JsonResponse
 
+from django.core.exceptions import ValidationError
 from .models import CicloRevision, RevisionSala
 from .forms import CerrarRevisionForm, RevisionSalaForm
-from inventario.models import Activo
+from inventario.models import Activo, Edificio, Piso, Ubicacion
+from .utils import procesar_miniatura_revision_sala
+from common.validators import validar_archivo_video
+from .services import crear_ciclo_extraordinario_salas, MESES_ES
 
-class DashboardInventario(View):
-    def get():
-        pass
+class DashboardInventario(TemplateView):
+    template_name = 'mantencion/pages/dashboard.html'
 
 
 
@@ -105,9 +110,68 @@ class ListaRevisionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
 
 
 
-class CrearRevisionView(View):
-    def get():
-        pass
+class CrearRevisionView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Permite exclusivamente al superusuario crear un ciclo extraordinario de salas."""
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        messages.error(
+            self.request,
+            "Acceso denegado: Solo los administradores / superusuarios pueden iniciar un ciclo extraordinario.",
+        )
+        return redirect("mantencion:lista_revisiones")
+
+    def _obtener_ciclo_vigente_mes(self):
+        hoy = timezone.localdate()
+        return CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.SALAS,
+            estado=CicloRevision.EstadoCiclo.EN_CURSO,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).first()
+
+    def get(self, request):
+        ciclo_vigente = self._obtener_ciclo_vigente_mes()
+        if ciclo_vigente:
+            messages.warning(
+                request,
+                f"No se puede iniciar un ciclo extraordinario: el ciclo '{ciclo_vigente.nombre}' se encuentra en curso."
+            )
+            return redirect("mantencion:lista_revisiones")
+
+        hoy = timezone.localdate()
+        total_salas = Ubicacion.objects.filter(
+            tipo=Ubicacion.TipoUbicacion.SALA_CLASES,
+            aplica_mantenimiento=True
+        ).count()
+
+        context = {
+            'titulo': 'Iniciar Ciclo Extraordinario de Salas',
+            'mes_nombre': MESES_ES[hoy.month],
+            'anio': hoy.year,
+            'total_salas': total_salas,
+        }
+        return render(request, 'mantencion/pages/crear_revision.html', context)
+
+    def post(self, request):
+        nombre_personalizado = request.POST.get('nombre', '').strip()
+        
+        exito, mensaje, ciclo = crear_ciclo_extraordinario_salas(
+            usuario=request.user,
+            nombre_personalizado=nombre_personalizado or None
+        )
+
+        if not exito:
+            messages.error(request, mensaje)
+            return redirect("mantencion:lista_revisiones")
+
+        messages.success(request, mensaje)
+        return redirect("mantencion:tablero_salas", ciclo_id=ciclo.id)
+
+
+    
 
 class DetalleRevisionView(View):
     def get():
@@ -294,7 +358,7 @@ class FragmentoTableroSalasView(View):
 
 @login_required
 def subir_video_local(request, pk):
-    """Guarda el video con nombre normalizado y lo asocia a la RevisionSala."""
+    """Guarda el video validado y genera las miniaturas de evidencia."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
@@ -307,30 +371,43 @@ def subir_video_local(request, pk):
     )
     video = request.FILES['file']
 
-    # 1. Extraer extensión original (.mp4, .mov, etc.)
+    # 1. Validar video en servidor
+    try:
+        validar_archivo_video(video)
+    except ValidationError as e:
+        return JsonResponse({'error': e.messages[0]}, status=400)
+
+    # 2. Guardar archivo de video
     _, ext = os.path.splitext(video.name)
     ext = ext.lower() if ext else '.mp4'
 
-    # 2. Construir los componentes estandarizados
     ahora = timezone.now()
-    periodo = ahora.strftime('%Y-%m')           # ej: '2026-11'
-    hora_marca = ahora.strftime('%H%M%S')        # ej: '184522'
-    sala_slug = slugify(revision.ubicacion.nombre) # ej: 'sala-301-a'
+    periodo = ahora.strftime('%Y-%m')
+    hora_marca = ahora.strftime('%H%M%S')
+    sala_slug = slugify(revision.ubicacion.nombre)
 
-    # Nombre final: evidencia_2026-11_sala-301-a_184522.mp4
     nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
     ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
 
-    # 3. Guardar y actualizar
     ruta_guardada = default_storage.save(ruta_relativa, video)
     url_publica = default_storage.url(ruta_guardada)
-
     revision.video_evidencia_url = url_publica
-    revision.save(update_fields=['video_evidencia_url'])
+
+    # 3. Procesar miniatura recibida desde el frontend
+    thumbnail_file = request.FILES.get('thumbnail')
+    if thumbnail_file:
+        procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
+        revision.save()
+    else:
+        revision.save(update_fields=['video_evidencia_url'])
 
     return JsonResponse({
         'status': 'ok',
-        'secure_url': url_publica
+        'secure_url': revision.video_evidencia_url,
+        'video_url': revision.video_evidencia_url,
+        'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
+        'estado_general': revision.estado_general,
+        'checklist_completado': revision.checklist_completado,
     })
 
 
@@ -464,6 +541,18 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Vi
 
             rev.save() # Guarda y calcula el estado_general automáticamente
 
+            if rev.tiene_video:
+                messages.success(
+                    request,
+                    f"Revisión de {revision.ubicacion.nombre} completada exitosamente como '{rev.get_estado_general_display()}'."
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Checklist de {revision.ubicacion.nombre} guardado. Falta subir el video de evidencia para completar la revisión."
+                )
+            return redirect('mantencion:tablero_salas', ciclo_id=revision.ciclo_id)
+
             messages.success(
                 request,
                 f"Revisión de {revision.ubicacion.nombre} guardada exitosamente como '{rev.get_estado_general_display()}'."
@@ -514,6 +603,13 @@ class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, V
             is_deleted=False
         ).first()
 
+        if revision.imagen_evidencia:
+            revision.imagen_evidencia.delete(save=False)
+        if revision.imagen_thumb_medium:
+            revision.imagen_thumb_medium.delete(save=False)
+        if revision.imagen_thumb_small:
+            revision.imagen_thumb_small.delete(save=False)
+
         # 3. Limpieza en base de datos devolviendo a PENDIENTE
         RevisionSala.objects.filter(pk=revision.pk).update(
             proyector=proyector_inventario,
@@ -530,6 +626,9 @@ class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, V
             operador=None,
             fecha_revision=None,
             video_evidencia_url=None,
+            imagen_evidencia=None,
+            imagen_thumb_medium=None,
+            imagen_thumb_small=None,
             estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
         )
 
@@ -601,27 +700,155 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, View):
 
 
 class AsociarVideoSalaView(LoginRequiredMixin, View):
-    """
-    Recibe la URL devuelta por Cloudinary (o cualquier almacenamiento)
-    y la asocia directamente a la RevisionSala correspondiente.
-    """
     def post(self, request, pk):
         revision = get_object_or_404(RevisionSala, pk=pk)
 
-        try:
-            payload = json.loads(request.body)
-            video_url = payload.get('video_url', '').strip()
-        except (json.JSONDecodeError, AttributeError):
-            return JsonResponse({'error': 'Formato JSON inválido.'}, status=400)
+        video_url = request.POST.get('video_url', '').strip()
+        duracion_raw = request.POST.get('duration')
+        thumbnail_file = request.FILES.get('thumbnail')
 
         if not video_url:
             return JsonResponse({'error': 'No se proporcionó una URL válida.'}, status=400)
 
-        # Actualiza solo el campo de video
+        # Validar duración reportada por Cloudinary (31.5s máx.)
+        if duracion_raw:
+            try:
+                duracion = float(duracion_raw)
+                if duracion > 31.5:
+                    # Borramos de Cloudinary el archivo que excedió el tiempo
+                    eliminar_archivo_video_evidencia(video_url)
+                    return JsonResponse({
+                        'error': f'El video dura {round(duracion)}s y supera el máximo permitido de 30 segundos.'
+                    }, status=400)
+            except ValueError:
+                pass
+
+        # Si ya había un video anterior en la sala, lo eliminamos antes de reemplazarlo
+        if revision.video_evidencia_url and revision.video_evidencia_url != video_url:
+            eliminar_archivo_video_evidencia(revision.video_evidencia_url)
+
         revision.video_evidencia_url = video_url
-        revision.save(update_fields=['video_evidencia_url'])
+
+        if thumbnail_file:
+            sala_slug = slugify(revision.ubicacion.nombre)
+            procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
+            revision.save()
+        else:
+            revision.save(update_fields=['video_evidencia_url'])
 
         return JsonResponse({
             'status': 'ok',
-            'video_url': revision.video_evidencia_url
+            'video_url': revision.video_evidencia_url,
+            'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
+            'estado_general': revision.estado_general,
+            'checklist_completado': revision.checklist_completado,
         })
+
+
+
+
+class SalasMantenimientoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Ubicacion
+    template_name = 'mantencion/pages/salas_mantenimiento.html'
+    context_object_name = 'ubicaciones'
+    paginate_by = 20
+    permission_required = 'mantencion.view_revisionsala'
+
+    def get_ciclo_activo(self):
+        """Retorna el ciclo de salas actualmente en curso (o None si no hay uno abierto)."""
+        if not hasattr(self, '_ciclo_activo'):
+            self._ciclo_activo = CicloRevision.objects.filter(
+                tipo=CicloRevision.TipoCiclo.SALAS,
+                estado=CicloRevision.EstadoCiclo.EN_CURSO
+            ).first()
+        return self._ciclo_activo
+
+    def get_queryset(self):
+        ciclo_activo = self.get_ciclo_activo()
+
+        # 1. Filtramos solo recintos que forman parte del ciclo preventivo
+        queryset = Ubicacion.objects.filter(aplica_mantenimiento=True).select_related(
+            'piso', 
+            'piso__edificio'
+        )
+
+        # 2. Si hay ciclo en curso, prefetcheamos la revisión correspondiente a este ciclo
+        if ciclo_activo:
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    'revisiones_mantenimiento',
+                    queryset=RevisionSala.objects.filter(ciclo=ciclo_activo).select_related('proyector', 'operador'),
+                    to_attr='revision_actual_lista'
+                )
+            )
+
+        # 3. Parámetros GET
+        search_query = self.request.GET.get('search', '').strip()
+        edificio_id = self.request.GET.get('edificio', '').strip()
+        piso_nombre = self.request.GET.get('piso', '').strip()
+
+        # 4. Filtros dinámicos
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+
+        if edificio_id:
+            queryset = queryset.filter(piso__edificio_id=edificio_id)
+
+        if piso_nombre:
+            queryset = queryset.filter(piso__nombre=piso_nombre)
+
+        return queryset.order_by('piso__edificio__nombre', 'piso__nombre', 'nombre')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ciclo_activo = self.get_ciclo_activo()
+        
+        context['titulo_lista'] = 'Salas de Clases'
+        context['ciclo_activo'] = ciclo_activo
+
+        # Preservar valores de filtros para formularios
+        search_query = self.request.GET.get('search', '').strip()
+        edificio_id = self.request.GET.get('edificio', '').strip()
+        piso_nombre = self.request.GET.get('piso', '').strip()
+
+        context['search_query'] = search_query
+        context['edificio_id'] = edificio_id
+        context['piso_nombre'] = piso_nombre
+
+        # Listados para selects
+        context['edificios'] = Edificio.objects.all()
+        context['pisos'] = Piso.objects.values_list('nombre', flat=True).distinct().order_by('nombre')
+
+        # Reconstruir query_string dinámicamente para conservar filtros en paginación
+        query_params = []
+        if search_query: 
+            query_params.append(f'search={search_query}')
+        if edificio_id: 
+            query_params.append(f'edificio={edificio_id}')
+        if piso_nombre: 
+            query_params.append(f'piso={piso_nombre}')
+
+        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
+
+        return context
+
+
+
+
+class VideoValidationFormMixin:
+    """
+    Mixin para formularios que valida de forma automática cualquier
+    campo FileField/CharField que reciba un archivo de video.
+    """
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name, field in self.fields.items():
+            if isinstance(field, forms.FileField):
+                archivo = self.files.get(field_name)
+                if archivo and isinstance(archivo, UploadedFile):
+                    try:
+                        validar_archivo_video(archivo)
+                    except ValidationError as e:
+                        mensaje = e.messages[0] if hasattr(e, 'messages') else str(e)
+                        self.add_error(field_name, mensaje)
+        return cleaned_data

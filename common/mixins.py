@@ -5,7 +5,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from .utils import procesar_imagen_en_memoria, generar_thumbnail_en_memoria, MAX_PIXELS, MAX_UPLOAD_SIZE_MB
-from .validators import validar_extension_imagen
+from .validators import validar_extension_imagen, validar_archivo_video
 
 
 class ImageProcessingFormMixin:
@@ -103,6 +103,27 @@ class ImageProcessingFormMixin:
                     new_filename=small_name
                 )
                 setattr(instance, field_small_name, thumb_small)
+
+
+
+
+class VideoValidationFormMixin:
+    """
+    Mixin para formularios que valida de forma automática cualquier
+    campo FileField/CharField que reciba un archivo de video.
+    """
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name, field in self.fields.items():
+            if isinstance(field, forms.FileField):
+                archivo = self.files.get(field_name)
+                if archivo and isinstance(archivo, UploadedFile):
+                    try:
+                        validar_archivo_video(archivo)
+                    except ValidationError as e:
+                        mensaje = e.messages[0] if hasattr(e, 'messages') else str(e)
+                        self.add_error(field_name, mensaje)
+        return cleaned_data
 
 
 

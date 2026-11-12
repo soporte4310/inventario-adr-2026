@@ -1,4 +1,7 @@
+import uuid
+from PIL import Image
 from django.core.cache import cache
+from common.utils import procesar_imagen_en_memoria, generar_thumbnail_en_memoria
 
 # Grupos que pueden operar la revisión mensual (marcar OK, registrar
 # novedades, mover equipos de sala). Sólo 'ADR' administra el roster de
@@ -85,3 +88,53 @@ def crear_nuevo_ciclo(tipo, usuario=None, fecha=None):
     RevisionEquipo.objects.bulk_create(nuevas)
 
     return ciclo, len(nuevas)
+
+
+
+
+def procesar_miniatura_revision_sala(instance, image_file, prefix="evidencia"):
+    """
+    Procesa el primer frame extraído del video y genera:
+    1. Imagen principal optimizada (max 1024x1024) -> imagen_evidencia
+    2. Miniatura mediana (600x600) -> imagen_thumb_medium
+    3. Miniatura pequeña (80x80 / 50x50) -> imagen_thumb_small
+    Utiliza las rutinas en memoria ya existentes en el sistema.
+    """
+    if not image_file:
+        return
+
+    ext = ".jpg"
+    uuid_str = str(uuid.uuid4())
+    base_name = f"{prefix}_{uuid_str}"
+
+    main_name = f"{base_name}{ext}"
+    med_name = f"{base_name}_medium{ext}"
+    small_name = f"{base_name}_small{ext}"
+
+    # 1. Imagen Principal
+    processed_main = procesar_imagen_en_memoria(
+        image_field=image_file,
+        max_dimensions=(1024, 1024),
+        new_filename=main_name,
+        crop_to_square=False
+    )
+    instance.imagen_evidencia = processed_main
+
+    # 2. Thumbnails Medium y Small
+    image_file.seek(0)
+    with Image.open(image_file) as img_obj:
+        if hasattr(instance, "imagen_thumb_medium"):
+            thumb_med = generar_thumbnail_en_memoria(
+                image_obj=img_obj,
+                dimensions=(600, 600),
+                new_filename=med_name
+            )
+            instance.imagen_thumb_medium = thumb_med
+
+        if hasattr(instance, "imagen_thumb_small"):
+            thumb_small = generar_thumbnail_en_memoria(
+                image_obj=img_obj,
+                dimensions=(80, 80),
+                new_filename=small_name
+            )
+            instance.imagen_thumb_small = thumb_small
