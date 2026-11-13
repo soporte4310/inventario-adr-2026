@@ -35,7 +35,7 @@
                         {% endif %}
 
                         <div class="row g-3">
-                            <div class="col-md-7">
+                            <div class="col-md-6">
                                 <label for="{{ form.nombre.id_for_label }}" class="form-label small fw-bold text-muted">
                                     {{ form.nombre.label }} <span class="text-danger">*</span>
                                 </label>
@@ -50,7 +50,22 @@
                                 {% endif %}
                             </div>
 
-                            <div class="col-md-5">
+                            <div class="col-md-6">
+                                <label for="{{ form.tipo.id_for_label }}" class="form-label small fw-bold text-muted">
+                                    {{ form.tipo.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.tipo }}
+                                {% if form.tipo.help_text %}
+                                    <div class="form-text text-muted x-small">{{ form.tipo.help_text }}</div>
+                                {% endif %}
+                                {% if form.tipo.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.tipo.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
                                 <label for="{{ form.piso.id_for_label }}" class="form-label small fw-bold text-muted">
                                     {{ form.piso.label }} <span class="text-danger">*</span>
                                 </label>
@@ -63,6 +78,30 @@
                                         {% for error in form.piso.errors %}{{ error }}{% endfor %}
                                     </div>
                                 {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted d-block">Requerimientos Operativos</label>
+                                <div class="p-3 bg-light rounded border">
+                                    <div class="form-check form-switch mb-2">
+                                        {{ form.aplica_mantenimiento }}
+                                        <label class="form-check-label small fw-bold text-dark" for="{{ form.aplica_mantenimiento.id_for_label }}">
+                                            {{ form.aplica_mantenimiento.label }}
+                                        </label>
+                                        {% if form.aplica_mantenimiento.help_text %}
+                                            <div class="text-muted x-small">{{ form.aplica_mantenimiento.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        {{ form.requiere_proyeccion }}
+                                        <label class="form-check-label small fw-bold text-dark" for="{{ form.requiere_proyeccion.id_for_label }}">
+                                            {{ form.requiere_proyeccion.label }}
+                                        </label>
+                                        {% if form.requiere_proyeccion.help_text %}
+                                            <div class="text-muted x-small">{{ form.requiere_proyeccion.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="col-12">

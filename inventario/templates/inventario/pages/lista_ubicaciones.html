@@ -72,12 +72,14 @@
                 <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
                     <thead class="bg-light text-secondary text-uppercase small">
                         <tr>
-                            <th style="width: 80px;" class="text-center">ID</th>
+                            <th style="width: 70px;" class="text-center">ID</th>
                             <th>Ubicación</th>
+                            <th>Tipo</th>
                             <th>Piso / Nivel</th>
                             <th>Edificio</th>
-                            <th class="text-center" style="width: 150px;">Activos</th>
-                            <th class="text-center" style="width: 150px;">Acciones</th>
+                            <th class="text-center" style="width: 110px;">TI / Mant.</th>
+                            <th class="text-center" style="width: 100px;">Activos</th>
+                            <th class="text-center" style="width: 130px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,6 +92,11 @@
                                 </div>
                             </td>
                             <td>
+                                <span class="badge bg-light text-secondary border font-weight-normal" style="font-size: 0.75rem;">
+                                    {{ item.get_tipo_display }}
+                                </span>
+                            </td>
+                            <td>
                                 <span class="badge bg-light text-dark border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                     {{ item.piso.nombre }}
                                 </span>
@@ -98,6 +105,29 @@
                                 <span class="badge bg-light text-secondary border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                     <i class="far fa-building me-1"></i> {{ item.piso.edificio.nombre }}
                                 </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-1">
+                                    {% if item.aplica_mantenimiento %}
+                                        <span class="badge bg-light text-success border" title="Aplica ciclo de mantenimiento mensual">
+                                            <i class="fas fa-tools"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border opacity-50" title="Sin mantenimiento preventivo">
+                                            <i class="fas fa-tools"></i>
+                                        </span>
+                                    {% endif %}
+
+                                    {% if item.requiere_proyeccion %}
+                                        <span class="badge bg-light text-primary border" title="Requiere proyector">
+                                            <i class="fas fa-video"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border opacity-50" title="No requiere proyector">
+                                            <i class="fas fa-video-slash"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td class="text-center">
                                 {% if item.activos_count > 0 %}
@@ -133,7 +163,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
                                 <div class="py-4">
                                     <i class="fas fa-map-marker-alt fa-3x mb-3 opacity-50"></i>
                                     <p class="h5">No se encontraron ubicaciones</p>
@@ -150,7 +180,7 @@
             <nav class="mt-4">
                 <ul class="pagination pagination-sm justify-content-center">
                     {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link text-dark" href="?page=1{{ query_string }}">&laquo; Inicio</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page=1{{ query_string }}">« Inicio</a></li>
                         <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{{ query_string }}">Anterior</a></li>
                     {% endif %}
                     
@@ -160,7 +190,7 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{{ query_string }}">Siguiente</a></li>
-                        <li class="page-item"><a class="page-link text-dark" href="?page={{ paginator.num_pages }}{{ query_string }}">Fin &raquo;</a></li>
+                        <li class="page-item"><a class="page-link text-dark" href="?page={{ paginator.num_pages }}{{ query_string }}">Fin »</a></li>
                     {% endif %}
                 </ul>
             </nav>
