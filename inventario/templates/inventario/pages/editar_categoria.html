@@ -44,12 +44,26 @@
                             
                             {% if object.imagen %}
                             <div class="mb-3">
-                                <p class="small text-muted mb-2">Imagen actual:</p>
+                              <p class="small text-muted mb-2">Imagen actual:</p>
+                              {% if object.imagen_thumb_medium %}
                                 <img src="{{ object.imagen_thumb_medium.url }}" class="img-thumbnail shadow-sm" style="max-height: 150px;">
+                              {% else %}
+                                <img src="{{ object.imagen.url }}" class="img-thumbnail shadow-sm" style="max-height: 150px;">
+                              {% endif %}
                             </div>
                             {% endif %}
                             
                             {{ form.imagen }}
+                        
+                            <!-- Mensaje de error para el campo imagen -->
+                            {% if form.imagen.errors %}
+                              <div class="text-danger small mt-2">
+                                {% for error in form.imagen.errors %}
+                                  <div><i class="fas fa-exclamation-circle mr-1"></i> {{ error }}</div>
+                                {% endfor %}
+                              </div>
+                            {% endif %}
+                          
                             <small class="text-muted d-block mt-1">Si seleccionas una nueva imagen, se reemplazarán la original y los thumbnails.</small>
                         </div>
 

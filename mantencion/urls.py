@@ -1,77 +1,57 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-
 from .views import (
-    MantencionLoginView,
-    HomeMantencionView,
-
-    ListaProyectoresView,
-    ListaImpresorasView,
-    ListaExcelProyectoresView,
-    ListaExcelImpresoresView,
-
-    RevisionProyectoresView,
-    RevisionImpresorasView,
-    NuevoCicloProyectoresView,
-    NuevoCicloImpresorasView,
-    MarcarOkView,
-    RegistrarNovedadView,
-    EnroqueView,
-
-    ReporteExcelProyectoresView,
-    ReporteExcelImpresoresView,
-    ReporteEmailProyectoresView,
-    ReporteEmailImpresoresView,
-
-    RosterEquiposView,
-    RosterAgregarEquipoView,
-    RosterPausarEquipoView,
-
-    ImpresoraAgregarView,
-
-    AuditoriaMantencionView,
+    DashboardInventario,
+    ListaRevisionesView,
+    CrearRevisionView,
+    DetalleRevisionView,
+    CerrarRevisionView,
+    TableroSalasView,
+    FragmentoTableroSalasView,
+    FormularioRevisionSalaView,
+    TableroImpresorasView,
+    FormularioRevisionImpresoraView,
+    GenerarReportePdfView,
+    ExportarExcelRevisionView,
+    FirmarSubidaCloudinaryView,
+    subir_video_local,
+    AsociarVideoSalaView,
+    RestablecerRevisionSalaView,
+    SalasMantenimientoListView
 )
 
+app_name = "mantencion"
 
 urlpatterns = [
-    # Puerta de entrada propia de Mantención: misma autenticación que
-    # inventario, pero aterriza en /mantencion/ (no en /inventario/) y
-    # vuelve acá al cerrar sesión.
-    path('login/', MantencionLoginView.as_view(), name='mantencion_login'),
-    path('logout/', LogoutView.as_view(next_page='mantencion_login'), name='mantencion_logout'),
+    # Inicio
+    path('', DashboardInventario.as_view(), name="dashboard_mantenimiento"),
 
-    path('', HomeMantencionView.as_view(), name='mantencion_home'),
+    # Historial y gestión de ciclos
+    path("ciclos/", ListaRevisionesView.as_view(), name="lista_revisiones"),
+    path("ciclos/crear/", CrearRevisionView.as_view(), name="crear_revision"),
+    path("ciclos/<int:pk>/", DetalleRevisionView.as_view(), name="ver_revision"),
+    path("ciclos/<int:pk>/cerrar/", CerrarRevisionView.as_view(), name="cerrar_revision"),
 
-    # Listas informativas
-    path('proyectores/', ListaProyectoresView.as_view(), name='mantencion_lista_proyectores'),
-    path('impresoras/', ListaImpresorasView.as_view(), name='mantencion_lista_impresoras'),
-    path('proyectores/excel/', ListaExcelProyectoresView.as_view(), name='mantencion_lista_excel_proyectores'),
-    path('impresoras/excel/', ListaExcelImpresoresView.as_view(), name='mantencion_lista_excel_impresoras'),
+    # Revisión de Salas
+    path("ciclos/<int:ciclo_id>/salas/", TableroSalasView.as_view(), name="tablero_salas"),
+    path("ciclos/<int:ciclo_id>/salas/fragmento/", FragmentoTableroSalasView.as_view(), name="fragmento_tablero_salas"),
+    path("revisiones/sala/<int:pk>/", FormularioRevisionSalaView.as_view(), name="revisar_sala"),
+    path("revisiones/sala/<int:pk>/restablecer/", RestablecerRevisionSalaView.as_view(), name="restablecer_revision_sala"),
+    
+    # Revisión de Impresoras
+    path("ciclos/<int:ciclo_id>/impresoras/", TableroImpresorasView.as_view(), name="tablero_impresoras"),
+    path("revisiones/impresora/<int:pk>/", FormularioRevisionImpresoraView.as_view(), name="revisar_impresora"),
+    
+    # Reportes y exportación
+    path("ciclos/<int:pk>/reporte-pdf/", GenerarReportePdfView.as_view(), name="reporte_pdf"),
+    path("ciclos/<int:pk>/exportar-excel/", ExportarExcelRevisionView.as_view(), name="exportar_excel"),
+    
+    # Endpoints utilitarios
+    path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
+    path("api/subir-video-local/<int:pk>/", subir_video_local, name="subir_video_local"),
+    path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
 
-    # Revisión mensual
-    path('revision/proyectores/', RevisionProyectoresView.as_view(), name='mantencion_revision_proyectores'),
-    path('revision/impresoras/', RevisionImpresorasView.as_view(), name='mantencion_revision_impresoras'),
-    path('revision/proyectores/nuevo-ciclo/', NuevoCicloProyectoresView.as_view(), name='mantencion_nuevo_ciclo_proyectores'),
-    path('revision/impresoras/nuevo-ciclo/', NuevoCicloImpresorasView.as_view(), name='mantencion_nuevo_ciclo_impresoras'),
-    path('revision/<int:pk>/ok/', MarcarOkView.as_view(), name='mantencion_marcar_ok'),
-    path('revision/<int:pk>/novedad/', RegistrarNovedadView.as_view(), name='mantencion_registrar_novedad'),
-    path('revision/equipo/<int:equipo_id>/enroque/', EnroqueView.as_view(), name='mantencion_enroque'),
+    # Salas de clases
+    path('salas/', SalasMantenimientoListView.as_view(), name='salas_clases'),
 
-    # Reportes
-    path('revision/proyectores/excel/', ReporteExcelProyectoresView.as_view(), name='mantencion_reporte_excel_proyectores'),
-    path('revision/impresoras/excel/', ReporteExcelImpresoresView.as_view(), name='mantencion_reporte_excel_impresoras'),
-    path('revision/proyectores/email/', ReporteEmailProyectoresView.as_view(), name='mantencion_reporte_email_proyectores'),
-    path('revision/impresoras/email/', ReporteEmailImpresoresView.as_view(), name='mantencion_reporte_email_impresoras'),
-
-    # Roster de equipos en mantención (sólo ADR)
-    path('roster/', RosterEquiposView.as_view(), name='mantencion_roster'),
-    path('roster/nuevo/', RosterAgregarEquipoView.as_view(), name='mantencion_roster_agregar'),
-    path('roster/<int:pk>/pausar/', RosterPausarEquipoView.as_view(), name='mantencion_roster_pausar'),
-
-    # Alta de impresoras (modal en Lista de impresoras, sólo ADR). La baja se
-    # maneja con "Quitar" (pausar) por fila + el modal "De baja" para verlas.
-    path('impresoras/agregar/', ImpresoraAgregarView.as_view(), name='mantencion_impresora_agregar'),
-
-    # Bitácora de auditoría (solo lectura, solo ADR)
-    path('auditoria/', AuditoriaMantencionView.as_view(), name='mantencion_auditoria'),
 ]

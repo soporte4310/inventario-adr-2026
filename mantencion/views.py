@@ -1,756 +1,854 @@
-import logging
-import uuid
-
-import openpyxl
-import pandas as pd
-from openpyxl.styles import Font, PatternFill
-
+import os
+import re
+import json
+import time
+import cloudinary
+from django import forms
+from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
-from django.template.loader import render_to_string
-from django.urls import reverse, reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q, Prefetch
+from django.views.generic import ListView, DetailView, View, TemplateView
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.generic import CreateView, ListView, TemplateView, View
+from django.utils.text import slugify
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import UploadedFile
+from django.http import JsonResponse
 
-from accounts.mixins import GroupRequiredMixin
-from accounts.views import CustomLoginView
-from common.utils import procesar_imagen_en_memoria
+from django.core.exceptions import ValidationError
+from .models import CicloRevision, RevisionSala
+from .forms import CerrarRevisionForm, RevisionSalaForm
+from inventario.models import Activo, Edificio, Piso, Ubicacion
+from .utils import procesar_miniatura_revision_sala
+from common.validators import validar_archivo_video
+from .services import crear_ciclo_extraordinario_salas, MESES_ES
 
-from .forms import (
-    AgregarProyectorForm, EnroqueActivoForm, EnroqueImpresoraForm,
-    ImpresoraForm, NovedadRevisionForm,
-)
-from .mixins import MantencionLoginRequiredMixin
-from .models import CicloRevision, EquipoMantenible, EvidenciaRevision, Impresora, RegistroAuditoria, RevisionEquipo
-from .utils import GRUPOS_ADMIN, GRUPOS_REVISION, crear_nuevo_ciclo, limite_alcanzado, registrar_auditoria
-
-logger = logging.getLogger(__name__)
-
-
-class MantencionLoginView(CustomLoginView):
-    """
-    Login 'propio' de Mantención: usa exactamente la misma autenticación
-    que el portal de inventario (CustomAuthenticationForm: mismas
-    credenciales, mismo bloqueo por intentos fallidos, mismo aviso de
-    contraseña por cambiar), pero con plantilla propia y destino final
-    distinto, para que quienes entren por esta puerta lleguen a
-    /mantencion/ y no al dashboard de inventario.
-    """
-    template_name = 'mantencion/pages/login.html'
-    next_page = 'mantencion_home'
+class DashboardInventario(TemplateView):
+    template_name = 'mantencion/pages/dashboard.html'
 
 
-def _url_revision(tipo):
-    """Nombre de la url de 'Revisión mensual' que corresponde a un tipo de equipo."""
-    return 'mantencion_revision_proyectores' if tipo == EquipoMantenible.Tipo.PROYECTOR else 'mantencion_revision_impresoras'
 
 
-def _url_lista(tipo):
-    """Nombre de la url de 'Lista de proyectores/impresoras' que corresponde a un tipo de equipo."""
-    return 'mantencion_lista_proyectores' if tipo == EquipoMantenible.Tipo.PROYECTOR else 'mantencion_lista_impresoras'
-
-
-class TipoEquipoMixin:
-    """Cada vista concreta fija 'tipo' para reutilizar la misma lógica en Proyectores/Impresoras."""
-    tipo = None
-
-    def get_tipo_label(self):
-        return 'Proyectores' if self.tipo == EquipoMantenible.Tipo.PROYECTOR else 'Impresoras'
-
-    def get_tipo_label_singular(self):
-        return 'proyector' if self.tipo == EquipoMantenible.Tipo.PROYECTOR else 'impresora'
-
-
-# ---------------------------------------------------------------------------
-# 1. Home
-# ---------------------------------------------------------------------------
-
-class HomeMantencionView(MantencionLoginRequiredMixin, GroupRequiredMixin, TemplateView):
-    group_required = GRUPOS_REVISION
-    template_name = 'mantencion/pages/home.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # Cada tipo tiene su propio ciclo más reciente (frecuencias
-        # distintas), así que el mini-dashboard se arma por separado.
-        for tipo, clave in [(EquipoMantenible.Tipo.PROYECTOR, 'proyectores'), (EquipoMantenible.Tipo.IMPRESORA, 'impresoras')]:
-            ciclo = CicloRevision.objects.filter(tipo=tipo).first()
-            qs = RevisionEquipo.objects.filter(ciclo=ciclo) if ciclo else RevisionEquipo.objects.none()
-            ultima = qs.filter(fecha_revision__isnull=False).order_by('-fecha_revision').first()
-            context[f'{clave}_ciclo'] = ciclo
-            context[f'{clave}_pendientes'] = qs.filter(estado=RevisionEquipo.Estado.PENDIENTE).count()
-            context[f'{clave}_ok'] = qs.filter(estado=RevisionEquipo.Estado.OK).count()
-            context[f'{clave}_novedad'] = qs.filter(estado=RevisionEquipo.Estado.NOVEDAD).count()
-            context[f'{clave}_ultima_revision'] = ultima.fecha_revision if ultima else None
-
-        context['ultimas_novedades'] = RevisionEquipo.objects.filter(
-            estado=RevisionEquipo.Estado.NOVEDAD
-        ).select_related('equipo__activo', 'equipo__impresora', 'revisado_por').order_by('-fecha_revision')[:5]
-        return context
-
-
-# ---------------------------------------------------------------------------
-# 2 y 3. Listas de equipos (datos detallados, sin acciones de revisión)
-# ---------------------------------------------------------------------------
-
-class ListaEquiposView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, ListView):
-    group_required = GRUPOS_REVISION
-    model = EquipoMantenible
-    template_name = 'mantencion/pages/lista_equipos.html'
-    context_object_name = 'equipos'
-
-    def get_queryset(self):
-        qs = EquipoMantenible.objects.filter(tipo=self.tipo, activo_en_revision=True).select_related(
-            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__estado', 'activo__asignado_a',
-            'activo__ubicacion__piso__edificio', 'impresora__ubicacion__piso__edificio',
-        )
-        # El orden "por edificio" sale de un campo real de BD, y proyectores
-        # e impresoras lo guardan en modelos distintos (Activo vs Impresora),
-        # así que el nombre del campo a ordenar depende del tipo.
-        if self.tipo == EquipoMantenible.Tipo.PROYECTOR:
-            return qs.order_by('activo__ubicacion__piso__edificio__nombre', 'activo__ubicacion__nombre')
-        return qs.order_by('impresora__ubicacion__piso__edificio__nombre', 'impresora__ubicacion__nombre')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['tipo_label'] = self.get_tipo_label()
-        context['tipo_label_singular'] = self.get_tipo_label_singular()
-        context['tipo_code'] = self.tipo
-        context['enroque_form'] = EnroqueActivoForm() if self.tipo == EquipoMantenible.Tipo.PROYECTOR else EnroqueImpresoraForm()
-        if self.tipo == EquipoMantenible.Tipo.IMPRESORA:
-            context['impresora_form'] = ImpresoraForm()
-        # Modal "Ver equipos de baja": mismo campo que ya controla por qué un
-        # equipo deja de aparecer en esta lista (pausado por ADR, o impresora
-        # marcada De Baja, que también pausa su EquipoMantenible).
-        context['equipos_de_baja'] = EquipoMantenible.objects.filter(
-            tipo=self.tipo, activo_en_revision=False
-        ).select_related(
-            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__estado',
-            'activo__ubicacion__piso__edificio', 'impresora__ubicacion__piso__edificio',
-        )
-        return context
-
-
-class ListaProyectoresView(ListaEquiposView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
-
-
-class ListaImpresorasView(ListaEquiposView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
-
-
-# ---------------------------------------------------------------------------
-# 4. Revisión mensual
-# ---------------------------------------------------------------------------
-
-def _ultimo_ciclo(tipo):
-    """El ciclo más reciente de un tipo: es el único editable, el resto es historial de sólo lectura."""
-    return CicloRevision.objects.filter(tipo=tipo).first()
-
-
-class RevisionMensualView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, ListView):
-    group_required = GRUPOS_REVISION
-    template_name = 'mantencion/pages/revision_mensual.html'
+class ListaRevisionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = CicloRevision
+    template_name = 'mantencion/pages/lista_revisiones.html'
     context_object_name = 'revisiones'
+    paginate_by = 15
+    permission_required = 'mantencion.view_ciclorevision'
 
     def get_queryset(self):
-        ultimo = _ultimo_ciclo(self.tipo)
+        # Optimizamos relaciones foráneas y calculamos métricas en una sola query
+        queryset = CicloRevision.objects.select_related('creado_por', 'cerrado_por').annotate(
+            total_items=Count('revisiones_salas', distinct=True),
+            completadas=Count(
+                'revisiones_salas',
+                filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE),
+                distinct=True
+            ),
+            con_observaciones=Count(
+                'revisiones_salas',
+                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES),
+                distinct=True
+            ),
+            criticas=Count(
+                'revisiones_salas',
+                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CRITICA),
+                distinct=True
+            ),
+        )
 
-        # ?ciclo=<id> deja ver un ciclo anterior (historial, sólo lectura);
-        # sin ese parámetro, mostramos el más reciente (el editable).
-        ciclo_id = self.request.GET.get('ciclo')
-        if ciclo_id:
-            self.ciclo = get_object_or_404(CicloRevision, pk=ciclo_id, tipo=self.tipo)
-        else:
-            self.ciclo = ultimo
+        # 1. Obtener parámetros GET
+        search_query = self.request.GET.get('search', '').strip()
+        tipo_ciclo = self.request.GET.get('tipo', '').strip()
+        estado_ciclo = self.request.GET.get('estado', '').strip()
 
-        self.es_editable = bool(self.ciclo) and bool(ultimo) and self.ciclo.pk == ultimo.pk
+        # 2. Aplicar filtros dinámicos
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
 
-        if not self.ciclo:
-            return RevisionEquipo.objects.none()
+        if tipo_ciclo:
+            queryset = queryset.filter(tipo=tipo_ciclo)
 
-        # 'ubicacion_en_revision' es un campo directo de RevisionEquipo (no
-        # pasa por Activo/Impresora), así que este orden sirve para ambos
-        # tipos sin necesidad de branch.
-        return RevisionEquipo.objects.filter(ciclo=self.ciclo).select_related(
-            'equipo__activo__catalogo__marca', 'equipo__activo__catalogo__categoria',
-            'equipo__impresora', 'ubicacion_en_revision__piso__edificio', 'revisado_por'
-        ).order_by('ubicacion_en_revision__piso__edificio__nombre', 'ubicacion_en_revision__nombre')
+        if estado_ciclo:
+            queryset = queryset.filter(estado=estado_ciclo)
+
+        return queryset.order_by('-fecha_inicio', '-id')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['ciclo'] = self.ciclo
-        context['ciclos'] = CicloRevision.objects.filter(tipo=self.tipo)
-        context['es_editable'] = self.es_editable
-        context['tipo_label'] = self.get_tipo_label()
-        context['tipo_label_singular'] = self.get_tipo_label_singular()
-        context['tipo_code'] = self.tipo
-        context['novedad_form'] = NovedadRevisionForm()
-        # Para la leyenda "Faltan por revisar X ..." y el resaltado amarillo
-        # de las tarjetas que el practicante todavía no revisó en terreno.
-        context['pendientes_count'] = self.object_list.filter(estado=RevisionEquipo.Estado.PENDIENTE).count()
+        context['titulo_lista'] = 'Historial de Revisiones'
+
+        # Mantener valores en el formulario de búsqueda
+        search_query = self.request.GET.get('search', '').strip()
+        tipo_ciclo = self.request.GET.get('tipo', '').strip()
+        estado_ciclo = self.request.GET.get('estado', '').strip()
+
+        context['search_query'] = search_query
+        context['tipo_ciclo'] = tipo_ciclo
+        context['estado_ciclo'] = estado_ciclo
+
+        # Opciones para los select
+        context['tipos'] = self.model.TipoCiclo.choices
+        context['estados'] = self.model.EstadoCiclo.choices
+
+        # Query string para mantener filtros al paginar
+        query_params = []
+        if search_query:
+            query_params.append(f'search={search_query}')
+        if tipo_ciclo:
+            query_params.append(f'tipo={tipo_ciclo}')
+        if estado_ciclo:
+            query_params.append(f'estado={estado_ciclo}')
+
+        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
+
         return context
 
 
-class RevisionProyectoresView(RevisionMensualView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
 
 
-class RevisionImpresorasView(RevisionMensualView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
+class CrearRevisionView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Permite exclusivamente al superusuario crear un ciclo extraordinario de salas."""
 
+    def test_func(self):
+        return self.request.user.is_superuser
 
-class NuevoCicloView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, View):
-    """
-    Botón "Nuevo ciclo/revisión": abre explícitamente una ronda nueva (con
-    la fecha de hoy) para un tipo de equipo. Al abrirse, el ciclo anterior
-    de ese mismo tipo pasa automáticamente a ser historial de sólo lectura
-    (deja de ser "el más reciente").
-    """
-    group_required = GRUPOS_REVISION
-
-    def post(self, request, *args, **kwargs):
-        ciclo, cantidad = crear_nuevo_ciclo(self.tipo, usuario=request.user)
-        messages.success(request, f"{ciclo} iniciado con {cantidad} equipos por revisar.")
-        return redirect(_url_revision(self.tipo))
-
-
-class NuevoCicloProyectoresView(NuevoCicloView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
-
-
-class NuevoCicloImpresorasView(NuevoCicloView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
-
-
-class MarcarOkView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """Botón verde 'OK' de la revisión mensual."""
-    group_required = GRUPOS_REVISION
-
-    def post(self, request, pk):
-        revision = get_object_or_404(
-            RevisionEquipo.objects.select_related('equipo__activo', 'equipo__impresora', 'ciclo'), pk=pk
+    def handle_no_permission(self):
+        messages.error(
+            self.request,
+            "Acceso denegado: Solo los administradores / superusuarios pueden iniciar un ciclo extraordinario.",
         )
+        return redirect("mantencion:lista_revisiones")
 
-        if limite_alcanzado(request, 'marcar_ok'):
-            messages.error(request, "Demasiadas solicitudes seguidas. Espera un momento e intenta de nuevo.")
-            return redirect(_url_revision(revision.equipo.tipo))
+    def _obtener_ciclo_vigente_mes(self):
+        hoy = timezone.localdate()
+        return CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.SALAS,
+            estado=CicloRevision.EstadoCiclo.EN_CURSO,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).first()
 
-        ultimo = _ultimo_ciclo(revision.equipo.tipo)
-        if not ultimo or revision.ciclo_id != ultimo.pk:
-            messages.error(request, "Este ciclo ya quedó cerrado (es historial de sólo lectura); no se puede modificar.")
-            return redirect(_url_revision(revision.equipo.tipo))
-
-        revision.estado = RevisionEquipo.Estado.OK
-        revision.revisado_por = request.user
-        revision.fecha_revision = timezone.now()
-        revision.save()
-
-        registrar_auditoria(
-            usuario=request.user, accion=RegistroAuditoria.Accion.REVISION_OK,
-            equipo_descripcion=f"{revision.equipo.marca_modelo} (S/N {revision.equipo.numero_serie or '—'})",
-            tipo_equipo=revision.equipo.tipo,
-        )
-
-        messages.success(request, f"{revision.equipo.equipo_real} marcado como OK.")
-        # El ancla deja al navegador en la misma tarjeta que se acaba de
-        # marcar, en vez de saltar arriba de todo con cada click. redirect()
-        # necesita la ruta ya resuelta (reverse()): un nombre de url con '#'
-        # pegado no se puede resolver como nombre de vista.
-        url = reverse(_url_revision(revision.equipo.tipo))
-        return redirect(f"{url}#revision-{revision.pk}")
-
-
-class RegistrarNovedadView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """Botón 'Comentarios y evidencia' de la revisión mensual."""
-    group_required = GRUPOS_REVISION
-
-    def post(self, request, pk):
-        revision = get_object_or_404(
-            RevisionEquipo.objects.select_related('equipo__activo', 'equipo__impresora', 'ciclo'), pk=pk
-        )
-
-        if limite_alcanzado(request, 'novedad'):
-            messages.error(request, "Demasiadas solicitudes seguidas. Espera un momento e intenta de nuevo.")
-            return redirect(_url_revision(revision.equipo.tipo))
-
-        ultimo = _ultimo_ciclo(revision.equipo.tipo)
-        if not ultimo or revision.ciclo_id != ultimo.pk:
-            messages.error(request, "Este ciclo ya quedó cerrado (es historial de sólo lectura); no se puede modificar.")
-            return redirect(_url_revision(revision.equipo.tipo))
-
-        form = NovedadRevisionForm(request.POST, request.FILES)
-        if not form.is_valid():
-            for error in form.errors.values():
-                messages.error(request, error.as_text())
-            return redirect(_url_revision(revision.equipo.tipo))
-
-        archivo = form.cleaned_data['archivo']
-
-        # Procesamos la evidencia ANTES de tocar la revisión: si la foto
-        # viene corrupta o demasiado pesada, no queremos dejar la revisión
-        # marcada como NOVEDAD sin ninguna evidencia adjunta. Solo fotos:
-        # clean_archivo() ya rechazó cualquier otro formato.
-        try:
-            archivo_final = procesar_imagen_en_memoria(
-                image_field=archivo, max_dimensions=(1600, 1600),
-                new_filename=f"evidencia_{uuid.uuid4()}.jpg"
+    def get(self, request):
+        ciclo_vigente = self._obtener_ciclo_vigente_mes()
+        if ciclo_vigente:
+            messages.warning(
+                request,
+                f"No se puede iniciar un ciclo extraordinario: el ciclo '{ciclo_vigente.nombre}' se encuentra en curso."
             )
-        except ValidationError as error:
-            messages.error(request, f"No se pudo procesar la foto: {'; '.join(error.messages)}")
-            return redirect(_url_revision(revision.equipo.tipo))
+            return redirect("mantencion:lista_revisiones")
 
-        sigue_operativo = form.cleaned_data['sigue_operativo']
-
-        revision.estado = RevisionEquipo.Estado.NOVEDAD
-        revision.comentario = form.cleaned_data['comentario']
-        revision.sigue_operativo = sigue_operativo
-        revision.revisado_por = request.user
-        revision.fecha_revision = timezone.now()
-        revision.save()
-
-        EvidenciaRevision.objects.create(
-            revision=revision, archivo=archivo_final,
-            tipo_archivo=form.tipo_archivo, subido_por=request.user
-        )
-
-        etiqueta_operatividad = 'sigue operativo' if sigue_operativo else 'FUERA DE SERVICIO'
-        registrar_auditoria(
-            usuario=request.user, accion=RegistroAuditoria.Accion.REVISION_NOVEDAD,
-            equipo_descripcion=f"{revision.equipo.marca_modelo} (S/N {revision.equipo.numero_serie or '—'})",
-            tipo_equipo=revision.equipo.tipo,
-            detalle=f"{form.cleaned_data['comentario']} ({etiqueta_operatividad})",
-        )
-
-        messages.warning(request, f"Novedad registrada para {revision.equipo.equipo_real}.")
-        url = reverse(_url_revision(revision.equipo.tipo))
-        return redirect(f"{url}#revision-{revision.pk}")
-
-
-class EnroqueView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """
-    El 'enroque': reasigna la sala/oficina de un equipo. Un proyector mueve
-    su Activo real (auditado automáticamente por 'inventario'); una
-    impresora mueve directamente su propio registro Impresora.
-
-    Sólo ADR: mover un equipo de sala requiere planificación previa (no es
-    algo que un practicante deba decidir sobre la marcha en terreno).
-    """
-    group_required = GRUPOS_ADMIN
-
-    def post(self, request, equipo_id):
-        equipo = get_object_or_404(
-            EquipoMantenible.objects.select_related('activo__ubicacion', 'impresora__ubicacion'), pk=equipo_id
-        )
-        # Se captura ANTES de validar el form: ModelForm.is_valid() ya deja
-        # el 'instance' (que es equipo.activo/impresora) con el valor NUEVO,
-        # así que después de eso ya sería tarde para saber cuál era el viejo.
-        ubicacion_anterior = str(equipo.ubicacion) if equipo.ubicacion else 'Sin ubicación'
-
-        if equipo.tipo == EquipoMantenible.Tipo.PROYECTOR:
-            form = EnroqueActivoForm(request.POST, instance=equipo.activo)
-        else:
-            form = EnroqueImpresoraForm(request.POST, instance=equipo.impresora)
-
-        if form.is_valid():
-            try:
-                form.save()
-            except ValidationError as error:
-                # Activo.save() corre full_clean() sobre TODO el modelo, no
-                # solo 'ubicacion' (único campo de este form): si el Activo
-                # ya tenía un dato inválido guardado de antes en otro campo
-                # (ej. netbios con espacios), esto revienta acá aunque el
-                # enroque en sí sea válido. No debe tirar un 500 por eso.
-                mensajes_error = '; '.join(sum(error.message_dict.values(), [])) if hasattr(error, 'message_dict') else '; '.join(error.messages)
-                messages.error(
-                    request,
-                    f"No se pudo mover el equipo: el Activo tiene un dato inválido guardado de antes "
-                    f"({mensajes_error}). Corrígelo desde Inventario y vuelve a intentarlo."
-                )
-                return redirect(_url_lista(equipo.tipo))
-
-            registrar_auditoria(
-                usuario=request.user, accion=RegistroAuditoria.Accion.ENROQUE,
-                equipo_descripcion=f"{equipo.marca_modelo} (S/N {equipo.numero_serie or '—'})",
-                tipo_equipo=equipo.tipo,
-                detalle=f"{ubicacion_anterior} → {equipo.ubicacion}",
-            )
-            messages.success(request, f"{equipo.equipo_real} fue reubicado correctamente.")
-        else:
-            messages.error(request, "No se pudo actualizar la ubicación. Selecciona una sala válida.")
-        # A diferencia de las demás acciones (marcar OK, novedad), "mover a"
-        # sólo se dispara desde la Lista de equipos, no desde la Revisión
-        # mensual, así que vuelve ahí en vez de a la revisión.
-        return redirect(_url_lista(equipo.tipo))
-
-
-# ---------------------------------------------------------------------------
-# Sólo ADR: alta/baja de impresoras (modal en "Lista de impresoras")
-# ---------------------------------------------------------------------------
-
-class ImpresoraAgregarView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """
-    Modal "Agregar impresora": crea una Impresora nueva (no viene de
-    'inventario', así que se cargan sus datos directamente) y la inscribe
-    de inmediato en el circuito de mantención.
-    """
-    group_required = GRUPOS_ADMIN
-
-    def post(self, request, *args, **kwargs):
-        form = ImpresoraForm(request.POST)
-        if not form.is_valid():
-            for error in form.errors.values():
-                messages.error(request, error.as_text())
-            return redirect('mantencion_lista_impresoras')
-
-        impresora = form.save(commit=False)
-        impresora.creado_por = request.user
-        impresora.save()
-
-        EquipoMantenible.objects.create(
-            tipo=EquipoMantenible.Tipo.IMPRESORA, impresora=impresora, agregado_por=request.user
-        )
-
-        registrar_auditoria(
-            usuario=request.user, accion=RegistroAuditoria.Accion.IMPRESORA_AGREGADA,
-            equipo_descripcion=str(impresora), tipo_equipo=EquipoMantenible.Tipo.IMPRESORA,
-        )
-
-        messages.success(request, f"{impresora} agregada al circuito de mantención.")
-        return redirect('mantencion_lista_impresoras')
-
-
-# ---------------------------------------------------------------------------
-# Reportes (botón "Enviar reporte")
-# ---------------------------------------------------------------------------
-
-def _generar_excel_response(df, nombre_archivo, nombre_hoja='Datos'):
-    """Arma la respuesta .xlsx con el mismo estilo de cabecera en todos los reportes de mantención."""
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}.xlsx"'
-
-    with pd.ExcelWriter(response, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name=nombre_hoja)
-        worksheet = writer.sheets[nombre_hoja]
-        for cell in worksheet[1]:
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
-        for idx, col in enumerate(df.columns):
-            # El ancho se ajusta al contenido real, no solo al título: con
-            # un mínimo fijo (15), columnas como MARCA_MODELO (hasta 31
-            # caracteres en los datos reales) quedaban visualmente cortadas
-            # y el resto de la fila se veía apretado. Techo de 60 para que
-            # un comentario largo no vuelva la columna absurdamente ancha.
-            largo_contenido = df[col].astype(str).map(len).max() if len(df) else 0
-            ancho = max(len(col) + 2, int(largo_contenido) + 2, 15)
-            worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = min(ancho, 60)
-
-    return response
-
-
-def _dataframe_lista(tipo):
-    """Datos del listado de equipos (no de un ciclo de revisión): lo que se ve en 'Lista de X'."""
-    equipos = EquipoMantenible.objects.filter(tipo=tipo, activo_en_revision=True).select_related(
-        'activo__catalogo__marca', 'activo__estado', 'activo__ubicacion__piso__edificio',
-        'impresora__ubicacion__piso__edificio',
-    )
-
-    data = []
-    for equipo in equipos:
-        ubicacion = equipo.ubicacion
-        fila = {
-            'EDIFICIO': ubicacion.piso.edificio.nombre if ubicacion else '',
-            'SALA_OFICINA': ubicacion.nombre if ubicacion else '',
-            'MARCA_MODELO': equipo.marca_modelo,
-        }
-        # Nombre de red: solo tiene sentido para impresoras (los proyectores
-        # todavía no tienen este dato cargado en ningún Activo), igual que
-        # en la columna propia que ya existe en la página web.
-        if tipo == EquipoMantenible.Tipo.IMPRESORA:
-            fila['NOMBRE_RED'] = equipo.nombre_equipo
-        fila['NUMERO_SERIE'] = equipo.numero_serie
-        fila['ESTADO'] = equipo.estado_texto
-        data.append(fila)
-    return pd.DataFrame(data)
-
-
-class ListaExcelView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, View):
-    """Excel del listado completo (no de un ciclo mensual), botón 'Excel' en Lista de proyectores/impresoras."""
-    group_required = GRUPOS_REVISION
-
-    def get(self, request, *args, **kwargs):
-        df = _dataframe_lista(self.tipo)
-        nombre_tipo = self.get_tipo_label()
-        return _generar_excel_response(df, f"Listado_{nombre_tipo}", nombre_hoja='Listado')
-
-
-class ListaExcelProyectoresView(ListaExcelView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
-
-
-class ListaExcelImpresoresView(ListaExcelView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
-
-
-def _dataframe_revision(ciclo, tipo):
-    if not ciclo:
-        return pd.DataFrame()
-
-    revisiones = RevisionEquipo.objects.filter(ciclo=ciclo, equipo__tipo=tipo).select_related(
-        'equipo__activo__catalogo__marca', 'equipo__impresora',
-        'ubicacion_en_revision__piso__edificio', 'revisado_por'
-    ).order_by('ubicacion_en_revision__piso__edificio__nombre', 'ubicacion_en_revision__nombre')
-
-    data = []
-    for revision in revisiones:
-        fila = {
-            'EDIFICIO': revision.ubicacion_en_revision.piso.edificio.nombre if revision.ubicacion_en_revision else '',
-            'SALA_OFICINA': revision.ubicacion_en_revision.nombre if revision.ubicacion_en_revision else '',
-            'MARCA_MODELO': revision.equipo.marca_modelo,
-        }
-        if tipo == EquipoMantenible.Tipo.IMPRESORA:
-            fila['NOMBRE_RED'] = revision.equipo.nombre_equipo
-        fila.update({
-            'NUMERO_SERIE': revision.equipo.numero_serie,
-            'ESTADO': revision.get_estado_display(),
-            'COMENTARIO': revision.comentario,
-            'REVISADO_POR': revision.revisado_por.get_full_name() or revision.revisado_por.username if revision.revisado_por else '',
-            # fecha_revision se guarda en UTC (USE_TZ=True); sin localtime()
-            # strftime() imprime la hora UTC cruda en vez de la de Chile.
-            'FECHA_REVISION': timezone.localtime(revision.fecha_revision).strftime('%d/%m/%Y %H:%M') if revision.fecha_revision else '',
-        })
-        data.append(fila)
-    return pd.DataFrame(data)
-
-
-def _quedan_pendientes(ciclo):
-    """El reporte (Excel o correo) solo tiene sentido con el ciclo completo: todavía no refleja la realidad si faltan equipos por revisar."""
-    return bool(ciclo) and RevisionEquipo.objects.filter(ciclo=ciclo, estado=RevisionEquipo.Estado.PENDIENTE).exists()
-
-
-class ReporteExcelView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, View):
-    group_required = GRUPOS_REVISION
-
-    def get(self, request, *args, **kwargs):
-        ciclo_id = request.GET.get('ciclo')
-        if ciclo_id:
-            ciclo = get_object_or_404(CicloRevision, pk=ciclo_id, tipo=self.tipo)
-        else:
-            ciclo = _ultimo_ciclo(self.tipo)
-
-        if _quedan_pendientes(ciclo):
-            messages.error(request, "Todavía quedan equipos pendientes de revisar en este ciclo. El reporte se habilita cuando todos queden en OK o con novedad.")
-            return redirect(_url_revision(self.tipo))
-
-        df = _dataframe_revision(ciclo, self.tipo)
-        nombre_tipo = self.get_tipo_label()
-        etiqueta_fecha = ciclo.fecha_inicio.strftime('%d_%m_%Y') if ciclo else timezone.localdate().strftime('%d_%m_%Y')
-        return _generar_excel_response(df, f"Revision_{nombre_tipo}_{etiqueta_fecha}", nombre_hoja='Revision')
-
-
-class ReporteExcelProyectoresView(ReporteExcelView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
-
-
-class ReporteExcelImpresoresView(ReporteExcelView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
-
-
-class ReporteEmailView(MantencionLoginRequiredMixin, GroupRequiredMixin, TipoEquipoMixin, View):
-    group_required = GRUPOS_REVISION
-
-    def post(self, request, *args, **kwargs):
-        ciclo_id = request.POST.get('ciclo')
-        if ciclo_id:
-            ciclo = get_object_or_404(CicloRevision, pk=ciclo_id, tipo=self.tipo)
-        else:
-            ciclo = _ultimo_ciclo(self.tipo)
-
-        if _quedan_pendientes(ciclo):
-            messages.error(request, "Todavía quedan equipos pendientes de revisar en este ciclo. El reporte se habilita cuando todos queden en OK o con novedad.")
-            return redirect(_url_revision(self.tipo))
-
-        revisiones = RevisionEquipo.objects.filter(ciclo=ciclo) if ciclo else RevisionEquipo.objects.none()
-        nombre_tipo = self.get_tipo_label()
+        hoy = timezone.localdate()
+        total_salas = Ubicacion.objects.filter(
+            tipo=Ubicacion.TipoUbicacion.SALA_CLASES,
+            aplica_mantenimiento=True
+        ).count()
 
         context = {
-            'tipo': nombre_tipo,
-            'ciclo': ciclo,
-            'total': revisiones.count(),
-            'ok': revisiones.filter(estado=RevisionEquipo.Estado.OK).count(),
-            'pendientes': revisiones.filter(estado=RevisionEquipo.Estado.PENDIENTE).count(),
-            'novedades': revisiones.filter(estado=RevisionEquipo.Estado.NOVEDAD).select_related(
-                'equipo__activo', 'equipo__impresora', 'ubicacion_en_revision__piso__edificio'
-            ),
+            'titulo': 'Iniciar Ciclo Extraordinario de Salas',
+            'mes_nombre': MESES_ES[hoy.month],
+            'anio': hoy.year,
+            'total_salas': total_salas,
         }
-        html_content = render_to_string('mantencion/emails/reporte_revision.html', context)
+        return render(request, 'mantencion/pages/crear_revision.html', context)
 
-        email = EmailMultiAlternatives(
-            subject=f"Revisión de {nombre_tipo} - {ciclo}" if ciclo else f"Revisión de {nombre_tipo}",
-            body="Favor visualizar este correo en modo HTML.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=settings.EMAIL_RECIPIENTS,
-        )
-        email.attach_alternative(html_content, "text/html")
-        try:
-            email.send()
-        except Exception:
-            # Puede fallar por problemas ajenos a la app (credenciales de
-            # SendGrid/Gmail vencidas, sin conexión, límite de envíos, etc.):
-            # se registra el detalle real en el log del servidor, pero al
-            # usuario se le avisa con un mensaje simple y no con un error 500.
-            logger.exception("Falló el envío del reporte de %s (ciclo %s)", nombre_tipo, ciclo)
-            messages.error(request, "No se puede enviar el reporte por el momento. Intenta nuevamente más tarde.")
-            return redirect(_url_revision(self.tipo))
-
-        messages.success(request, f"Reporte de {nombre_tipo.lower()} enviado a {len(settings.EMAIL_RECIPIENTS)} destinatarios.")
-        return redirect(_url_revision(self.tipo))
-
-
-class ReporteEmailProyectoresView(ReporteEmailView):
-    tipo = EquipoMantenible.Tipo.PROYECTOR
-
-
-class ReporteEmailImpresoresView(ReporteEmailView):
-    tipo = EquipoMantenible.Tipo.IMPRESORA
-
-
-# ---------------------------------------------------------------------------
-# Sólo ADR: roster de equipos en mantención
-# ---------------------------------------------------------------------------
-
-class RosterEquiposView(MantencionLoginRequiredMixin, GroupRequiredMixin, ListView):
-    group_required = GRUPOS_ADMIN
-    model = EquipoMantenible
-    template_name = 'mantencion/pages/roster_lista.html'
-    context_object_name = 'equipos'
-
-    def get_queryset(self):
-        return EquipoMantenible.objects.select_related(
-            'activo__catalogo__marca', 'activo__catalogo__categoria', 'activo__ubicacion__piso__edificio',
-            'impresora__ubicacion__piso__edificio',
-        ).order_by('tipo', '-fecha_agregado')
-
-
-class RosterAgregarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, CreateView):
-    """
-    Agregar un PROYECTOR (Activo ya inventariado) al roster. Las impresoras
-    ya no pasan por acá: se agregan desde el modal de "Lista de
-    impresoras" (ImpresoraAgregarView), porque no vienen de 'inventario'.
-    """
-    group_required = GRUPOS_ADMIN
-    model = EquipoMantenible
-    form_class = AgregarProyectorForm
-    template_name = 'mantencion/pages/roster_form.html'
-    # Vuelve a la lista de proyectores (no al roster): mismo comportamiento
-    # que ya tiene ImpresoraAgregarView al agregar una impresora.
-    success_url = reverse_lazy('mantencion_lista_proyectores')
-
-    def form_valid(self, form):
-        form.instance.agregado_por = self.request.user
-        response = super().form_valid(form)
-
-        registrar_auditoria(
-            usuario=self.request.user, accion=RegistroAuditoria.Accion.EQUIPO_AGREGADO,
-            equipo_descripcion=f"{self.object.marca_modelo} (S/N {self.object.numero_serie or '—'})",
-            tipo_equipo=self.object.tipo,
+    def post(self, request):
+        nombre_personalizado = request.POST.get('nombre', '').strip()
+        
+        exito, mensaje, ciclo = crear_ciclo_extraordinario_salas(
+            usuario=request.user,
+            nombre_personalizado=nombre_personalizado or None
         )
 
-        # Si el ADR confirmó/corrigió la sala al agregar el equipo,
-        # actualizamos el Activo real (mismo mecanismo que el 'enroque':
-        # queda auditado automáticamente por las señales de inventario).
-        # El equipo YA quedó agregado arriba, así que un fallo acá no debe
-        # tirar un 500: activo.save() corre full_clean() sobre TODO el
-        # Activo (no solo 'ubicacion'), y puede rechazar el guardado por un
-        # dato inválido en otro campo que ya estaba mal desde antes (ej.
-        # netbios con espacios, cargado por otra vía).
-        ubicacion = form.cleaned_data.get('ubicacion')
-        if ubicacion:
-            activo = form.instance.activo
-            activo.ubicacion = ubicacion
-            try:
-                activo.save()
-            except ValidationError as error:
-                mensajes_error = '; '.join(sum(error.message_dict.values(), [])) if hasattr(error, 'message_dict') else '; '.join(error.messages)
-                messages.warning(
-                    self.request,
-                    f"El equipo se agregó, pero no se pudo actualizar su ubicación en Inventario "
-                    f"porque el Activo tiene un dato inválido guardado de antes ({mensajes_error}). "
-                    "Corrígelo desde Inventario y vuelve a mover el equipo de sala."
-                )
-                return response
+        if not exito:
+            messages.error(request, mensaje)
+            return redirect("mantencion:lista_revisiones")
 
-        messages.success(self.request, "Equipo agregado a la lista.")
-        return response
+        messages.success(request, mensaje)
+        return redirect("mantencion:tablero_salas", ciclo_id=ciclo.id)
 
 
-class RosterPausarEquipoView(MantencionLoginRequiredMixin, GroupRequiredMixin, View):
-    """
-    Pausa/reactiva un equipo del roster sin borrarlo nunca: sólo deja de
-    generarle filas de revisión mientras esté pausado.
-    """
-    group_required = GRUPOS_ADMIN
+    
+
+class DetalleRevisionView(View):
+    def get():
+        pass
+
+
+
+
+class CerrarRevisionView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Permite exclusivamente al superusuario forzar el cierre de un ciclo preventivo."""
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        messages.error(
+            self.request,
+            "Acceso denegado: Solo los administradores / superusuarios pueden forzar el cierre de un ciclo.",
+        )
+        return redirect("mantencion:lista_revisiones")
+
+    def get(self, request, pk):
+        ciclo = get_object_or_404(CicloRevision, pk=pk)
+
+        # Si ya está cerrado, no permitir volver a cerrarlo
+        if ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            messages.warning(
+                request, f"El ciclo '{ciclo.nombre}' ya se encuentra cerrado."
+            )
+            return redirect("mantencion:tablero_salas", ciclo_id=ciclo.id)
+
+        form = CerrarRevisionForm(instance=ciclo)
+        context = {
+            "ciclo": ciclo,
+            "form": form,
+            "total_salas": ciclo.total_salas,
+            "revisadas": ciclo.total_revisadas,
+            "pendientes": ciclo.total_pendientes,
+            "porcentaje": ciclo.porcentaje_avance,
+            "titulo": f"Cerrar Ciclo: {ciclo.nombre}",
+        }
+        return render(request, "mantencion/pages/cerrar_revision.html", context)
 
     def post(self, request, pk):
-        equipo = get_object_or_404(
-            EquipoMantenible.objects.select_related('activo', 'impresora'), pk=pk
-        )
-        equipo.activo_en_revision = not equipo.activo_en_revision
-        equipo.save(update_fields=['activo_en_revision'])
-        estado = "reactivado" if equipo.activo_en_revision else "quitado de la lista"
+        ciclo = get_object_or_404(CicloRevision, pk=pk)
 
-        registrar_auditoria(
-            usuario=request.user,
-            accion=RegistroAuditoria.Accion.EQUIPO_REACTIVADO if equipo.activo_en_revision else RegistroAuditoria.Accion.EQUIPO_PAUSADO,
-            equipo_descripcion=f"{equipo.marca_modelo} (S/N {equipo.numero_serie or '—'})",
-            tipo_equipo=equipo.tipo,
-        )
+        if ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            messages.warning(request, "Este ciclo ya estaba cerrado.")
+            return redirect("mantencion:tablero_salas", ciclo_id=ciclo.id)
 
-        messages.success(request, f"Equipo {estado} correctamente.")
-        # Si el botón vino desde "Lista de proyectores/impresoras" (no desde
-        # el roster de ADR), volvemos a esa misma página en vez de forzar
-        # la redirección al roster. url_has_allowed_host_and_scheme evita
-        # que 'next' se use como redirección abierta hacia otro sitio.
-        siguiente = request.POST.get('next')
-        if siguiente and url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
-            return redirect(siguiente)
-        return redirect('mantencion_roster')
+        form = CerrarRevisionForm(request.POST, instance=ciclo)
+        if form.is_valid():
+            ciclo_actualizado = form.save(commit=False)
+            ciclo_actualizado.estado = CicloRevision.EstadoCiclo.FINALIZADO
+            ciclo_actualizado.cerrado_por = request.user
+            ciclo_actualizado.fecha_cierre = timezone.now()
+            ciclo_actualizado.save()
+
+            messages.success(
+                request,
+                f"El ciclo '{ciclo.nombre}' ha sido cerrado exitosamente por {request.user.username}.",
+            )
+            return redirect("mantencion:lista_revisiones")
+
+        context = {
+            "ciclo": ciclo,
+            "form": form,
+            "total_salas": ciclo.total_salas,
+            "revisadas": ciclo.total_revisadas,
+            "pendientes": ciclo.total_pendientes,
+            "porcentaje": ciclo.porcentaje_avance,
+            "titulo": f"Cerrar Ciclo: {ciclo.nombre}",
+        }
+        return render(request, "mantencion/pages/cerrar_revision.html", context)
 
 
-# ---------------------------------------------------------------------------
-# Sólo ADR: bitácora de auditoría (solo lectura)
-# ---------------------------------------------------------------------------
 
-class AuditoriaMantencionView(MantencionLoginRequiredMixin, GroupRequiredMixin, ListView):
-    """
-    Bitácora de solo lectura: quién hizo qué y cuándo dentro del módulo.
-    Nunca se edita ni se borra nada desde acá, solo se consulta.
-    """
-    group_required = GRUPOS_ADMIN
-    model = RegistroAuditoria
-    template_name = 'mantencion/pages/auditoria.html'
-    context_object_name = 'registros'
-    paginate_by = 50
+
+class TableroSalasView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = CicloRevision
+    pk_url_kwarg = 'ciclo_id'
+    template_name = 'mantencion/pages/tablero_salas.html'
+    context_object_name = 'ciclo'
+    permission_required = 'mantencion.view_ciclomantenimiento'
 
     def get_queryset(self):
-        qs = RegistroAuditoria.objects.select_related('usuario')
-        tipo = self.request.GET.get('tipo')
-        if tipo in EquipoMantenible.Tipo.values:
-            qs = qs.filter(tipo_equipo=tipo)
-        accion = self.request.GET.get('accion')
-        if accion in RegistroAuditoria.Accion.values:
-            qs = qs.filter(accion=accion)
-        return qs
+        return CicloRevision.objects.filter(tipo=CicloRevision.TipoCiclo.SALAS)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['tipo_filtro'] = self.request.GET.get('tipo', '')
-        context['accion_filtro'] = self.request.GET.get('accion', '')
-        context['acciones'] = RegistroAuditoria.Accion.choices
+        ciclo = self.object
+
+        # 1. Traer todas las revisiones del ciclo optimizando las relaciones
+        revisiones = (
+            ciclo.revisiones_salas
+            .select_related(
+                'ubicacion',
+                'ubicacion__piso',
+                'ubicacion__piso__edificio',
+                'proyector',
+                'proyector__catalogo',
+                'proyector__catalogo__marca',
+                'operador'
+            )
+            .order_by(
+                'ubicacion__piso__edificio__nombre',
+                'ubicacion__piso__nombre',
+                'ubicacion__nombre'
+            )
+        )
+
+        # 2. Agrupación jerárquica en memoria: Edificio -> Piso -> Salas
+        edificios_dict = {}
+
+        for rev in revisiones:
+            ubicacion = rev.ubicacion
+            piso = ubicacion.piso
+            edificio = piso.edificio if piso else None
+
+            ed_id = edificio.id if edificio else 0
+            ed_nombre = edificio.nombre if edificio else "Sin Edificio Asignado"
+
+            if ed_id not in edificios_dict:
+                edificios_dict[ed_id] = {
+                    'id': ed_id,
+                    'nombre': ed_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'criticas': 0,
+                    'con_observaciones': 0,
+                    'pisos': {}
+                }
+
+            piso_id = piso.id if piso else 0
+            piso_nombre = piso.nombre if piso else "Sin Piso"
+
+            if piso_id not in edificios_dict[ed_id]['pisos']:
+                edificios_dict[ed_id]['pisos'][piso_id] = {
+                    'id': piso_id,
+                    'nombre': piso_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'salas': []
+                }
+
+            # Acumuladores de métricas
+            es_revisada = rev.estado_general != RevisionSala.EstadoGeneralSala.PENDIENTE
+
+            edificios_dict[ed_id]['total'] += 1
+            edificios_dict[ed_id]['pisos'][piso_id]['total'] += 1
+
+            if es_revisada:
+                edificios_dict[ed_id]['revisadas'] += 1
+                edificios_dict[ed_id]['pisos'][piso_id]['revisadas'] += 1
+
+            if rev.estado_general == RevisionSala.EstadoGeneralSala.CRITICA:
+                edificios_dict[ed_id]['criticas'] += 1
+            elif rev.estado_general == RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES:
+                edificios_dict[ed_id]['con_observaciones'] += 1
+
+            # Incorporar la revisión a la lista
+            edificios_dict[ed_id]['pisos'][piso_id]['salas'].append(rev)
+
+        # 3. Convertir a listas ordenadas para renderizar fácilmente en el template
+        arbol_edificios = []
+        for ed in edificios_dict.values():
+            ed['pisos_lista'] = list(ed['pisos'].values())
+            # Porcentaje de avance por edificio
+            ed['porcentaje'] = round((ed['revisadas'] / ed['total']) * 100) if ed['total'] > 0 else 0
+            for p in ed['pisos_lista']:
+                p['porcentaje'] = round((p['revisadas'] / p['total']) * 100) if p['total'] > 0 else 0
+            arbol_edificios.append(ed)
+
+        context['arbol_edificios'] = arbol_edificios
+        context['titulo_pagina'] = f"Tablero: {ciclo.nombre}"
         return context
+
+class FragmentoTableroSalasView(View):
+    def get():
+        pass
+
+
+
+
+@login_required
+def subir_video_local(request, pk):
+    """Guarda el video validado y genera las miniaturas de evidencia."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    if not request.FILES.get('file'):
+        return JsonResponse({'error': 'No se recibió ningún archivo de video.'}, status=400)
+
+    revision = get_object_or_404(
+        RevisionSala.objects.select_related('ciclo', 'ubicacion'), 
+        pk=pk
+    )
+    video = request.FILES['file']
+
+    # 1. Validar video en servidor
+    try:
+        validar_archivo_video(video)
+    except ValidationError as e:
+        return JsonResponse({'error': e.messages[0]}, status=400)
+
+    # 2. Guardar archivo de video
+    _, ext = os.path.splitext(video.name)
+    ext = ext.lower() if ext else '.mp4'
+
+    ahora = timezone.now()
+    periodo = ahora.strftime('%Y-%m')
+    hora_marca = ahora.strftime('%H%M%S')
+    sala_slug = slugify(revision.ubicacion.nombre)
+
+    nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
+    ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
+
+    ruta_guardada = default_storage.save(ruta_relativa, video)
+    url_publica = default_storage.url(ruta_guardada)
+    revision.video_evidencia_url = url_publica
+
+    # 3. Procesar miniatura recibida desde el frontend
+    thumbnail_file = request.FILES.get('thumbnail')
+    if thumbnail_file:
+        procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
+        revision.save()
+    else:
+        revision.save(update_fields=['video_evidencia_url'])
+
+    return JsonResponse({
+        'status': 'ok',
+        'secure_url': revision.video_evidencia_url,
+        'video_url': revision.video_evidencia_url,
+        'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
+        'estado_general': revision.estado_general,
+        'checklist_completado': revision.checklist_completado,
+    })
+
+
+
+
+def eliminar_archivo_video_evidencia(video_url):
+    """
+    Elimina físicamente el archivo de video ya sea que esté
+    almacenado en Cloudinary o en el almacenamiento local.
+    """
+    if not video_url:
+        return
+
+    try:
+        # Caso 1: Video en Cloudinary
+        if 'cloudinary.com' in video_url:
+            # Extraer el public_id (ej: 'evidencias_salas/evidencia_2026-11_sala-1_123456')
+            # Busca lo que esté tras '/upload/(v12345/)?' excluyendo la extensión (.mp4, etc.)
+            match = re.search(r'/upload/(?:v\d+/)?([^\.]+)', video_url)
+            if match:
+                public_id = match.group(1)
+                cloudinary.uploader.destroy(public_id, resource_type="video")
+
+        # Caso 2: Almacenamiento local (MEDIA_ROOT / default_storage)
+        else:
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            ruta_relativa = video_url
+            if video_url.startswith(media_url):
+                ruta_relativa = video_url[len(media_url):]
+
+            ruta_relativa = ruta_relativa.lstrip('/')
+
+            if default_storage.exists(ruta_relativa):
+                default_storage.delete(ruta_relativa)
+
+    except Exception as e:
+        # Se captura para que una falla externa de red no impida restablecer la revisión
+        print(f"[ADVERTENCIA] No se pudo eliminar el video ({video_url}): {e}")
+
+
+
+
+class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'mantencion.change_revisionsala'
+
+    def get_proyector_inventario(self, ubicacion):
+        """Busca el proyector que el inventario general registra actualmente en esta sala."""
+        return Activo.objects.filter(
+            ubicacion=ubicacion,
+            catalogo__categoria__nombre__icontains="proyect",
+            is_deleted=False
+        ).select_related('catalogo', 'catalogo__marca').first()
+
+    def get_proyectores_inventario(self, ubicacion):
+        """Retorna todos los proyectores asignados actualmente a la sala de forma determinista."""
+        return list(Activo.objects.filter(
+            ubicacion=ubicacion,
+            catalogo__categoria__nombre__icontains="proyect",
+            is_deleted=False
+        ).select_related('catalogo', 'catalogo__marca').order_by('-id'))
+
+    def get(self, request, pk):
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related(
+                'ciclo',
+                'ubicacion',
+                'ubicacion__piso',
+                'ubicacion__piso__edificio',
+                'proyector',
+                'proyector__catalogo',
+                'proyector__catalogo__marca'
+            ),
+            pk=pk
+        )
+
+        proyectores_inventario = self.get_proyectores_inventario(revision.ubicacion)
+        ids_en_inventario = [p.id for p in proyectores_inventario]
+
+        hay_discrepancia = False
+        proyector_sugerido = None
+
+        if revision.proyector_id:
+            # Si el proyector de la revisión ya no está entre los activos de la sala
+            if revision.proyector_id not in ids_en_inventario:
+                hay_discrepancia = True
+                proyector_sugerido = proyectores_inventario[0] if proyectores_inventario else None
+        else:
+            # Si la revisión estaba sin proyector pero ahora inventario sí tiene
+            if proyectores_inventario:
+                hay_discrepancia = True
+                proyector_sugerido = proyectores_inventario[0]
+
+        form = RevisionSalaForm(instance=revision)
+        context = {
+            'revision': revision,
+            'ciclo': revision.ciclo,
+            'ubicacion': revision.ubicacion,
+            'proyector_actual': revision.proyector,
+            'proyector_inventario': proyector_sugerido,
+            'proyectores_sala': proyectores_inventario,
+            'hay_multiples': len(proyectores_inventario) > 1,
+            'hay_discrepancia': hay_discrepancia,
+            'form': form,
+            'titulo': f"Revisión {revision.ubicacion.nombre}",
+        }
+        return render(request, 'mantencion/pages/revisar_sala.html', context)
+
+    def post(self, request, pk):
+        print("--- DEBUG POST ---")
+        print("request.POST:", request.POST)
+        print("------------------")
+
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related('ciclo', 'ubicacion'),
+            pk=pk
+        )
+
+        form = RevisionSalaForm(request.POST, instance=revision)
+        if form.is_valid():
+            rev = form.save(commit=False)
+            rev.operador = request.user
+            rev.fecha_revision = timezone.now()
+
+            # Si el técnico declaró sin proyector, nos aseguramos de limpiar sus semáforos
+            if not rev.proyector:
+                rev.proyector_encendido = None
+                rev.horas_lampara = None
+                rev.red_proyector_conectada = None
+                rev.proyeccion_inalambrica = None
+                rev.candado_proyector = None
+
+            rev.save() # Guarda y calcula el estado_general automáticamente
+
+            if rev.tiene_video:
+                messages.success(
+                    request,
+                    f"Revisión de {revision.ubicacion.nombre} completada exitosamente como '{rev.get_estado_general_display()}'."
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Checklist de {revision.ubicacion.nombre} guardado. Falta subir el video de evidencia para completar la revisión."
+                )
+            return redirect('mantencion:tablero_salas', ciclo_id=revision.ciclo_id)
+
+            messages.success(
+                request,
+                f"Revisión de {revision.ubicacion.nombre} guardada exitosamente como '{rev.get_estado_general_display()}'."
+            )
+            return redirect('mantencion:tablero_salas', ciclo_id=revision.ciclo_id)
+
+        proyector_inventario = self.get_proyector_inventario(revision.ubicacion)
+        context = {
+            'revision': revision,
+            'ciclo': revision.ciclo,
+            'ubicacion': revision.ubicacion,
+            'proyector_actual': revision.proyector,
+            'proyector_inventario': proyector_inventario,
+            'hay_discrepancia': (revision.proyector_id != (proyector_inventario.id if proyector_inventario else None)),
+            'form': form,
+            'titulo': f"Revisión {revision.ubicacion.nombre}",
+        }
+        return render(request, 'mantencion/pages/revisar_sala.html', context)
+
+
+
+
+class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Invalida y limpia una revisión previamente realizada, borrando
+    la evidencia multimedia asociada y devolviendo el registro al estado 'PENDIENTE'.
+    """
+    permission_required = 'mantencion.change_revisionsala'
+
+    def post(self, request, pk):
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related('ciclo', 'ubicacion'),
+            pk=pk
+        )
+
+        if revision.ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            messages.error(request, "No es posible restablecer una sala de un ciclo ya cerrado.")
+            return redirect('mantencion:revisar_sala', pk=revision.id)
+
+        # 1. Eliminar físicamente el video de Cloudinary o del disco si existía
+        if revision.video_evidencia_url:
+            eliminar_archivo_video_evidencia(revision.video_evidencia_url)
+
+        # 2. Obtener el proyector que figura actualmente en inventario para esta sala
+        proyector_inventario = Activo.objects.filter(
+            ubicacion=revision.ubicacion,
+            catalogo__categoria__nombre__icontains="proyect",
+            is_deleted=False
+        ).first()
+
+        if revision.imagen_evidencia:
+            revision.imagen_evidencia.delete(save=False)
+        if revision.imagen_thumb_medium:
+            revision.imagen_thumb_medium.delete(save=False)
+        if revision.imagen_thumb_small:
+            revision.imagen_thumb_small.delete(save=False)
+
+        # 3. Limpieza en base de datos devolviendo a PENDIENTE
+        RevisionSala.objects.filter(pk=revision.pk).update(
+            proyector=proyector_inventario,
+            proyector_encendido=None,
+            horas_lampara=None,
+            red_proyector_conectada=None,
+            proyeccion_inalambrica=None,
+            candado_proyector=None,
+            copla_hdmi=None,
+            panel_control=None,
+            puerto_red_pared=None,
+            audio_sala=None,
+            observaciones="",
+            operador=None,
+            fecha_revision=None,
+            video_evidencia_url=None,
+            imagen_evidencia=None,
+            imagen_thumb_medium=None,
+            imagen_thumb_small=None,
+            estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
+        )
+
+        messages.info(
+            request,
+            f"La revisión de la sala '{revision.ubicacion.nombre}' fue restablecida a Pendiente y se purgó la evidencia asociada."
+        )
+        return redirect('mantencion:revisar_sala', pk=revision.id)
+
+
+
+
+class TableroImpresorasView(View):
+    def get():
+        pass
+
+class FormularioRevisionImpresoraView(View):
+    def get():
+        pass
+
+class GenerarReportePdfView(View):
+    def get():
+        pass
+
+class ExportarExcelRevisionView(View):
+    def get():
+        pass
+
+class FirmarSubidaCloudinaryView(LoginRequiredMixin, View):
+    def get(self, request):
+        sala_id = request.GET.get('sala_id')
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related('ubicacion'), 
+            pk=sala_id
+        )
+
+        # Generar identificador único normalizado
+        ahora = timezone.now()
+        periodo = ahora.strftime('%Y-%m')
+        hora_marca = ahora.strftime('%H%M%S')
+        sala_slug = slugify(revision.ubicacion.nombre)
+
+        # Nombre sin extensión (Cloudinary la añade sola)
+        public_id = f"evidencia_{periodo}_{sala_slug}_{hora_marca}"
+        folder = "evidencias_salas"
+        timestamp = int(time.time())
+
+        params_a_firmar = {
+            'timestamp': timestamp,
+            'folder': folder,
+            'public_id': public_id,
+        }
+
+        # Generar firma incluyendo el public_id
+        storage_settings = getattr(settings, 'CLOUDINARY_STORAGE', {})
+        api_secret = storage_settings.get('API_SECRET') or cloudinary.config().api_secret
+        signature = cloudinary.utils.api_sign_request(params_a_firmar, api_secret)
+
+        return JsonResponse({
+            'signature': signature,
+            'timestamp': timestamp,
+            'api_key': storage_settings.get('API_KEY') or cloudinary.config().api_key,
+            'cloud_name': storage_settings.get('CLOUD_NAME') or cloudinary.config().cloud_name,
+            'folder': folder,
+            'public_id': public_id,
+        })
+
+
+
+
+class AsociarVideoSalaView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        revision = get_object_or_404(RevisionSala, pk=pk)
+
+        video_url = request.POST.get('video_url', '').strip()
+        duracion_raw = request.POST.get('duration')
+        thumbnail_file = request.FILES.get('thumbnail')
+
+        if not video_url:
+            return JsonResponse({'error': 'No se proporcionó una URL válida.'}, status=400)
+
+        # Validar duración reportada por Cloudinary (31.5s máx.)
+        if duracion_raw:
+            try:
+                duracion = float(duracion_raw)
+                if duracion > 31.5:
+                    # Borramos de Cloudinary el archivo que excedió el tiempo
+                    eliminar_archivo_video_evidencia(video_url)
+                    return JsonResponse({
+                        'error': f'El video dura {round(duracion)}s y supera el máximo permitido de 30 segundos.'
+                    }, status=400)
+            except ValueError:
+                pass
+
+        # Si ya había un video anterior en la sala, lo eliminamos antes de reemplazarlo
+        if revision.video_evidencia_url and revision.video_evidencia_url != video_url:
+            eliminar_archivo_video_evidencia(revision.video_evidencia_url)
+
+        revision.video_evidencia_url = video_url
+
+        if thumbnail_file:
+            sala_slug = slugify(revision.ubicacion.nombre)
+            procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
+            revision.save()
+        else:
+            revision.save(update_fields=['video_evidencia_url'])
+
+        return JsonResponse({
+            'status': 'ok',
+            'video_url': revision.video_evidencia_url,
+            'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
+            'estado_general': revision.estado_general,
+            'checklist_completado': revision.checklist_completado,
+        })
+
+
+
+
+class SalasMantenimientoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Ubicacion
+    template_name = 'mantencion/pages/salas_mantenimiento.html'
+    context_object_name = 'ubicaciones'
+    paginate_by = 20
+    permission_required = 'mantencion.view_revisionsala'
+
+    def get_ciclo_activo(self):
+        """Retorna el ciclo de salas actualmente en curso (o None si no hay uno abierto)."""
+        if not hasattr(self, '_ciclo_activo'):
+            self._ciclo_activo = CicloRevision.objects.filter(
+                tipo=CicloRevision.TipoCiclo.SALAS,
+                estado=CicloRevision.EstadoCiclo.EN_CURSO
+            ).first()
+        return self._ciclo_activo
+
+    def get_queryset(self):
+        ciclo_activo = self.get_ciclo_activo()
+
+        # 1. Filtramos solo recintos que forman parte del ciclo preventivo
+        queryset = Ubicacion.objects.filter(aplica_mantenimiento=True).select_related(
+            'piso', 
+            'piso__edificio'
+        )
+
+        # 2. Si hay ciclo en curso, prefetcheamos la revisión correspondiente a este ciclo
+        if ciclo_activo:
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    'revisiones_mantenimiento',
+                    queryset=RevisionSala.objects.filter(ciclo=ciclo_activo).select_related('proyector', 'operador'),
+                    to_attr='revision_actual_lista'
+                )
+            )
+
+        # 3. Parámetros GET
+        search_query = self.request.GET.get('search', '').strip()
+        edificio_id = self.request.GET.get('edificio', '').strip()
+        piso_nombre = self.request.GET.get('piso', '').strip()
+
+        # 4. Filtros dinámicos
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+
+        if edificio_id:
+            queryset = queryset.filter(piso__edificio_id=edificio_id)
+
+        if piso_nombre:
+            queryset = queryset.filter(piso__nombre=piso_nombre)
+
+        return queryset.order_by('piso__edificio__nombre', 'piso__nombre', 'nombre')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ciclo_activo = self.get_ciclo_activo()
+        
+        context['titulo_lista'] = 'Salas de Clases'
+        context['ciclo_activo'] = ciclo_activo
+
+        # Preservar valores de filtros para formularios
+        search_query = self.request.GET.get('search', '').strip()
+        edificio_id = self.request.GET.get('edificio', '').strip()
+        piso_nombre = self.request.GET.get('piso', '').strip()
+
+        context['search_query'] = search_query
+        context['edificio_id'] = edificio_id
+        context['piso_nombre'] = piso_nombre
+
+        # Listados para selects
+        context['edificios'] = Edificio.objects.all()
+        context['pisos'] = Piso.objects.values_list('nombre', flat=True).distinct().order_by('nombre')
+
+        # Reconstruir query_string dinámicamente para conservar filtros en paginación
+        query_params = []
+        if search_query: 
+            query_params.append(f'search={search_query}')
+        if edificio_id: 
+            query_params.append(f'edificio={edificio_id}')
+        if piso_nombre: 
+            query_params.append(f'piso={piso_nombre}')
+
+        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
+
+        return context
+
+
+
+
+class VideoValidationFormMixin:
+    """
+    Mixin para formularios que valida de forma automática cualquier
+    campo FileField/CharField que reciba un archivo de video.
+    """
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name, field in self.fields.items():
+            if isinstance(field, forms.FileField):
+                archivo = self.files.get(field_name)
+                if archivo and isinstance(archivo, UploadedFile):
+                    try:
+                        validar_archivo_video(archivo)
+                    except ValidationError as e:
+                        mensaje = e.messages[0] if hasattr(e, 'messages') else str(e)
+                        self.add_error(field_name, mensaje)
+        return cleaned_data

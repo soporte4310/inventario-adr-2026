@@ -44,6 +44,10 @@ def procesar_imagen_en_memoria(
     """
     if not image_field:
         return None
+
+    # Asegurar que el puntero esté al inicio antes de leer
+    if hasattr(image_field, 'seek'):
+        image_field.seek(0)
     
     # Intentamos abrir la imagen. Si el archivo está corrupto, Pillow lanzará error aquí.
     try:
@@ -93,6 +97,9 @@ def procesar_imagen_en_memoria(
 
             # Devolver el ContentFile con el nuevo nombre de archivo basado en UUID
             return ContentFile(buffer.getvalue(), name=new_filename)
+        
+    except ValidationError:
+        raise
     
     except UnidentifiedImageError:
         # Esto captura archivos corruptos o archivos que no son imágenes

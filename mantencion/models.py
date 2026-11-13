@@ -2,12 +2,15 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 
 from common.validators import (
     validador_alfanumerico_nombres, validador_codigo_estricto, validador_mac,
     validador_nombre_red, validador_solo_numeros, validador_texto_seguro,
 )
 from inventario.models import Activo, Ubicacion
+
+User = get_user_model()
 
 
 class Impresora(models.Model):
@@ -105,286 +108,403 @@ class Impresora(models.Model):
         return f"{self.marca} {self.modelo} - {self.numero_serie}"
 
 
-class EquipoMantenible(models.Model):
-    """
-    Enlaza un equipo (proyector O impresora) al circuito de mantención.
 
-    Los proyectores YA están inventariados en 'inventario' (Activo es la
-    única fuente de verdad para ellos); las impresoras NO son activos de
-    inventario (las entrega un proveedor externo), así que viven en su
-    propio modelo 'Impresora' dentro de esta misma app. Por eso hay dos FK
-    opcionales en vez de una sola: exactamente una debe estar completa,
-    según 'tipo' (ver clean()).
-    """
 
-    class Tipo(models.TextChoices):
-        PROYECTOR = 'PROY', 'Proyector'
-        IMPRESORA = 'IMPR', 'Impresora'
 
-    activo = models.OneToOneField(
-        Activo, on_delete=models.PROTECT, null=True, blank=True,
-        related_name='equipo_mantenible', verbose_name="Activo (proyectores)"
-    )
-    impresora = models.OneToOneField(
-        Impresora, on_delete=models.PROTECT, null=True, blank=True,
-        related_name='equipo_mantenible', verbose_name="Impresora"
-    )
-    # El tipo se guarda explícito (no se infiere del nombre de la Categoría)
-    # para no depender de que alguien no cambie el texto "Proyector" en el
-    # catálogo y rompa el filtrado de listas.
-    tipo = models.CharField(max_length=4, choices=Tipo.choices, verbose_name="Tipo de equipo")
-    activo_en_revision = models.BooleanField(
-        default=True, verbose_name="Incluido en revisión mensual",
-        help_text="Desmárquelo para pausar este equipo sin perder su historial. El registro nunca se elimina."
-    )
-    agregado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        verbose_name="Agregado por"
-    )
-    fecha_agregado = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        verbose_name = "Equipo en Mantención"
-        verbose_name_plural = "Equipos en Mantención"
-        constraints = [
-            models.CheckConstraint(
-                condition=(
-                    models.Q(tipo='PROY', activo__isnull=False, impresora__isnull=True) |
-                    models.Q(tipo='IMPR', impresora__isnull=False, activo__isnull=True)
-                ),
-                name='equipo_mantenible_un_solo_dueno'
-            )
-        ]
 
-    def clean(self):
-        super().clean()
-        if self.tipo == self.Tipo.PROYECTOR and not self.activo_id:
-            raise ValidationError({'activo': 'Falta seleccionar el proyector (Activo de inventario).'})
-        if self.tipo == self.Tipo.IMPRESORA and not self.impresora_id:
-            raise ValidationError({'impresora': 'Falta seleccionar la impresora.'})
-        if self.activo_id and self.impresora_id:
-            raise ValidationError('Un equipo no puede ser proyector e impresora a la vez.')
 
-    @property
-    def equipo_real(self):
-        """El Activo o la Impresora real detrás de este registro, según el tipo."""
-        return self.activo if self.tipo == self.Tipo.PROYECTOR else self.impresora
-
-    @property
-    def marca_modelo(self):
-        if self.tipo == self.Tipo.PROYECTOR:
-            return str(self.activo.catalogo) if self.activo and self.activo.catalogo else ''
-        return f"{self.impresora.marca} {self.impresora.modelo}" if self.impresora else ''
-
-    @property
-    def numero_serie(self):
-        equipo = self.equipo_real
-        return equipo.numero_serie if equipo else ''
-
-    @property
-    def nombre_equipo(self):
-        """
-        Hostname/nombre de red de la impresora (ej: IQQ_E540_BODEGA), que es
-        lo que trae la etiqueta física pegada en el equipo. Los proyectores
-        no tienen este concepto (no son estos los que trae el proveedor).
-        """
-        if self.tipo == self.Tipo.IMPRESORA and self.impresora:
-            return self.impresora.nombre_equipo
-        return ''
-
-    @property
-    def ubicacion(self):
-        equipo = self.equipo_real
-        return equipo.ubicacion if equipo else None
-
-    @property
-    def estado_texto(self):
-        if self.tipo == self.Tipo.PROYECTOR:
-            return str(self.activo.estado) if self.activo and self.activo.estado else ''
-        return self.impresora.get_estado_display() if self.impresora else ''
-
-    @property
-    def estado_ok(self):
-        """
-        True = el equipo está "Operativo" (bullet verde); False = cualquier
-        otro estado físico (dañado, en mantenimiento, de baja, etc. -
-        bullet amarillo). Para impresoras se compara contra el choice
-        OPERATIVA; para proyectores, el catálogo de Estado es texto libre,
-        así que se compara el nombre normalizado contra 'OPERATIVO'.
-        """
-        if self.tipo == self.Tipo.IMPRESORA:
-            return bool(self.impresora) and self.impresora.estado == Impresora.EstadoImpresora.OPERATIVA
-        return bool(self.activo and self.activo.estado and self.activo.estado.nombre.strip().upper() == 'OPERATIVO')
-
-    def __str__(self):
-        return f"{self.get_tipo_display()} - {self.equipo_real}"
 
 
 class CicloRevision(models.Model):
     """
-    Una ronda de revisión de UN tipo de equipo (proyector o impresora).
-
-    No está atado a "un mes calendario": proyectores e impresoras se
-    revisan con frecuencias distintas (impresoras ~2 veces por semana,
-    proyectores ~1 vez al mes) y una ronda puede saltarse por falta de
-    personal o tickets urgentes. Por eso el ciclo se crea explícitamente
-    (botón "Nuevo ciclo/revisión" o el comando de management) con la fecha
-    real en que arrancó, en vez de generarse solo el día 1 de cada mes.
-
-    El ciclo MÁS RECIENTE de cada tipo es el único editable; los anteriores
-    quedan de sólo lectura como historial (ver Revisión mensual).
+    Representa el período mensual de inspección preventiva.
+    Controla el ciclo de vida (apertura, avance y cierre auditado)
+    para un tipo de revisión específico (Salas, Impresoras, etc.).
     """
 
-    tipo = models.CharField(max_length=4, choices=EquipoMantenible.Tipo.choices, verbose_name="Tipo de equipo")
-    fecha_inicio = models.DateField(verbose_name="Fecha de inicio")
-    fecha_generado = models.DateTimeField(auto_now_add=True)
-    generado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        verbose_name="Iniciado por",
-        help_text="Vacío si el ciclo fue creado automáticamente por el comando programado."
+    class TipoCiclo(models.TextChoices):
+        SALAS = "SALAS", "Revisión de Salas (Audiovisual y Red)"
+        IMPRESORAS = "IMPRESORAS", "Revisión de Impresoras (Flota y Contadores)"
+
+    class EstadoCiclo(models.TextChoices):
+        EN_CURSO = "EN_CURSO", "En Curso"
+        FINALIZADO = "FINALIZADO", "Finalizado / Cerrado"
+
+    nombre = models.CharField(
+        max_length=120,
+        help_text="Ej: 'Revisión Preventiva Salas - Noviembre 2026'",
+    )
+    tipo = models.CharField(
+        max_length=20, choices=TipoCiclo.choices, default=TipoCiclo.SALAS
+    )
+    estado = models.CharField(
+        max_length=20, choices=EstadoCiclo.choices, default=EstadoCiclo.EN_CURSO
+    )
+
+    # Fechas operativas
+    fecha_inicio = models.DateField(default=timezone.now)
+    fecha_limite = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha estimada para completar el ciclo (ej: fin de mes)",
+    )
+    fecha_cierre = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Marca de tiempo exacta en que se cerró el ciclo formalmente",
+    )
+
+    # Auditoría de usuarios
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="ciclos_creados",
+        null=True,
+        blank=True,
+    )
+    cerrado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="ciclos_cerrados",
+        null=True,
+        blank=True,
+    )
+
+    observaciones_cierre = models.TextField(
+        blank=True,
+        help_text="Resumen o justificación al cerrar (ej: 'Quedaron 2 salas pendientes por remodelación')",
     )
 
     class Meta:
-        verbose_name = "Ciclo de Revisión"
-        verbose_name_plural = "Ciclos de Revisión"
-        # -id al final como desempate determinístico: MySQL guarda
-        # fecha_generado con precisión de segundo, así que dos ciclos
-        # creados muy seguido (mismo día, mismo segundo) necesitan otra
-        # forma de saber cuál es realmente "el más reciente".
-        ordering = ['-fecha_inicio', '-fecha_generado', '-id']
+        verbose_name = "Ciclo de Mantenimiento"
+        verbose_name_plural = "Ciclos de Mantenimiento"
+        ordering = ["-fecha_inicio", "-id"]
 
     def __str__(self):
-        return f"Ciclo {self.fecha_inicio.strftime('%m/%Y')}, día {self.fecha_inicio.day}"
+        return f"{self.nombre} [{self.get_estado_display()}]"
+
+    # ----------------------------------------------------
+    # PROPIEDADES DE MÉTRICAS Y AVANCE (Para el Dashboard y Listados)
+    # ----------------------------------------------------
+
+    @property
+    def total_salas(self):
+        return self.revisiones_salas.count()
+
+    @property
+    def total_revisadas(self):
+        return self.revisiones_salas.exclude(
+            estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
+        ).count()
+
+    @property
+    def total_pendientes(self):
+        return self.revisiones_salas.filter(
+            estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
+        ).count()
+
+    @property
+    def porcentaje_avance(self):
+        total = self.total_salas
+        if total == 0:
+            return 0
+        return round((self.total_revisadas / total) * 100)
+
+    @property
+    def total_operativas(self):
+        return self.revisiones_salas.filter(
+            estado_general=RevisionSala.EstadoGeneralSala.OPERATIVA
+        ).count()
+
+    @property
+    def total_con_observaciones(self):
+        return self.revisiones_salas.filter(
+            estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES
+        ).count()
+
+    @property
+    def total_criticas(self):
+        return self.revisiones_salas.filter(
+            estado_general=RevisionSala.EstadoGeneralSala.CRITICA
+        ).count()
+
+    # ----------------------------------------------------
+    # MÉTODOS DE NEGOCIO
+    # ----------------------------------------------------
+
+    def poblar_salas_automaticamente(self):
+        """
+        Crea los registros de RevisionSala para todas las ubicaciones
+        marcadas con aplica_mantenimiento=True. Vincula automáticamente
+        el proyector que esté asignado actualmente a cada sala en inventario.
+        """
+        if self.tipo != self.TipoCiclo.SALAS:
+            return
+
+        ubicaciones = Ubicacion.objects.filter(aplica_mantenimiento=True)
+
+        nuevas_revisiones = []
+        for ubicacion in ubicaciones:
+            # Detectar si la sala tiene proyector registrado hoy
+            proyector_asignado = Activo.objects.filter(
+                ubicacion=ubicacion,
+                categoria__nombre__iexact="PROYECTOR",
+                is_deleted=False,
+            ).first()
+
+            nuevas_revisiones.append(
+                RevisionSala(
+                    ciclo=self,
+                    ubicacion=ubicacion,
+                    proyector=proyector_asignado,
+                    estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE,
+                )
+            )
+
+        # Inserción masiva eficiente en una sola transacción SQL
+        RevisionSala.objects.bulk_create(nuevas_revisiones, ignore_conflicts=True)
+
+    def cerrar_ciclo(self, usuario, observaciones=""):
+        """Finaliza el ciclo preventivo y congela la fecha de auditoría."""
+        self.estado = self.EstadoCiclo.FINALIZADO
+        self.cerrado_por = usuario
+        self.fecha_cierre = timezone.now()
+        self.observaciones_cierre = observaciones
+        self.save()
 
 
-class RevisionEquipo(models.Model):
-    """
-    Una fila = "este equipo, en este ciclo mensual, quedó en tal estado".
-    El comando mensual crea todas las filas en PENDIENTE; el practicante las
-    va actualizando a OK o NOVEDAD a medida que revisa en terreno.
-    """
 
-    class Estado(models.TextChoices):
-        PENDIENTE = 'PEN', 'Pendiente'
-        OK = 'OK', 'OK'
-        NOVEDAD = 'NOV', 'Con Novedad'
 
-    ciclo = models.ForeignKey(CicloRevision, on_delete=models.PROTECT, related_name='revisiones')
-    equipo = models.ForeignKey(EquipoMantenible, on_delete=models.PROTECT, related_name='revisiones')
-    estado = models.CharField(max_length=3, choices=Estado.choices, default=Estado.PENDIENTE)
+class RevisionSala(models.Model):
+    """Contiene la auditoría técnica y audiovisual de una ubicación en un ciclo de revisión mensual."""
+    class NivelEstado(models.TextChoices):
+        BUENO = 'BUENO', 'Bueno (OK)'
+        REGULAR = 'REGULAR', 'Regular (Con Observaciones / Falso contacto)'
+        MALO = 'MALO', 'Malo (Inoperativo)'
+        NO_APLICA = 'NA', 'No Aplica'
 
-    # Foto de la ubicación del equipo AL MOMENTO de generarse el ciclo: así el
-    # listado "por edificio y sala" no cambia a mitad de mes si alguien
-    # reubica el equipo después de generado el listado (el enroque se ve
-    # reflejado recién en el ciclo siguiente).
-    ubicacion_en_revision = models.ForeignKey(
-        Ubicacion, on_delete=models.PROTECT, null=True, blank=True, related_name='+'
+    class EstadoGeneralSala(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente de Revisión'
+        OPERATIVA = 'OPERATIVA', 'Operativa'
+        CON_OBSERVACIONES = 'OBSERVACION', 'Operativa con Observaciones'
+        CRITICA = 'CRITICA', 'Fuera de Servicio'
+
+    ciclo = models.ForeignKey(CicloRevision, on_delete=models.CASCADE, related_name='revisiones_salas')
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, related_name='revisiones_mantenimiento')
+    operador = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Estado global de la sala calculado
+    estado_general = models.CharField(
+        max_length=20, 
+        choices=EstadoGeneralSala.choices, 
+        default=EstadoGeneralSala.PENDIENTE
     )
 
-    revisado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='revisiones_realizadas'
+    # ----------------------------------------------------
+    # PROYECTOR
+    # ----------------------------------------------------
+    proyector = models.ForeignKey(Activo, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Encendido general
+    proyector_encendido = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True, 
+        choices=NivelEstado.choices, 
+        help_text="Bueno: OK | Regular: Demora, imagen opaca o advertencia de lámpara | Malo: No prende/quemado",
     )
+
+    horas_lampara = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        help_text="(Opcional) Horas registradas en menú OSD si se revisan"
+    )
+
+    # Red y conectividad del proyector
+    red_proyector_conectada = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="¿Cable conectado y con link de red?"
+    )
+    proyeccion_inalambrica = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="Disponibilidad de casting / red inalámbrica"
+    )
+    candado_proyector = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="¿La jaula del proyector está con candado?"
+    )
+
+    # ----------------------------------------------------
+    # INFRAESTRUCTURA DE LA SALA (Mesa docente / Muros)
+    # ----------------------------------------------------
+    copla_hdmi = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="Bueno: firme y con señal | Regular: suelta/parpadea si se mueve | Malo: quebrada/sin video"
+    )
+    
+    panel_control = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="Bueno: todo ok | Regular: enciende pero fallan otros botones | Malo: no responde"
+    )
+    
+    puerto_red_pared = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True, 
+        choices=NivelEstado.choices, 
+        help_text="Punto de red en pared para el computador docente"
+    )
+    
+    audio_sala = models.CharField(
+        max_length=10, 
+        null=True,
+        blank=True,
+        choices=NivelEstado.choices, 
+        help_text="Bueno: audio limpio | Regular: chicharreo / un parlante mudo | Malo: sin audio"
+    )
+
+    # ----------------------------------------------------
+    # EVIDENCIA Y REGISTRO
+    # ----------------------------------------------------
+    # Almacena la URL devuelta por Cloudinary
+    video_evidencia_url = models.CharField(
+        max_length=500, 
+        blank=True, 
+        null=True,
+        verbose_name="Video de evidencia",
+        help_text="Ruta local o URL remota de Cloudinary"
+    )
+    # Se guarda una captura del primer frame del video subido
+    imagen_evidencia = models.ImageField(
+        verbose_name="Miniatura de Evidencia",
+        upload_to="evidencias_salas/thumbnails/main/",
+        blank=True,
+        null=True
+    )
+    imagen_thumb_medium = models.ImageField(
+        verbose_name="Thumbnail (600x600)",
+        upload_to="evidencias_salas/thumbnails/medium/",
+        blank=True,
+        null=True,
+        editable=False
+    )
+    imagen_thumb_small = models.ImageField(
+        verbose_name="Thumbnail (50x50)",
+        upload_to="evidencias_salas/thumbnails/small/",
+        blank=True,
+        null=True,
+        editable=False
+    )
+
+    # Trazabilidad
     fecha_revision = models.DateTimeField(null=True, blank=True)
-    comentario = models.TextField(blank=True, verbose_name="Comentario / Novedad")
-
-    # Solo tiene sentido cuando estado=NOVEDAD: una observación no siempre
-    # significa que el equipo dejó de funcionar (ej: una rayadura estética),
-    # así que se pregunta explícito en vez de asumir "novedad = no operativo".
-    # None cuando no aplica (PENDIENTE u OK).
-    sigue_operativo = models.BooleanField(
-        null=True, blank=True, default=None,
-        verbose_name="¿Sigue operativo pese a la novedad?"
+    # Notas para justificar cualquier elemento en Amarillo o Rojo
+    observaciones = models.TextField(
+        blank=True, 
+        help_text="Ej: Copla HDMI suelta; Foco con advertencia de 3500 hrs"
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    @property
+    def tiene_video(self):
+        """Indica si la sala cuenta con un video de evidencia cargado."""
+        return bool(self.video_evidencia_url and self.video_evidencia_url.strip())
 
-    class Meta:
-        verbose_name = "Revisión de Equipo"
-        verbose_name_plural = "Revisiones de Equipos"
-        constraints = [
-            models.UniqueConstraint(fields=['ciclo', 'equipo'], name='unique_revision_ciclo_equipo')
+    @property
+    def checklist_completado(self):
+        """Indica si todos los campos obligatorios del formulario fueron respondidos."""
+        campos_obligatorios = [
+            self.copla_hdmi,
+            self.panel_control,
+            self.puerto_red_pared,
+            self.audio_sala,
         ]
-
-    def __str__(self):
-        return f"{self.equipo} - {self.ciclo} - {self.get_estado_display()}"
-
-    def clean(self):
-        super().clean()
-        # Defensa adicional a la validación del formulario: una novedad sin
-        # comentario deja al equipo técnico sin ninguna pista del problema.
-        if self.estado == self.Estado.NOVEDAD and not self.comentario.strip():
-            raise ValidationError({'comentario': 'Debes describir la novedad antes de guardarla.'})
-        if self.estado == self.Estado.NOVEDAD and self.sigue_operativo is None:
-            raise ValidationError({'sigue_operativo': 'Debes indicar si el equipo sigue operativo pese a la novedad.'})
-
-
-class RegistroAuditoria(models.Model):
-    """
-    Bitácora de solo lectura de las acciones del módulo (quién hizo qué y
-    cuándo): revisiones, enroques, altas/bajas de equipos. Se muestra en
-    AuditoriaMantencionView, visible solo para ADR.
-
-    A propósito NO reutiliza inventario.AuditoriaActivo: esa tabla es
-    específica de cambios sobre Activo y los reportes diario/semanal ya
-    asumen ese contexto (usuario, campo, valor_anterior/nuevo). Mezclar
-    eventos de mantención ahí complicaría esos reportes sin necesidad.
-
-    'equipo_descripcion' guarda un snapshot de texto (no solo una FK) para
-    que el registro siga siendo legible aunque el equipo se pause, dé de
-    baja o cambie de datos después del evento.
-    """
-
-    class Accion(models.TextChoices):
-        REVISION_OK = 'REV_OK', 'Revisión marcada OK'
-        REVISION_NOVEDAD = 'REV_NOV', 'Revisión con novedad'
-        ENROQUE = 'ENROQUE', 'Enroque (cambio de ubicación)'
-        EQUIPO_AGREGADO = 'EQ_ALTA', 'Equipo agregado al roster'
-        EQUIPO_PAUSADO = 'EQ_PAUSA', 'Equipo pausado'
-        EQUIPO_REACTIVADO = 'EQ_REACT', 'Equipo reactivado'
-        IMPRESORA_AGREGADA = 'IMP_ALTA', 'Impresora agregada'
-        IMPRESORA_BAJA = 'IMP_BAJA', 'Impresora dada de baja'
-
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        verbose_name="Realizado por"
-    )
-    accion = models.CharField(max_length=10, choices=Accion.choices, verbose_name="Acción")
-    tipo_equipo = models.CharField(
-        max_length=4, choices=EquipoMantenible.Tipo.choices, null=True, blank=True,
-        verbose_name="Tipo de equipo"
-    )
-    equipo_descripcion = models.CharField(max_length=200, verbose_name="Equipo afectado")
-    detalle = models.TextField(blank=True, verbose_name="Detalle")
-    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y hora")
+        if self.proyector_id:
+            campos_obligatorios.extend([
+                self.proyector_encendido,
+                self.red_proyector_conectada,
+                self.proyeccion_inalambrica,
+                self.candado_proyector,
+            ])
+        return not any(v in (None, '') for v in campos_obligatorios)
 
     class Meta:
-        verbose_name = "Registro de Auditoría"
-        verbose_name_plural = "Registros de Auditoría"
-        ordering = ['-fecha']
+        verbose_name = "Revisión de Sala"
+        verbose_name_plural = "Revisiones de Salas"
+        unique_together = ('ciclo', 'ubicacion')
+        ordering = ['ubicacion__nombre']
 
-    def __str__(self):
-        return f"{self.get_accion_display()} - {self.equipo_descripcion} ({timezone.localtime(self.fecha).strftime('%d/%m/%Y %H:%M')})"
+    def save(self, *args, **kwargs):
+        """
+        Calcula el estado general de forma automatizada solo cuando
+        el checklist está respondido Y el video de evidencia fue subido.
+        """
+        # Si se llamó save(update_fields=[...]), garantizamos que estado_general se actualice en BD
+        if kwargs.get('update_fields') is not None:
+            fields = set(kwargs['update_fields'])
+            fields.update({'estado_general', 'fecha_revision'})
+            kwargs['update_fields'] = list(fields)
 
+        # Regla 1: Si falta el checklist O falta el video, la revisión sigue PENDIENTE
+        if not self.checklist_completado or not self.tiene_video:
+            self.estado_general = self.EstadoGeneralSala.PENDIENTE
+            super().save(*args, **kwargs)
+            return
 
-class EvidenciaRevision(models.Model):
-    """Una foto o video adjunto a una revisión con novedad (puede haber varias)."""
+        # Si llegamos aquí, están completos TANTO el checklist COMO el video
+        if not self.fecha_revision:
+            self.fecha_revision = timezone.now()
 
-    class TipoArchivo(models.TextChoices):
-        FOTO = 'FOTO', 'Foto'
-        VIDEO = 'VIDEO', 'Video'
+        # Regla 2: Sala requiere proyección por catálogo y carece de proyector -> CRITICA
+        if self.ubicacion.requiere_proyeccion and not self.proyector:
+            self.estado_general = self.EstadoGeneralSala.CRITICA
+            super().save(*args, **kwargs)
+            return
 
-    revision = models.ForeignKey(RevisionEquipo, on_delete=models.PROTECT, related_name='evidencias')
-    archivo = models.FileField(upload_to='mantencion/evidencias/%Y/%m/', verbose_name="Evidencia")
-    tipo_archivo = models.CharField(max_length=5, choices=TipoArchivo.choices)
-    subido_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    subido_en = models.DateTimeField(auto_now_add=True)
+        # Lista completa de campos evaluados
+        todos_los_campos = [
+            self.copla_hdmi,
+            self.panel_control,
+            self.puerto_red_pared,
+            self.audio_sala,
+        ]
+        if self.proyector:
+            todos_los_campos.extend([
+                self.proyector_encendido,
+                self.red_proyector_conectada,
+                self.proyeccion_inalambrica,
+                self.candado_proyector,
+            ])
 
-    class Meta:
-        verbose_name = "Evidencia de Revisión"
-        verbose_name_plural = "Evidencias de Revisión"
-        ordering = ['-subido_en']
+        # Filtrar únicamente los ítems evaluables (ignoramos los 'NA')
+        evaluables = [v for v in todos_los_campos if v != self.NivelEstado.NO_APLICA]
 
-    def __str__(self):
-        return f"{self.get_tipo_archivo_display()} de {self.revision}"
+        # Regla 3: Clasificación semafórica
+        es_falla_critica = (
+            (self.proyector and self.proyector_encendido == self.NivelEstado.MALO) or
+            (self.copla_hdmi == self.NivelEstado.MALO)
+        )
+
+        if es_falla_critica:
+            self.estado_general = self.EstadoGeneralSala.CRITICA
+        elif self.NivelEstado.MALO in evaluables or self.NivelEstado.REGULAR in evaluables:
+            self.estado_general = self.EstadoGeneralSala.CON_OBSERVACIONES
+        else:
+            self.estado_general = self.EstadoGeneralSala.OPERATIVA
+
+        super().save(*args, **kwargs)

@@ -1915,12 +1915,18 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         
         # Obtenemos los activos asociados a esta ubicación específica.
         # Al usar el manager por defecto, automáticamente omitimos los activos marcados como is_deleted.
-        context['activos'] = self.object.activo_set.select_related(
+        activos = self.object.activo_set.select_related(
             'catalogo__categoria',
             'catalogo__marca',
             'estado',
             'asignado_a'
         ).order_by('-id')
+        context['activos'] = activos
+
+        # Verifica si existe al menos un proyector registrado en la sala
+        context['tiene_proyector'] = activos.filter(
+            catalogo__categoria__nombre__icontains='PROYECTOR'
+        ).exists()
         
         return context
 

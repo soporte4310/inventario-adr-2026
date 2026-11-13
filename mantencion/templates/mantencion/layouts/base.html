@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  {% load static %}
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Mantención de Equipos{% endblock %} · ADR</title>
+  <link rel="shortcut icon" href="{% static 'imagenes/favicon.ico' %}" type="image/x-icon">
+
+  <!-- Fuentes Google (Roboto y Ubuntu) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Ubuntu', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <script>
+    if (localStorage.getItem('mantencion-theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+
+  <!-- Estilos del módulo -->
+  <link rel="stylesheet" href="{% static 'mantencion/css/mantencion.css' %}?v=3">
+  <!-- <link rel="stylesheet" href="{% static 'css/mantencion.css' %}?v=3"> -->
+
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body class="bg-white text-black dark:bg-black dark:text-white font-sans min-h-screen">
+
+  <!-- Botón móvil hamburguesa -->
+  <button id="mnt-navbar-toggle" type="button"
+    class="fixed top-3 left-3 z-40 md:hidden bg-red-600 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center"
+    aria-label="Abrir menú">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div id="mnt-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+  <!-- Barra lateral / Navegación -->
+  <nav id="mnt-navbar"
+    class="fixed top-0 left-0 h-full w-64 -translate-x-full md:translate-x-0 transition-transform duration-200 z-40 bg-black text-white flex flex-col">
+    <div class="flex items-center justify-between gap-2 px-4 py-4 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-tools text-red-600 text-xl"></i>
+        <span class="font-bold text-lg">Mantención ADR</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="mnt-theme-toggle"
+          class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cambiar modo de color">
+          <i class="fas fa-moon" id="mnt-theme-icon"></i>
+        </button>
+        <button type="button" id="mnt-navbar-close"
+          class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10"
+          aria-label="Cerrar menú">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Menú principal -->
+    <div class="flex-1 overflow-y-auto py-2">
+      <!-- 1. Inicio -->
+      {% url 'mantencion:dashboard_mantenimiento' as url_inicio %}
+      <a href="{{ url_inicio|default:'#' }}" class="mnt-nav-link {% if request.path == url_inicio %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-home w-5"></i> Inicio
+      </a>
+
+      <!-- 2. Mantenciones -->
+      {% url 'mantencion:mantencion_roster' as url_mantenciones %}
+      <a href="{{ url_mantenciones|default:'#' }}" class="mnt-nav-link {% if request.path == url_mantenciones %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-wrench w-5"></i> Mantenciones
+      </a>
+
+      <!-- 3. Revisión actual -->
+      {% url 'mantencion:revision_actual' as url_rev_actual %}
+      <a href="{{ url_rev_actual|default:'#' }}" class="mnt-nav-link {% if request.path == url_rev_actual %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-tasks w-5"></i> Revisión actual
+      </a>
+
+      <!-- 4. Revisiones -->
+      {% url 'mantencion:lista_revisiones' as url_revisiones %}
+      <a href="{{ url_revisiones|default:'#' }}" class="mnt-nav-link {% if request.path == url_revisiones %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-clipboard-check w-5"></i> Revisiones
+      </a>
+
+      <!-- 5. Salas de clases -->
+      {% url 'mantencion:salas_clases' as url_salas %}
+      <a href="{{ url_salas|default:'#' }}" class="mnt-nav-link {% if request.path == url_salas %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-chalkboard-teacher w-5"></i> Salas de clases
+      </a>
+
+      <div class="my-2 border-t border-white/10"></div>
+
+      <!-- Enlace para Volver al portal -->
+      {% url 'portal:index' as url_portal %}
+      <a href="{{ url_portal|default:'#' }}" class="mnt-nav-link text-white/70 hover:text-white">
+        <i class="fas fa-th-large w-5 text-red-500"></i> Volver al portal
+      </a>
+    </div>
+
+    <!-- Perfil de usuario -->
+    <a href="{% url 'my_profile' %}" class="px-4 py-3 border-t border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors group" title="Modificar perfil">
+      {% if user.profile.avatar %}
+        <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="w-9 h-9 rounded-full object-cover border border-white/20">
+      {% else %}
+        <div class="w-9 h-9 shrink-0 rounded-full bg-red-600/80 flex items-center justify-center text-sm font-semibold uppercase group-hover:bg-red-600 transition-colors">
+          {{ user.username|slice:":1" }}
+        </div>
+      {% endif %}
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium truncate group-hover:text-red-400 transition-colors">
+          {{ user.get_full_name|default:user.username }}
+        </p>
+        <p class="text-xs text-white/50 truncate">
+          {{ user.groups.first.name|default:group_name_singular|default:"Sin grupo asignado" }}
+        </p>
+      </div>
+      <i class="fas fa-user-edit text-xs text-white/30 group-hover:text-white/80 transition-colors"></i>
+    </a>
+
+    <!-- Cierre de sesión -->
+    <div class="border-t border-white/10 p-3">
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="mnt-nav-link w-full !px-2 hover:text-red-300">
+          <i class="fas fa-sign-out-alt w-5"></i> Cerrar sesión
+        </button>
+      </form>
+    </div>
+  </nav>
+
+  <!-- Contenido principal -->
+  <main class="md:ml-64 min-h-screen p-4 pt-16 md:pt-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- SweetAlert2 CDN -->
+  <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Scripts base del módulo -->
+  <script src="{% static 'js/mantencion_navbar.js' %}?v=3"></script>
+
+  <!-- Feedback con SweetAlert2 para mensajes Django -->
+  {% if messages %}
+    {% for message in messages %}
+      <script>
+        Swal.fire({
+          title: {% if message.tags == 'success' %}"¡Excelente!"{% elif message.tags == 'error' or message.tags == 'danger' %}"Error"{% elif message.tags == 'warning' %}"Advertencia"{% else %}"Información"{% endif %},
+          text: "{{ message|escapejs }}",
+          icon: {% if message.tags == 'danger' %}"error"{% else %}"{{ message.tags|default:'info' }}"{% endif %},
+          timer: 3500,
+          showConfirmButton: false
+        });
+      </script>
+    {% endfor %}
+  {% endif %}
+
+  {% block js %}{% endblock %}
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

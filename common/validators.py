@@ -1,3 +1,4 @@
+import os
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 
@@ -45,12 +46,66 @@ validador_mac = RegexValidator(
 
 def validar_extension_imagen(imagen):
     """
-    Valida que la imagen sea JEPG, JPG, PNG o WEBP
+    Valida que la imagen sea JPEG, JPG, PNG, WEBP o AVIF
     """
-    if imagen.format not in ['JPEG', 'JPG', 'PNG', 'WEBP']:
+    if imagen.format not in ['JPEG', 'JPG', 'PNG', 'WEBP', 'AVIF']:
         raise ValidationError(
             f"Formato de imagen no válido detectado: {imagen.format}. "
-            "Por favor sube archivos JPG, PNG o WEBP."
+            "Por favor sube archivos JPG, PNG, WEBP o AVIF."
         )
 
 
+
+FORMATOS_VIDEO_PERMITIDOS = ['.mp4', '.mov', '.webm']
+MIME_TYPES_VIDEO_PERMITIDOS = ['video/mp4', 'video/quicktime', 'video/webm']
+MAX_VIDEO_SIZE_MB = 100
+
+def validar_archivo_video(archivo):
+    """
+    Valida extensión, peso y los bytes de cabecera (magic numbers) del archivo.
+    No requiere librerías binarias externas (como python-magic).
+    """
+    if not archivo:
+        return
+
+    # 1. Extensión
+    ext = os.path.splitext(archivo.name)[1].lower()
+    if ext not in FORMATOS_VIDEO_PERMITIDOS:
+        raise ValidationError(
+            f"Formato no permitido ({ext}). Solo se admiten: {', '.join(FORMATOS_VIDEO_PERMITIDOS)}."
+        )
+
+    # 2. Tamaño máximo
+    if archivo.size > MAX_VIDEO_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f"El video supera el peso máximo permitido de {MAX_VIDEO_SIZE_MB}MB."
+        )
+
+    # 3. Tipo MIME declarado si viene desde el navegador
+    content_type = getattr(archivo, 'content_type', None)
+    if content_type and content_type not in MIME_TYPES_VIDEO_PERMITIDOS:
+        raise ValidationError(
+            f"Tipo MIME inválido ({content_type}). Se requiere un video MP4, MOV o WebM."
+        )
+
+    # 4. Firma binaria (Magic Bytes)
+    posicion_original = archivo.tell()
+    try:
+        archivo.seek(0)
+        cabecera = archivo.read(32)
+        archivo.seek(posicion_original)
+
+        # MP4/MOV: contiene la marca 'ftyp' en los primeros 16 bytes
+        es_mp4_mov = b'ftyp' in cabecera[:16]
+        # WebM: inicia con la firma EBML \x1a\x45\xdf\xa3
+        es_webm = cabecera.startswith(b'\x1a\x45\xdf\xa3')
+
+        if not (es_mp4_mov or es_webm):
+            raise ValidationError(
+                "El archivo no es un flujo de video válido o se encuentra corrupto."
+            )
+    except Exception as e:
+        archivo.seek(posicion_original)
+        if isinstance(e, ValidationError):
+            raise
+        raise ValidationError("Error al verificar la integridad del video.")
