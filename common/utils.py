@@ -2,7 +2,7 @@ from itertools import cycle
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from io import BytesIO
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from .validators import validar_extension_imagen
 
 
@@ -54,6 +54,9 @@ def procesar_imagen_en_memoria(
         with Image.open(image_field) as image:
             # Validar extensión de imagen
             validar_extension_imagen(image)
+
+            # 2. CORREGIR ORIENTACIÓN EXIF (Cámara de celulares)
+            image = ImageOps.exif_transpose(image)
 
             # Verificar dimensiones antes de procesar.
             width, height = image.size
@@ -122,8 +125,8 @@ def generar_thumbnail_en_memoria(
     Recibe un objeto Pillow Image y el nombre de archivo deseado.
     Retorna un ContentFile.
     """
-    # Usa una copia para no afectar el objeto original que podría seguir usándose
-    img_copy = image_obj.copy() 
+    # Enderezar según EXIF (devuelve una copia nueva ya orientada correctamente)
+    img_copy = ImageOps.exif_transpose(image_obj)
     
     # 1. GESTIÓN DE TRANSPARENCIA (Usamos el mismo helper)
     img_copy = _preparar_imagen_para_jpeg(img_copy)
