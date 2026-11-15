@@ -16,6 +16,14 @@
                     <a href="{% url 'lista_ubicaciones' %}?reset=1" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
+                    
+                    {# Exportar a Excel (con o sin filtros) #}
+                    {% if perms.inventario.view_ubicacion %}
+                    <a href="{% url 'descargar_excel_ubicaciones' %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-success btn-sm px-3 shadow-sm">
+                        <i class="fas fa-file-excel me-1"></i> Exportar Excel
+                    </a>
+                    {% endif %}
+
                     {# Crear ubicación #}
                     {% if perms.inventario.add_ubicacion %}
                     <a href="{% url 'agregar_ubicacion' %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-danger btn-sm px-4 shadow-sm">

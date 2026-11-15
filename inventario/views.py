@@ -2006,3 +2006,89 @@ class EliminarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DeleteV
         
         # Redirigimos a la lista
         return HttpResponseRedirect(self.get_success_url())
+
+
+
+
+class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Vista para exportar las ubicaciones a un archivo Excel (.xlsx),
+    respetando los filtros y el ordenamiento activos en la vista de lista.
+    """
+    permission_required = 'inventario.view_ubicacion'
+
+    def get(self, request, *args, **kwargs):
+        # 1. Consulta base optimizada con conteo de activos vigentes (no eliminados)
+        queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False))
+        )
+
+        # 2. Captura de parámetros GET
+        search_query = request.GET.get('search', '').strip()
+        edificio_id = request.GET.get('edificio', '')
+        piso_nombre = request.GET.get('piso', '')
+        tipo = request.GET.get('tipo', '')
+        orden = request.GET.get('orden', '-id')
+
+        # 3. Aplicación de filtros idénticos a ListaUbicacionesView
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+        if edificio_id:
+            queryset = queryset.filter(piso__edificio_id=edificio_id)
+        if piso_nombre:
+            queryset = queryset.filter(piso__nombre=piso_nombre)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+
+        # 4. Aplicación de ordenamiento
+        ordenes_validos = {
+            '-id': ('-id',),
+            'id': ('id',),
+            'nombre': ('nombre', 'id'),
+            '-nombre': ('-nombre', '-id'),
+            'activos': ('activos_count', 'nombre'),
+            '-activos': ('-activos_count', 'nombre'),
+        }
+        criterio_orden = ordenes_validos.get(orden, ('-id',))
+        ubicaciones = queryset.order_by(*criterio_orden)
+
+        # 5. Preparación de datos (con Edificio antes de Piso)
+        data = []
+        for ub in ubicaciones:
+            data.append({
+                'ID': ub.id,
+                'UBICACION': ub.nombre,
+                'TIPO': ub.get_tipo_display(),
+                'EDIFICIO': ub.piso.edificio.nombre if ub.piso and ub.piso.edificio else '',
+                'PISO_NIVEL': ub.piso.nombre if ub.piso else '',
+                'CICLO_MANTENIMIENTO': 'Sí' if ub.aplica_mantenimiento else 'No',
+                'REQUIERE_PROYECTOR': 'Sí' if ub.requiere_proyeccion else 'No',
+                'CANTIDAD_ACTIVOS': ub.activos_count,
+                'DESCRIPCION': ub.descripcion or '',
+            })
+
+        df = pd.DataFrame(data)
+
+        # 6. Configuración de la respuesta HTTP
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # Nombre dinámico según si hay filtros aplicados
+        hay_filtros = any([search_query, edificio_id, piso_nombre, tipo])
+        nombre_archivo = "Ubicaciones_Filtradas.xlsx" if hay_filtros else "Listado_General_Ubicaciones.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+
+        # 7. Generación y estilizado del Excel con OpenPyXL
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Ubicaciones')
+            worksheet = writer.sheets['Ubicaciones']
+
+            # Estilo de cabecera (Gris oscuro institucional, igual a tu reporte general)
+            for cell in worksheet[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+
+            # Ajuste automático de ancho de columnas
+            for idx, col in enumerate(df.columns):
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 4, 15)
+
+        return response
