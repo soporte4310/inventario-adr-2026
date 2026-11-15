@@ -1975,15 +1975,12 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
     permission_required = 'inventario.view_ubicacion'
 
     def get_queryset(self):
-        # Optimizamos la consulta de la ubicación trayendo el piso y el edificio de una sola vez
         return super().get_queryset().select_related('piso', 'piso__edificio')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_detalle'] = 'Detalle de la Ubicación'
         
-        # Obtenemos los activos asociados a esta ubicación específica.
-        # Al usar el manager por defecto, automáticamente omitimos los activos marcados como is_deleted.
         activos = self.object.activo_set.select_related(
             'catalogo__categoria',
             'catalogo__marca',
@@ -1992,10 +1989,22 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         ).order_by('-id')
         context['activos'] = activos
 
-        # Verifica si existe al menos un proyector registrado en la sala
-        context['tiene_proyector'] = activos.filter(
+        # Contamos cuántos proyectores hay registrados en esta ubicación
+        proyectores_count = activos.filter(
             catalogo__categoria__nombre__icontains='PROYECTOR'
-        ).exists()
+        ).count()
+
+        context['proyectores_count'] = proyectores_count
+        context['tiene_proyector'] = proyectores_count > 0
+        
+        # Evaluamos la advertencia de exceso solo si NO es bodega ni rack
+        tipos_excluidos = {
+            Ubicacion.TipoUbicacion.BODEGA_PANOL,
+            Ubicacion.TipoUbicacion.INFRAESTRUCTURA_TI,
+        }
+        context['alerta_exceso_proyectores'] = (
+            self.object.tipo not in tipos_excluidos and proyectores_count > 1
+        )
         
         return context
 
