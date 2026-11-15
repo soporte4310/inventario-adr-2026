@@ -13,12 +13,12 @@
                     <p class="text-muted small">Gestión de espacios físicos, salas y dependencias de la sede</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{% url 'lista_ubicaciones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                    <a href="{% url 'lista_ubicaciones' %}?reset=1" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
                     {# Crear ubicación #}
                     {% if perms.inventario.add_ubicacion %}
-                    <a href="{% url 'agregar_ubicacion' %}" class="btn btn-danger btn-sm px-4 shadow-sm">
+                    <a href="{% url 'agregar_ubicacion' %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-danger btn-sm px-4 shadow-sm">
                         <i class="fas fa-plus"></i> Nueva Ubicación
                     </a>
                     {% endif %}
@@ -27,7 +27,7 @@
 
             <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small fw-bold text-muted">Buscar por Nombre</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
@@ -36,8 +36,20 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Filtrar por Edificio</label>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Tipo de Ubicación</label>
+                        <select name="tipo" class="form-select form-select-sm shadow-none">
+                            <option value="">Todos los tipos</option>
+                            {% for codigo, etiqueta in tipos_ubicacion %}
+                                <option value="{{ codigo }}" {% if codigo == tipo_seleccionado %}selected{% endif %}>
+                                    {{ etiqueta }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Edificio</label>
                         <select name="edificio" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los edificios</option>
                             {% for ed in edificios %}
@@ -48,8 +60,8 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Filtrar por Piso</label>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Piso / Nivel</label>
                         <select name="piso" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los pisos</option>
                             {% for p in pisos %}
@@ -61,8 +73,20 @@
                     </div>
 
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm">
-                            <i class="fas fa-filter"></i> Aplicar
+                        <label class="form-label small fw-bold text-muted">Ordenar por</label>
+                        <select name="orden" class="form-select form-select-sm shadow-none">
+                            <option value="-id" {% if orden_seleccionado == '-id' %}selected{% endif %}>Fecha (Más recientes)</option>
+                            <option value="id" {% if orden_seleccionado == 'id' %}selected{% endif %}>Fecha (Más antiguos)</option>
+                            <option value="nombre" {% if orden_seleccionado == 'nombre' %}selected{% endif %}>Nombre (A - Z)</option>
+                            <option value="-nombre" {% if orden_seleccionado == '-nombre' %}selected{% endif %}>Nombre (Z - A)</option>
+                            <option value="-activos" {% if orden_seleccionado == '-activos' %}selected{% endif %}>Activos (Mayor a menor)</option>
+                            <option value="activos" {% if orden_seleccionado == 'activos' %}selected{% endif %}>Activos (Menor a mayor)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm" title="Aplicar filtros">
+                            <i class="fas fa-filter"></i>
                         </button>
                     </div>
                 </div>
@@ -75,8 +99,8 @@
                             <th style="width: 70px;" class="text-center">ID</th>
                             <th>Ubicación</th>
                             <th>Tipo</th>
-                            <th>Piso / Nivel</th>
                             <th>Edificio</th>
+                            <th>Piso / Nivel</th>
                             <th class="text-center" style="width: 110px;">TI / Mant.</th>
                             <th class="text-center" style="width: 100px;">Activos</th>
                             <th class="text-center" style="width: 130px;">Acciones</th>
@@ -97,13 +121,13 @@
                                 </span>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
-                                    {{ item.piso.nombre }}
+                                <span class="badge bg-light text-secondary border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                    <i class="far fa-building me-1"></i> {{ item.piso.edificio.nombre }}
                                 </span>
                             </td>
                             <td>
-                                <span class="badge bg-light text-secondary border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
-                                    <i class="far fa-building me-1"></i> {{ item.piso.edificio.nombre }}
+                                <span class="badge bg-light text-dark border font-weight-normal text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                    {{ item.piso.nombre }}
                                 </span>
                             </td>
                             <td class="text-center">
@@ -140,21 +164,21 @@
                                 <div class="btn-group shadow-sm">
                                     {# Ver detalle ubicación #}
                                     {% if perms.inventario.view_ubicacion %}
-                                    <a href="{% url 'ver_ubicacion' item.id %}" class="btn btn-sm btn-light border" title="Ver detalle">
+                                    <a href="{% url 'ver_ubicacion' item.id %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-sm btn-light border" title="Ver detalle">
                                         <i class="fas fa-eye text-dark"></i>
                                     </a>
                                     {% endif %}
 
                                     {# Editar ubicación #}
                                     {% if perms.inventario.change_ubicacion %}
-                                    <a href="{% url 'editar_ubicacion' item.id %}" class="btn btn-sm btn-light border" title="Editar">
+                                    <a href="{% url 'editar_ubicacion' item.id %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-sm btn-light border" title="Editar">
                                         <i class="fas fa-edit text-primary"></i>
                                     </a>
                                     {% endif %}
 
                                     {# Eliminar ubicación #}
                                     {% if perms.inventario.delete_ubicacion %}
-                                    <a href="{% url 'eliminar_ubicacion' item.id %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                    <a href="{% url 'eliminar_ubicacion' item.id %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-sm btn-light border text-danger" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                     {% endif %}
