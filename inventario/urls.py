@@ -54,7 +54,8 @@ from .views import (
     CrearUbicacionView,
     EditarUbicacionView,
     DetalleUbicacionView,
-    EliminarUbicacionView
+    EliminarUbicacionView,
+    DescargarExcelUbicacionesView
 )
 
 
@@ -120,6 +121,7 @@ urlpatterns = [
     path('ubicaciones/<int:pk>/', DetalleUbicacionView.as_view(), name='ver_ubicacion'),
     path('ubicaciones/<int:pk>/editar/', EditarUbicacionView.as_view(), name='editar_ubicacion'),
     path('ubicaciones/<int:pk>/eliminar/', EliminarUbicacionView.as_view(), name='eliminar_ubicacion'),
+    path('ubicaciones/exportar-excel/', DescargarExcelUbicacionesView.as_view(), name='descargar_excel_ubicaciones'),
 ]
 
 

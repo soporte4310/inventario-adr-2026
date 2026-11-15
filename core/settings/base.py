@@ -36,6 +36,7 @@ LOCAL_APPS = [
     'mantencion',
     'soporte',
     'core',
+    'portal',
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -106,7 +107,7 @@ CRISPY_TEMPLATE_PACK = "tailwind"
 
 # Seguridad y Login
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = '/inventario'
+LOGIN_REDIRECT_URL = 'portal:index'
 LOGOUT_REDIRECT_URL = '/'
 X_FRAME_OPTIONS = "SAMEORIGIN"
 LOGIN_FAILED_THRESHOLD = 3
