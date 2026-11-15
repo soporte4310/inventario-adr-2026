@@ -8,8 +8,8 @@ validador_solo_letras = RegexValidator(
     message='Solo se admiten letras y espacios. Sin números ni caracteres especiales.'
 )
 validador_alfanumerico_nombres = RegexValidator(
-    regex=r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-\.]+$',
-    message='Solo se admiten letras, números, espacios, guiones y puntos.'
+    regex=r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-\.\(\)]+$',
+    message='Solo se admiten letras, números, espacios, guiones, puntos y paréntesis.'
 )
 validador_codigo_estricto = RegexValidator(
     regex=r'^[a-zA-Z0-9\-]+$',
