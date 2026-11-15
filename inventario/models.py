@@ -125,12 +125,50 @@ class Ubicacion(models.Model):
         help_text="Indica si este recinto debe contar obligatoriamente con proyector instalado."
     )
 
+    # Tipos donde se guardan equipos en stock/repuesto y puede haber varios proyectores almacenados
+    TIPOS_BODEGA = {
+        TipoUbicacion.BODEGA_PANOL,
+        TipoUbicacion.INFRAESTRUCTURA_TI,
+    }
+
     class Meta:
         verbose_name = "Ubicación"
         verbose_name_plural = "Ubicaciones"
 
     def __str__(self):
         return f'{self.piso}, {self.nombre}'
+
+    @property
+    def alerta_exceso_proyectores(self):
+        """
+        Retorna True si el recinto es operativo (Sala, Laboratorio, Oficina, Biblioteca, Área Común)
+        y tiene más de 1 proyector asignado.
+        """
+        if self.tipo in self.TIPOS_BODEGA:
+            return False
+        
+        conteo = getattr(self, 'proyectores_count', None)
+        if conteo is None:
+            conteo = self.activo_set.filter(
+                catalogo__categoria__nombre__icontains='PROYECTOR'
+            ).count()
+        return conteo > 1
+
+    @property
+    def alerta_falta_proyector(self):
+        """
+        Retorna True si la ubicación tiene marcado 'requiere_proyeccion=True'
+        pero actualmente tiene 0 proyectores asignados.
+        """
+        if not self.requiere_proyeccion:
+            return False
+
+        conteo = getattr(self, 'proyectores_count', None)
+        if conteo is None:
+            conteo = self.activo_set.filter(
+                catalogo__categoria__nombre__icontains='PROYECTOR'
+            ).count()
+        return conteo == 0
 
 
 class Marca(models.Model):
