@@ -25,6 +25,7 @@ from inventario.models import Activo, Edificio, Piso, Ubicacion
 from .utils import procesar_miniatura_revision_sala
 from common.validators import validar_archivo_video
 from .services import crear_ciclo_extraordinario_salas, MESES_ES
+from .mixins import CicloAbiertoRequiredMixin
 
 class DashboardInventario(TemplateView):
     template_name = 'mantencion/pages/dashboard.html'
@@ -356,59 +357,56 @@ class FragmentoTableroSalasView(View):
 
 
 
-@login_required
-def subir_video_local(request, pk):
-    """Guarda el video validado y genera las miniaturas de evidencia."""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
+class SubirVideoLocalView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
+    """Guarda el video validado localmente y genera las miniaturas de evidencia."""
+    revision_model = RevisionSala
 
-    if not request.FILES.get('file'):
-        return JsonResponse({'error': 'No se recibió ningún archivo de video.'}, status=400)
+    def post(self, request, pk):
+        if not request.FILES.get('file'):
+            return JsonResponse({'error': 'No se recibió ningún archivo de video.'}, status=400)
 
-    revision = get_object_or_404(
-        RevisionSala.objects.select_related('ciclo', 'ubicacion'), 
-        pk=pk
-    )
-    video = request.FILES['file']
+        # self.revision ya viene cargada y validada (ciclo abierto) desde CicloAbiertoRequiredMixin
+        revision = self.revision
+        video = request.FILES['file']
 
-    # 1. Validar video en servidor
-    try:
-        validar_archivo_video(video)
-    except ValidationError as e:
-        return JsonResponse({'error': e.messages[0]}, status=400)
+        # 1. Validar video en servidor
+        try:
+            validar_archivo_video(video)
+        except ValidationError as e:
+            return JsonResponse({'error': e.messages[0]}, status=400)
 
-    # 2. Guardar archivo de video
-    _, ext = os.path.splitext(video.name)
-    ext = ext.lower() if ext else '.mp4'
+        # 2. Guardar archivo de video
+        _, ext = os.path.splitext(video.name)
+        ext = ext.lower() if ext else '.mp4'
 
-    ahora = timezone.now()
-    periodo = ahora.strftime('%Y-%m')
-    hora_marca = ahora.strftime('%H%M%S')
-    sala_slug = slugify(revision.ubicacion.nombre)
+        ahora = timezone.now()
+        periodo = ahora.strftime('%Y-%m')
+        hora_marca = ahora.strftime('%H%M%S')
+        sala_slug = slugify(revision.ubicacion.nombre)
 
-    nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
-    ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
+        nombre_archivo = f"evidencia_{periodo}_{sala_slug}_{hora_marca}{ext}"
+        ruta_relativa = os.path.join('evidencias_salas', nombre_archivo)
 
-    ruta_guardada = default_storage.save(ruta_relativa, video)
-    url_publica = default_storage.url(ruta_guardada)
-    revision.video_evidencia_url = url_publica
+        ruta_guardada = default_storage.save(ruta_relativa, video)
+        url_publica = default_storage.url(ruta_guardada)
+        revision.video_evidencia_url = url_publica
 
-    # 3. Procesar miniatura recibida desde el frontend
-    thumbnail_file = request.FILES.get('thumbnail')
-    if thumbnail_file:
-        procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
-        revision.save()
-    else:
-        revision.save(update_fields=['video_evidencia_url'])
+        # 3. Procesar miniatura recibida desde el frontend
+        thumbnail_file = request.FILES.get('thumbnail')
+        if thumbnail_file:
+            procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")
+            revision.save()
+        else:
+            revision.save(update_fields=['video_evidencia_url'])
 
-    return JsonResponse({
-        'status': 'ok',
-        'secure_url': revision.video_evidencia_url,
-        'video_url': revision.video_evidencia_url,
-        'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
-        'estado_general': revision.estado_general,
-        'checklist_completado': revision.checklist_completado,
-    })
+        return JsonResponse({
+            'status': 'ok',
+            'secure_url': revision.video_evidencia_url,
+            'video_url': revision.video_evidencia_url,
+            'thumb_url': revision.imagen_thumb_small.url if revision.imagen_thumb_small else '',
+            'estado_general': revision.estado_general,
+            'checklist_completado': revision.checklist_completado,
+        })
 
 
 
@@ -450,8 +448,10 @@ def eliminar_archivo_video_evidencia(video_url):
 
 
 
-class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, CicloAbiertoRequiredMixin, View):
     permission_required = 'mantencion.change_revisionsala'
+    revision_model = RevisionSala
+    permitir_lectura_get = True
 
     def get_proyector_inventario(self, ubicacion):
         """Busca el proyector que el inventario general registra actualmente en esta sala."""
@@ -483,24 +483,32 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             pk=pk
         )
 
+        solo_lectura = revision.ciclo.esta_cerrado
+        print(f"solo_lectura = {solo_lectura}")
         proyectores_inventario = self.get_proyectores_inventario(revision.ubicacion)
         ids_en_inventario = [p.id for p in proyectores_inventario]
 
         hay_discrepancia = False
         proyector_sugerido = None
 
-        if revision.proyector_id:
-            # Si el proyector de la revisión ya no está entre los activos de la sala
-            if revision.proyector_id not in ids_en_inventario:
-                hay_discrepancia = True
-                proyector_sugerido = proyectores_inventario[0] if proyectores_inventario else None
-        else:
-            # Si la revisión estaba sin proyector pero ahora inventario sí tiene
-            if proyectores_inventario:
-                hay_discrepancia = True
-                proyector_sugerido = proyectores_inventario[0]
+        # Solo calculamos discrepancias de inventario si el ciclo sigue abierto
+        if not solo_lectura:
+            if revision.proyector_id:
+                if revision.proyector_id not in ids_en_inventario:
+                    hay_discrepancia = True
+                    proyector_sugerido = proyectores_inventario[0] if proyectores_inventario else None
+            else:
+                if proyectores_inventario:
+                    hay_discrepancia = True
+                    proyector_sugerido = proyectores_inventario[0]
 
         form = RevisionSalaForm(instance=revision)
+
+        # Si el ciclo está cerrado, deshabilitamos todos los campos del formulario
+        if solo_lectura:
+            for field in form.fields.values():
+                field.disabled = True
+
         context = {
             'revision': revision,
             'ciclo': revision.ciclo,
@@ -510,20 +518,14 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             'proyectores_sala': proyectores_inventario,
             'hay_multiples': len(proyectores_inventario) > 1,
             'hay_discrepancia': hay_discrepancia,
+            'solo_lectura': solo_lectura,
             'form': form,
-            'titulo': f"Revisión {revision.ubicacion.nombre}",
+            'titulo': f"Detalle Revisión {revision.ubicacion.nombre}" if solo_lectura else f"Revisión {revision.ubicacion.nombre}",
         }
         return render(request, 'mantencion/pages/revisar_sala.html', context)
 
     def post(self, request, pk):
-        print("--- DEBUG POST ---")
-        print("request.POST:", request.POST)
-        print("------------------")
-
-        revision = get_object_or_404(
-            RevisionSala.objects.select_related('ciclo', 'ubicacion'),
-            pk=pk
-        )
+        revision = self.revision
 
         form = RevisionSalaForm(request.POST, instance=revision)
         if form.is_valid():
@@ -575,18 +577,16 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Vi
 
 
 
-class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, CicloAbiertoRequiredMixin, View):
     """
     Invalida y limpia una revisión previamente realizada, borrando
     la evidencia multimedia asociada y devolviendo el registro al estado 'PENDIENTE'.
     """
     permission_required = 'mantencion.change_revisionsala'
+    revision_model = RevisionSala
 
     def post(self, request, pk):
-        revision = get_object_or_404(
-            RevisionSala.objects.select_related('ciclo', 'ubicacion'),
-            pk=pk
-        )
+        revision = self.revision
 
         if revision.ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
             messages.error(request, "No es posible restablecer una sala de un ciclo ya cerrado.")
@@ -657,13 +657,12 @@ class ExportarExcelRevisionView(View):
     def get():
         pass
 
-class FirmarSubidaCloudinaryView(LoginRequiredMixin, View):
+class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
+    revision_model = RevisionSala
+    pk_url_kwarg = 'sala_id'
+
     def get(self, request):
-        sala_id = request.GET.get('sala_id')
-        revision = get_object_or_404(
-            RevisionSala.objects.select_related('ubicacion'), 
-            pk=sala_id
-        )
+        revision = self.revision
 
         # Generar identificador único normalizado
         ahora = timezone.now()
@@ -699,9 +698,11 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, View):
 
 
 
-class AsociarVideoSalaView(LoginRequiredMixin, View):
+class AsociarVideoSalaView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
+    revision_model = RevisionSala
+
     def post(self, request, pk):
-        revision = get_object_or_404(RevisionSala, pk=pk)
+        revision = self.revision
 
         video_url = request.POST.get('video_url', '').strip()
         duracion_raw = request.POST.get('duration')

@@ -14,7 +14,7 @@ from .views import (
     GenerarReportePdfView,
     ExportarExcelRevisionView,
     FirmarSubidaCloudinaryView,
-    subir_video_local,
+    SubirVideoLocalView,
     AsociarVideoSalaView,
     RestablecerRevisionSalaView,
     SalasMantenimientoListView
@@ -48,7 +48,7 @@ urlpatterns = [
     
     # Endpoints utilitarios
     path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
-    path("api/subir-video-local/<int:pk>/", subir_video_local, name="subir_video_local"),
+    path("api/subir-video-local/<int:pk>/", SubirVideoLocalView.as_view(), name="subir_video_local"),
     path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
 
     # Salas de clases
