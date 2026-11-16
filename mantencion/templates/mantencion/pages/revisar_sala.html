@@ -42,7 +42,11 @@
                         <span class="badge bg-secondary px-3 py-2">Pendiente</span>
                     {% endif %}
 
-                    {% if revision.estado_general != 'PENDIENTE' or revision.checklist_completado or revision.tiene_video %}
+                    {% if solo_lectura %}
+                        <span class="badge bg-dark px-3 py-2">
+                            <i class="fas fa-lock me-1"></i> Ciclo Cerrado (Solo Lectura)
+                        </span>
+                    {% elif revision.estado_general != 'PENDIENTE' or revision.checklist_completado or revision.tiene_video %}
                         <button type="button" 
                                 class="btn btn-outline-secondary btn-sm" 
                                 onclick="abrirModalRestablecer()"
@@ -71,16 +75,18 @@
                                         <strong class="text-danger">⚠️ Sin proyector asignado</strong>
                                         <span class="text-muted d-block small">Esta sala figura sin equipo para evaluar.</span>
                                     {% endif %}
-                                </div>
 
-                                <!-- Botones de Acción Alternables (Debajo del proyector) -->
-                                <div class="mt-2 pt-1">
-                                    <button type="button" class="btn btn-outline-danger btn-sm {% if not proyector_actual %}d-none{% endif %}" id="btn-declarar-sin-proyector" onclick="declararSinProyector()">
-                                        <i class="fas fa-ban me-1"></i> No hay proyector en sala
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm {% if proyector_actual %}d-none{% endif %}" id="btn-restaurar-proyector" onclick="restaurarProyectorOriginal()">
-                                        <i class="fas fa-undo me-1"></i> Restaurar proyector
-                                    </button>
+                                    {% if not solo_lectura %}
+                                    <!-- Botones de Acción Alternables (Debajo del proyector) -->
+                                    <div class="mt-2 pt-1">
+                                        <button type="button" class="btn btn-outline-danger btn-sm {% if not proyector_actual %}d-none{% endif %}" id="btn-declarar-sin-proyector" onclick="declararSinProyector()">
+                                            <i class="fas fa-ban me-1"></i> No hay proyector en sala
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm {% if proyector_actual %}d-none{% endif %}" id="btn-restaurar-proyector" onclick="restaurarProyectorOriginal()">
+                                            <i class="fas fa-undo me-1"></i> Restaurar proyector
+                                        </button>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -169,6 +175,7 @@
     <!-- Formulario Principal -->
     <form method="POST" id="form-revision-sala">
         {% csrf_token %}
+        <fieldset {% if solo_lectura %}disabled{% endif %} class="border-0 p-0 m-0">
         
         <!-- Campo del proyector oculto visualmente para evitar desajustes -->
         <div class="d-none">
@@ -388,17 +395,26 @@
             </div>
         </div>
 
-        <!-- Botón Guardar -->
+        </fieldset>
+
+        <!-- Botón Guardar o Volver según estado del ciclo -->
         <div class="d-grid gap-2 mb-4">
-            <button type="submit" id="btn-guardar-revision" class="btn btn-danger btn-lg py-3 fw-bold shadow">
-                <i class="fas fa-save me-1"></i> Guardar y Finalizar Revisión
-            </button>
-            <a href="{% url 'mantencion:tablero_salas' ciclo.id %}" class="btn btn-light border py-2 text-muted">
-                Cancelar
-            </a>
+            {% if not solo_lectura %}
+                <button type="submit" id="btn-guardar-revision" class="btn btn-danger btn-lg py-3 fw-bold shadow">
+                    <i class="fas fa-save me-1"></i> Guardar y Finalizar Revisión
+                </button>
+                <a href="{% url 'mantencion:tablero_salas' ciclo.id %}" class="btn btn-light border py-2 text-muted">
+                    Cancelar
+                </a>
+            {% else %}
+                <a href="{% url 'mantencion:tablero_salas' ciclo.id %}" class="btn btn-secondary py-2 fw-bold shadow-sm">
+                    <i class="fas fa-arrow-left me-1"></i> Volver al Tablero del Ciclo
+                </a>
+            {% endif %}
         </div>
     </form>
 
+    {% if not solo_lectura %}
     <!-- Modal Confirmar Restablecer Revisión (Fuera del form principal) -->
     <div class="modal fade" id="modalRestablecerRevision" tabindex="-1" aria-labelledby="modalRestablecerLabel" aria-hidden="true" style="display: none;">
         <div class="modal-dialog modal-dialog-centered">
@@ -429,6 +445,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Modal para Reproducir el Video de Evidencia -->
     {% if revision.video_evidencia_url %}
@@ -520,6 +537,14 @@
 .video-preview-empty {
     min-height: 105px;
     border-style: dashed !important;
+}
+
+/* Mantener nítido el botón seleccionado en modo solo lectura */
+fieldset[disabled] .btn-check:checked + .btn {
+    opacity: 0.95 !important;
+}
+fieldset[disabled] .btn-check:not(:checked) + .btn {
+    opacity: 0.45 !important;
 }
 </style>
 

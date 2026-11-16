@@ -1,6 +1,7 @@
 import calendar
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Q
 from inventario.models import Activo, Ubicacion
 from .models import CicloRevision, RevisionSala
 
@@ -13,11 +14,14 @@ MESES_ES = [
 def _poblar_revisiones_salas(ciclo):
     """
     Inserta masivamente los registros de RevisionSala para todas las
-    ubicaciones con tipo SALA_CLASES y aplica_mantenimiento=True,
+    ubicaciones con tipo SALA_CLASES o LABORATORIO y aplica_mantenimiento=True,
     vinculando su proyector actual en una única consulta optimizada.
     """
     ubicaciones = Ubicacion.objects.filter(
-        tipo=Ubicacion.TipoUbicacion.SALA_CLASES,
+        tipo__in=[
+            Ubicacion.TipoUbicacion.SALA_CLASES,
+            Ubicacion.TipoUbicacion.LABORATORIO
+        ],
         aplica_mantenimiento=True
     ).order_by('nombre')
 

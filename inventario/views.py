@@ -1818,27 +1818,31 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     permission_required = 'inventario.view_ubicacion'
 
     def get(self, request, *args, **kwargs):
-        # 1. Si el usuario presiona el botón "Limpiar" (?reset=1), borramos las preferencias guardadas
         if 'reset' in request.GET:
             request.session.pop('ubicaciones_filtros', None)
             return redirect('lista_ubicaciones')
 
-        # 2. Si entra a la URL limpia sin parámetros pero tiene filtros en sesión, restauramos sus preferencias
         if not request.GET and 'ubicaciones_filtros' in request.session:
             saved_params = request.session['ubicaciones_filtros']
             if saved_params:
                 return redirect(f"{reverse('lista_ubicaciones')}?{saved_params}")
 
-        # 3. Si vienen parámetros en la URL, actualizamos las preferencias en la sesión
         if request.GET:
             request.session['ubicaciones_filtros'] = request.GET.urlencode()
 
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Contamos únicamente los activos vigentes (is_deleted=False)
         queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
-            activos_count=Count('activo', filter=Q(activo__is_deleted=False))
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False), distinct=True),
+            proyectores_count=Count(
+                'activo',
+                filter=Q(
+                    activo__is_deleted=False,
+                    activo__catalogo__categoria__nombre__icontains='PROYECTOR'
+                ),
+                distinct=True
+            )
         )
         
         # 1. Obtener parámetros GET
@@ -1846,6 +1850,9 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
         self.edificio_id = self.request.GET.get('edificio', '')
         self.piso_nombre = self.request.GET.get('piso', '')
         self.tipo = self.request.GET.get('tipo', '')
+        self.mantenimiento = self.request.GET.get('mantenimiento', '')
+        self.proyeccion = self.request.GET.get('proyeccion', '')
+        self.alerta_proyector = self.request.GET.get('alerta_proyector', '')
         self.orden = self.request.GET.get('orden', '-id')
 
         # 2. Aplicar filtros dinámicamente
@@ -1860,15 +1867,29 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
 
         if self.tipo:
             queryset = queryset.filter(tipo=self.tipo)
+
+        if self.mantenimiento in ['1', '0']:
+            queryset = queryset.filter(aplica_mantenimiento=(self.mantenimiento == '1'))
+
+        if self.proyeccion in ['1', '0']:
+            queryset = queryset.filter(requiere_proyeccion=(self.proyeccion == '1'))
+
+        # Nuevo filtro de alertas de proyector
+        if self.alerta_proyector == 'exceso':
+            queryset = queryset.exclude(
+                tipo__in=Ubicacion.TIPOS_BODEGA_O_RACK
+            ).filter(proyectores_count__gt=1)
+        elif self.alerta_proyector == 'faltante':
+            queryset = queryset.filter(requiere_proyeccion=True, proyectores_count=0)
         
-        # 3. Aplicar ordenamiento (Fecha/ID, Nombre, Cantidad de activos)
+        # 3. Aplicar ordenamiento
         ordenes_validos = {
-            '-id': ('-id',),                           # Fecha: Más recientes primero
-            'id': ('id',),                             # Fecha: Más antiguos primero
-            'nombre': ('nombre', 'id'),               # Nombre: A - Z
-            '-nombre': ('-nombre', '-id'),             # Nombre: Z - A
-            'activos': ('activos_count', 'nombre'),    # Activos: Menor a mayor
-            '-activos': ('-activos_count', 'nombre'),  # Activos: Mayor a menor
+            '-id': ('-id',),
+            'id': ('id',),
+            'nombre': ('nombre', 'id'),
+            '-nombre': ('-nombre', '-id'),
+            'activos': ('activos_count', 'nombre'),
+            '-activos': ('-activos_count', 'nombre'),
         }
         
         criterio_orden = ordenes_validos.get(self.orden, ('-id',))
@@ -1878,19 +1899,26 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
         context = super().get_context_data(**kwargs)
         context['titulo_lista'] = 'Lista de Ubicaciones'
         
-        # Variables para mantener seleccionados los filtros en el HTML
         context['search_query'] = self.search_query
         context['edificio_id'] = self.edificio_id
         context['piso_nombre'] = self.piso_nombre
         context['tipo_seleccionado'] = self.tipo
+        context['mantenimiento_seleccionado'] = self.mantenimiento
+        context['proyeccion_seleccionado'] = self.proyeccion
+        context['alerta_proyector_seleccionada'] = self.alerta_proyector
         context['orden_seleccionado'] = self.orden
+
+        hay_filtros = any([
+            self.search_query, self.edificio_id, self.piso_nombre,
+            self.tipo, self.mantenimiento, self.proyeccion, self.alerta_proyector
+        ])
+        context['hay_filtros'] = hay_filtros
+        context['total_ubicaciones_general'] = Ubicacion.objects.count()
         
-        # Listas para poblar los elementos <select>
         context['edificios'] = Edificio.objects.all().order_by('nombre')
         context['pisos'] = Piso.objects.values_list('nombre', flat=True).distinct().order_by('nombre')
         context['tipos_ubicacion'] = Ubicacion.TipoUbicacion.choices
         
-        # Preservar todos los query params para la paginación (excepto 'page')
         get_copy = self.request.GET.copy()
         if 'page' in get_copy:
             get_copy.pop('page')
@@ -1947,15 +1975,12 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
     permission_required = 'inventario.view_ubicacion'
 
     def get_queryset(self):
-        # Optimizamos la consulta de la ubicación trayendo el piso y el edificio de una sola vez
         return super().get_queryset().select_related('piso', 'piso__edificio')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_detalle'] = 'Detalle de la Ubicación'
         
-        # Obtenemos los activos asociados a esta ubicación específica.
-        # Al usar el manager por defecto, automáticamente omitimos los activos marcados como is_deleted.
         activos = self.object.activo_set.select_related(
             'catalogo__categoria',
             'catalogo__marca',
@@ -1964,10 +1989,22 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         ).order_by('-id')
         context['activos'] = activos
 
-        # Verifica si existe al menos un proyector registrado en la sala
-        context['tiene_proyector'] = activos.filter(
+        # Contamos cuántos proyectores hay registrados en esta ubicación
+        proyectores_count = activos.filter(
             catalogo__categoria__nombre__icontains='PROYECTOR'
-        ).exists()
+        ).count()
+
+        context['proyectores_count'] = proyectores_count
+        context['tiene_proyector'] = proyectores_count > 0
+        
+        # Evaluamos la advertencia de exceso solo si NO es bodega ni rack
+        tipos_excluidos = {
+            Ubicacion.TipoUbicacion.BODEGA_PANOL,
+            Ubicacion.TipoUbicacion.INFRAESTRUCTURA_TI,
+        }
+        context['alerta_exceso_proyectores'] = (
+            self.object.tipo not in tipos_excluidos and proyectores_count > 1
+        )
         
         return context
 
@@ -2018,19 +2055,25 @@ class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin,
     permission_required = 'inventario.view_ubicacion'
 
     def get(self, request, *args, **kwargs):
-        # 1. Consulta base optimizada con conteo de activos vigentes (no eliminados)
         queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
-            activos_count=Count('activo', filter=Q(activo__is_deleted=False))
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False)),
+            proyectores_count=Count(
+                'activo',
+                filter=Q(
+                    activo__is_deleted=False,
+                    activo__catalogo__categoria__nombre__icontains='PROYECTOR'
+                )
+            )
         )
 
-        # 2. Captura de parámetros GET
         search_query = request.GET.get('search', '').strip()
         edificio_id = request.GET.get('edificio', '')
         piso_nombre = request.GET.get('piso', '')
         tipo = request.GET.get('tipo', '')
+        mantenimiento = request.GET.get('mantenimiento', '')
+        proyeccion = request.GET.get('proyeccion', '')
         orden = request.GET.get('orden', '-id')
 
-        # 3. Aplicación de filtros idénticos a ListaUbicacionesView
         if search_query:
             queryset = queryset.filter(nombre__icontains=search_query)
         if edificio_id:
@@ -2039,8 +2082,11 @@ class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin,
             queryset = queryset.filter(piso__nombre=piso_nombre)
         if tipo:
             queryset = queryset.filter(tipo=tipo)
+        if mantenimiento in ['1', '0']:
+            queryset = queryset.filter(aplica_mantenimiento=(mantenimiento == '1'))
+        if proyeccion in ['1', '0']:
+            queryset = queryset.filter(requiere_proyeccion=(proyeccion == '1'))
 
-        # 4. Aplicación de ordenamiento
         ordenes_validos = {
             '-id': ('-id',),
             'id': ('id',),
@@ -2052,7 +2098,6 @@ class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin,
         criterio_orden = ordenes_validos.get(orden, ('-id',))
         ubicaciones = queryset.order_by(*criterio_orden)
 
-        # 5. Preparación de datos (con Edificio antes de Piso)
         data = []
         for ub in ubicaciones:
             data.append({
@@ -2063,31 +2108,26 @@ class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin,
                 'PISO_NIVEL': ub.piso.nombre if ub.piso else '',
                 'CICLO_MANTENIMIENTO': 'Sí' if ub.aplica_mantenimiento else 'No',
                 'REQUIERE_PROYECTOR': 'Sí' if ub.requiere_proyeccion else 'No',
+                'PROYECTORES_INSTALADOS': ub.proyectores_count,
                 'CANTIDAD_ACTIVOS': ub.activos_count,
                 'DESCRIPCION': ub.descripcion or '',
             })
 
         df = pd.DataFrame(data)
-
-        # 6. Configuración de la respuesta HTTP
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         
-        # Nombre dinámico según si hay filtros aplicados
-        hay_filtros = any([search_query, edificio_id, piso_nombre, tipo])
+        hay_filtros = any([search_query, edificio_id, piso_nombre, tipo, mantenimiento, proyeccion])
         nombre_archivo = "Ubicaciones_Filtradas.xlsx" if hay_filtros else "Listado_General_Ubicaciones.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
 
-        # 7. Generación y estilizado del Excel con OpenPyXL
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Ubicaciones')
             worksheet = writer.sheets['Ubicaciones']
 
-            # Estilo de cabecera (Gris oscuro institucional, igual a tu reporte general)
             for cell in worksheet[1]:
                 cell.font = Font(bold=True, color="FFFFFF")
                 cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
 
-            # Ajuste automático de ancho de columnas
             for idx, col in enumerate(df.columns):
                 worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 4, 15)
 

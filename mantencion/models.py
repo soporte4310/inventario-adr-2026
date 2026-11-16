@@ -229,6 +229,10 @@ class CicloRevision(models.Model):
             estado_general=RevisionSala.EstadoGeneralSala.CRITICA
         ).count()
 
+    @property
+    def esta_cerrado(self):
+        return self.estado == self.EstadoCiclo.FINALIZADO
+
     # ----------------------------------------------------
     # MÉTODOS DE NEGOCIO
     # ----------------------------------------------------
@@ -454,6 +458,10 @@ class RevisionSala(models.Model):
         Calcula el estado general de forma automatizada solo cuando
         el checklist está respondido Y el video de evidencia fue subido.
         """
+        # Si ya existe en la BD (edición) y su ciclo está FINALIZADO, prohibir cualquier cambio.
+        if self.pk and self.ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            raise ValidationError("No se puede modificar una revisión que pertenece a un ciclo cerrado.")
+        
         # Si se llamó save(update_fields=[...]), garantizamos que estado_general se actualice en BD
         if kwargs.get('update_fields') is not None:
             fields = set(kwargs['update_fields'])

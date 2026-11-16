@@ -9,14 +9,25 @@
         <div class="card-body p-4">
             <div class="d-md-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2 class="h3 mb-1 font-weight-bold text-dark">{{ titulo_lista }}</h2>
-                    <p class="text-muted small">Gestión de espacios físicos, salas y dependencias de la sede</p>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h2 class="h3 mb-0 font-weight-bold text-dark">{{ titulo_lista }}</h2>
+                        {% if hay_filtros %}
+                            <span class="badge bg-dark rounded-pill" style="font-size: 0.8rem;">
+                                Mostrando {{ paginator.count }} de {{ total_ubicaciones_general }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill" style="font-size: 0.8rem;">
+                                {{ paginator.count }} registros
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted small mb-0">Gestión de espacios físicos, salas y dependencias de la sede</p>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 mt-3 mt-md-0">
                     <a href="{% url 'lista_ubicaciones' %}?reset=1" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="fas fa-sync-alt"></i> Limpiar
                     </a>
-                    
+
                     {# Exportar a Excel (con o sin filtros) #}
                     {% if perms.inventario.view_ubicacion %}
                     <a href="{% url 'descargar_excel_ubicaciones' %}{% if full_query_string %}?{{ full_query_string }}{% endif %}" class="btn btn-success btn-sm px-3 shadow-sm">
@@ -35,8 +46,9 @@
 
             <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Buscar por Nombre</label>
+                    {# Fila 1: Búsqueda, Tipo, Edificio, Piso #}
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Buscar por Nombre</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                             <input type="text" name="search" class="form-control border-start-0" 
@@ -44,8 +56,8 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Tipo de Ubicación</label>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Tipo de Ubicación</label>
                         <select name="tipo" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los tipos</option>
                             {% for codigo, etiqueta in tipos_ubicacion %}
@@ -56,8 +68,8 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Edificio</label>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Edificio</label>
                         <select name="edificio" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los edificios</option>
                             {% for ed in edificios %}
@@ -69,7 +81,7 @@
                     </div>
 
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Piso / Nivel</label>
+                        <label class="form-label small fw-bold text-muted mb-1">Piso / Nivel</label>
                         <select name="piso" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los pisos</option>
                             {% for p in pisos %}
@@ -80,8 +92,40 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Ordenar por</label>
+                    {# Fila 2: Mantención, Proyector, Alerta Proyector, Ordenar por y Botón Aplicar #}
+                    <div class="col-md-2 mt-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Mantención</label>
+                        <select name="mantenimiento" class="form-select form-select-sm shadow-none">
+                            <option value="">Todos</option>
+                            <option value="1" {% if mantenimiento_seleccionado == '1' %}selected{% endif %}>Sí requiere</option>
+                            <option value="0" {% if mantenimiento_seleccionado == '0' %}selected{% endif %}>No requiere</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 mt-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Req. Proyector</label>
+                        <select name="proyeccion" class="form-select form-select-sm shadow-none">
+                            <option value="">Todos</option>
+                            <option value="1" {% if proyeccion_seleccionado == '1' %}selected{% endif %}>Sí requiere</option>
+                            <option value="0" {% if proyeccion_seleccionado == '0' %}selected{% endif %}>No requiere</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 mt-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Alerta de Proyector</label>
+                        <select name="alerta_proyector" class="form-select form-select-sm shadow-none">
+                            <option value="">Todas las ubicaciones</option>
+                            <option value="exceso" {% if alerta_proyector_seleccionada == 'exceso' %}selected{% endif %}>
+                                ⚠️ Con exceso (>1 proyector)
+                            </option>
+                            <option value="faltante" {% if alerta_proyector_seleccionada == 'faltante' %}selected{% endif %}>
+                                ❌ Requiere pero no tiene (0)
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 mt-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Ordenar por</label>
                         <select name="orden" class="form-select form-select-sm shadow-none">
                             <option value="-id" {% if orden_seleccionado == '-id' %}selected{% endif %}>Fecha (Más recientes)</option>
                             <option value="id" {% if orden_seleccionado == 'id' %}selected{% endif %}>Fecha (Más antiguos)</option>
@@ -92,9 +136,9 @@
                         </select>
                     </div>
 
-                    <div class="col-md-1">
-                        <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm" title="Aplicar filtros">
-                            <i class="fas fa-filter"></i>
+                    <div class="col-md-2 mt-2">
+                        <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm">
+                            <i class="fas fa-filter me-1"></i> Aplicar
                         </button>
                     </div>
                 </div>
@@ -109,7 +153,7 @@
                             <th>Tipo</th>
                             <th>Edificio</th>
                             <th>Piso / Nivel</th>
-                            <th class="text-center" style="width: 110px;">TI / Mant.</th>
+                            <th class="text-center" style="width: 140px;">TI / Mant.</th>
                             <th class="text-center" style="width: 100px;">Activos</th>
                             <th class="text-center" style="width: 130px;">Acciones</th>
                         </tr>
@@ -119,8 +163,21 @@
                         <tr>
                             <td class="text-center text-muted fw-bold">#{{ item.id }}</td>
                             <td>
-                                <div class="font-weight-bold text-dark mb-0">
-                                    {{ item.nombre }}
+                                <div class="font-weight-bold text-dark mb-0 d-flex align-items-center gap-2 flex-wrap">
+                                    <span>{{ item.nombre }}</span>
+                                    {% if item.alerta_exceso_proyectores %}
+                                        <span class="badge bg-warning text-dark border border-warning shadow-sm" 
+                                              style="font-size: 0.7rem;"
+                                              title="Advertencia: Hay {{ item.proyectores_count }} proyectores asignados a este recinto (solo debería haber 1).">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>{{ item.proyectores_count }} Proy.
+                                        </span>
+                                    {% elif item.alerta_falta_proyector %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" 
+                                              style="font-size: 0.7rem;"
+                                              title="Esta ubicación requiere proyección pero tiene 0 proyectores asignados.">
+                                            <i class="fas fa-video-slash me-1"></i>Sin Proy.
+                                        </span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>
@@ -139,7 +196,7 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <div class="d-inline-flex gap-1">
+                                <div class="d-inline-flex align-items-center gap-1">
                                     {% if item.aplica_mantenimiento %}
                                         <span class="badge bg-light text-success border" title="Aplica ciclo de mantenimiento mensual">
                                             <i class="fas fa-tools"></i>
@@ -151,11 +208,11 @@
                                     {% endif %}
 
                                     {% if item.requiere_proyeccion %}
-                                        <span class="badge bg-light text-primary border" title="Requiere proyector">
+                                        <span class="badge bg-light text-primary border" title="Requiere proyector (Instalados: {{ item.proyectores_count }})">
                                             <i class="fas fa-video"></i>
                                         </span>
                                     {% else %}
-                                        <span class="badge bg-light text-muted border opacity-50" title="No requiere proyector">
+                                        <span class="badge bg-light text-muted border opacity-50" title="No requiere proyector (Instalados: {{ item.proyectores_count }})">
                                             <i class="fas fa-video-slash"></i>
                                         </span>
                                     {% endif %}

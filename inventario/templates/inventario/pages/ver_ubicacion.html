@@ -144,6 +144,24 @@
                 </div>
             {% endif %}
 
+            {# Banner de advertencia: Recinto operativo con más de 1 proyector asignado #}
+            {% if alerta_exceso_proyectores %}
+                <div class="alert alert-warning border border-2 border-warning shadow-sm mb-4 py-3 d-flex align-items-center gap-3 bg-warning bg-opacity-10 text-dark">
+                    <div class="text-warning ps-1 display-6">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-warning text-dark text-uppercase px-2 py-1">Advertencia</span>
+                            <h6 class="alert-heading mb-0 fw-bold text-dark">Múltiples Proyectores Detectados ({{ proyectores_count }})</h6>
+                        </div>
+                        <p class="mb-0 small text-dark">
+                            Este recinto registra <strong>{{ proyectores_count }} proyectores asignados simultáneamente</strong>. Verifica si alguno de estos equipos fue retirado o reubicado para actualizar su registro en el inventario.
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white py-3 border-0">
                     <h5 class="card-title font-weight-bold text-dark mb-0">Equipos Físicos y Activos Registrados</h5>

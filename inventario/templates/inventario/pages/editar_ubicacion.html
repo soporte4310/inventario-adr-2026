@@ -23,7 +23,7 @@
                         </div>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data" novalidate>
+                    <form method="POST" enctype="multipart/form-data" id="formEditarUbicacion" novalidate>
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
@@ -116,26 +116,80 @@
                                 {% endif %}
                             </div>
 
+                            {# SECCIÓN DE IMAGEN CON CÁMARA Y BARRA DE PROGRESO #}
                             <div class="col-12">
-                                <label for="{{ form.imagen.id_for_label }}" class="form-label small fw-bold text-muted">
+                                <label class="form-label small fw-bold text-muted">
                                     {{ form.imagen.label }}
                                 </label>
                                 
                                 {% if object.imagen %}
-                                    <div class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded border">
-                                        <div style="width: 80px; height: 80px; overflow: hidden;" class="rounded border shadow-sm bg-white d-flex align-items-center justify-content-center">
-                                            <img src="{{ object.imagen.url }}" alt="Vista previa" class="img-fluid" style="max-height: 100%; object-fit: cover;">
+                                    <div id="currentImageBox" class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded border">
+                                        <div style="width: 80px; height: 80px; overflow: hidden;" class="rounded border shadow-sm bg-white d-flex align-items-center justify-content-center flex-shrink-0">
+                                            <img src="{{ object.imagen.url }}" alt="Vista previa actual" class="img-fluid" style="max-height: 100%; object-fit: cover;">
                                         </div>
                                         <div>
                                             <p class="mb-1 small fw-bold text-dark">Imagen actual registrada</p>
-                                            <p class="mb-0 text-muted x-small">Si desea cambiarla, seleccione un nuevo archivo a continuación.</p>
+                                            <p class="mb-0 text-muted x-small">Si toma una foto o selecciona un archivo nuevo, reemplazará a esta imagen al guardar.</p>
                                         </div>
                                     </div>
                                 {% endif %}
 
-                                <div class="input-group input-group-sm">
+                                {# Botones de acción para terreno (Cámara vs Galería) #}
+                                <div class="row g-2 mb-2">
+                                    <div class="col-sm-6">
+                                        <button type="button" id="btnAbrirCamara" class="btn btn-outline-dark btn-sm w-100 py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                                            <i class="fas fa-camera fa-lg text-danger"></i>
+                                            <span class="fw-bold">Tomar Foto con Cámara</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <button type="button" id="btnSubirArchivo" class="btn btn-outline-secondary btn-sm w-100 py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                                            <i class="fas fa-folder-open fa-lg text-primary"></i>
+                                            <span class="fw-bold">Elegir de Galería / Archivo</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {# Ocultamos el widget original de Django pero lo mantenemos funcional #}
+                                <div class="d-none">
                                     {{ form.imagen }}
                                 </div>
+
+                                {# Barra de progreso visual durante el procesamiento de la foto #}
+                                <div id="progressContainer" class="d-none mt-3 p-3 bg-light rounded border">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span id="progressStatusText" class="small fw-bold text-dark">
+                                            <i class="fas fa-spinner fa-spin me-1 text-primary"></i> Procesando fotografía...
+                                        </span>
+                                        <span id="progressPercentage" class="small fw-bold text-primary">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+
+                                {# Tarjeta de confirmación cuando la nueva imagen está 100% lista para enviar #}
+                                <div id="newImagePreviewBox" class="d-none mt-3 p-3 rounded border border-success bg-success bg-opacity-10">
+                                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div style="width: 85px; height: 85px; overflow: hidden;" class="rounded border border-success shadow-sm bg-white d-flex align-items-center justify-content-center flex-shrink-0">
+                                                <img id="newImagePreview" src="#" alt="Nueva imagen" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <div>
+                                                <div class="d-flex align-items-center gap-1 text-success fw-bold small mb-1">
+                                                    <i class="fas fa-check-circle"></i> ¡Imagen lista para guardar!
+                                                </div>
+                                                <p id="newImageName" class="mb-0 small text-dark fw-bold text-break"></p>
+                                                <p id="newImageSize" class="mb-0 x-small text-muted"></p>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="btnQuitarNuevaImagen" class="btn btn-sm btn-outline-danger shadow-sm">
+                                            <i class="fas fa-times me-1"></i> Descartar
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {% if form.imagen.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.imagen.errors %}{{ error }}{% endfor %}
@@ -148,7 +202,7 @@
                             <a href="{% url 'lista_ubicaciones' %}" class="btn btn-light btn-sm border px-3">
                                 Cancelar
                             </a>
-                            <button type="submit" class="btn btn-danger btn-sm px-4 shadow-sm font-weight-bold">
+                            <button type="submit" id="btnSubmitForm" class="btn btn-danger btn-sm px-4 shadow-sm font-weight-bold">
                                 <i class="fas fa-save me-1"></i> Guardar Cambios
                             </button>
                         </div>
@@ -160,4 +214,100 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Obtenemos el input real generado por Django
+    const fileInput = document.getElementById('{{ form.imagen.id_for_label }}');
+    const btnAbrirCamara = document.getElementById('btnAbrirCamara');
+    const btnSubirArchivo = document.getElementById('btnSubirArchivo');
+    const btnQuitarNuevaImagen = document.getElementById('btnQuitarNuevaImagen');
+    
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    
+    const newImagePreviewBox = document.getElementById('newImagePreviewBox');
+    const newImagePreview = document.getElementById('newImagePreview');
+    const newImageName = document.getElementById('newImageName');
+    const newImageSize = document.getElementById('newImageSize');
+    const formEditar = document.getElementById('formEditarUbicacion');
+    const btnSubmitForm = document.getElementById('btnSubmitForm');
+
+    if (fileInput) {
+        // Aseguramos que solo acepte imágenes
+        fileInput.setAttribute('accept', 'image/*');
+
+        // Opción 1: Abrir cámara trasera directamente (en móviles/tablets)
+        btnAbrirCamara.addEventListener('click', function () {
+            fileInput.setAttribute('capture', 'environment');
+            fileInput.click();
+        });
+
+        // Opción 2: Abrir explorador de archivos / galería normal
+        btnSubirArchivo.addEventListener('click', function () {
+            fileInput.removeAttribute('capture');
+            fileInput.click();
+        });
+
+        // Cuando el usuario toma la foto o elige el archivo
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Reiniciar estados visuales
+            newImagePreviewBox.classList.add('d-none');
+            progressContainer.classList.remove('d-none');
+            progressBar.style.width = '0%';
+            progressPercentage.textContent = '0%';
+
+            const reader = new FileReader();
+
+            // Evento de progreso real mientras se lee la imagen en memoria
+            reader.addEventListener('progress', function (event) {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressPercentage.textContent = percent + '%';
+                }
+            });
+
+            // Cuando termina de procesar la imagen
+            reader.addEventListener('load', function (event) {
+                progressBar.style.width = '100%';
+                progressPercentage.textContent = '100%';
+
+                // Pequeña pausa visual de 250ms para que el usuario vea el 100% antes de mostrar la vista previa
+                setTimeout(function () {
+                    progressContainer.classList.add('d-none');
+                    newImagePreview.src = event.target.result;
+                    newImageName.textContent = file.name;
+                    
+                    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                    newImageSize.textContent = `Tamaño: ${sizeInMB} MB`;
+                    
+                    newImagePreviewBox.classList.remove('d-none');
+                }, 250);
+            });
+
+            reader.readAsDataURL(file);
+        });
+
+        // Botón para descartar la foto recién seleccionada antes de enviar
+        btnQuitarNuevaImagen.addEventListener('click', function () {
+            fileInput.value = '';
+            newImagePreviewBox.classList.add('d-none');
+            newImagePreview.src = '#';
+        });
+    }
+
+    // Feedback visual al enviar el formulario en terreno (evita doble clic mientras sube la foto)
+    if (formEditar) {
+        formEditar.addEventListener('submit', function () {
+            btnSubmitForm.disabled = true;
+            btnSubmitForm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Subiendo y guardando...';
+        });
+    }
+});
+</script>
 {% endblock %}
