@@ -1877,7 +1877,7 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
         # Nuevo filtro de alertas de proyector
         if self.alerta_proyector == 'exceso':
             queryset = queryset.exclude(
-                tipo__in=Ubicacion.TIPOS_BODEGA_O_RACK
+                tipo__in=Ubicacion.TIPOS_BODEGA
             ).filter(proyectores_count__gt=1)
         elif self.alerta_proyector == 'faltante':
             queryset = queryset.filter(requiere_proyeccion=True, proyectores_count=0)
