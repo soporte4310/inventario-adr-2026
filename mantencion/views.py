@@ -256,7 +256,7 @@ class TableroSalasView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     pk_url_kwarg = 'ciclo_id'
     template_name = 'mantencion/pages/tablero_salas.html'
     context_object_name = 'ciclo'
-    permission_required = 'mantencion.view_ciclomantenimiento'
+    permission_required = 'mantencion.view_ciclorevision'
 
     def get_queryset(self):
         return CicloRevision.objects.filter(tipo=CicloRevision.TipoCiclo.SALAS)
