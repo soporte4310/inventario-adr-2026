@@ -672,13 +672,13 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
         timestamp = int(time.time())
         
         # Redimensiona a 720p máximo y comprime con bitrate económico antes de guardar en disco
-        transformation = "c_limit,w_1280,q_auto:eco"
+        #transformation = "c_limit,w_1280,q_auto:eco"
 
         params_a_firmar = {
             'timestamp': timestamp,
             'folder': folder,
             'public_id': public_id,
-            'transformation': transformation,
+            #'transformation': transformation,
         }
 
         storage_settings = getattr(settings, 'CLOUDINARY_STORAGE', {})
@@ -692,7 +692,7 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
             'cloud_name': storage_settings.get('CLOUD_NAME') or cloudinary.config().cloud_name,
             'folder': folder,
             'public_id': public_id,
-            'transformation': transformation,
+            #'transformation': transformation,
         })
 
 
