@@ -413,23 +413,19 @@ class SubirVideoLocalView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
 
 def eliminar_archivo_video_evidencia(video_url):
     """
-    Elimina físicamente el archivo de video ya sea que esté
-    almacenado en Cloudinary o en el almacenamiento local.
+    Elimina físicamente el archivo de video en Cloudinary o almacenamiento local,
+    soportando URLs con parámetros de transformación.
     """
     if not video_url:
         return
 
     try:
-        # Caso 1: Video en Cloudinary
         if 'cloudinary.com' in video_url:
-            # Extraer el public_id (ej: 'evidencias_salas/evidencia_2026-11_sala-1_123456')
-            # Busca lo que esté tras '/upload/(v12345/)?' excluyendo la extensión (.mp4, etc.)
-            match = re.search(r'/upload/(?:v\d+/)?([^\.]+)', video_url)
+            # Extrae 'evidencias_salas/nombre_archivo' ignorando parámetros intermedios y extensión
+            match = re.search(r'(?:v\d+/)?(evidencias_salas/[^.]+)', video_url)
             if match:
                 public_id = match.group(1)
                 cloudinary.uploader.destroy(public_id, resource_type="video")
-
-        # Caso 2: Almacenamiento local (MEDIA_ROOT / default_storage)
         else:
             media_url = getattr(settings, 'MEDIA_URL', '/media/')
             ruta_relativa = video_url
@@ -437,12 +433,10 @@ def eliminar_archivo_video_evidencia(video_url):
                 ruta_relativa = video_url[len(media_url):]
 
             ruta_relativa = ruta_relativa.lstrip('/')
-
             if default_storage.exists(ruta_relativa):
                 default_storage.delete(ruta_relativa)
 
     except Exception as e:
-        # Se captura para que una falla externa de red no impida restablecer la revisión
         print(f"[ADVERTENCIA] No se pudo eliminar el video ({video_url}): {e}")
 
 
@@ -698,6 +692,22 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
 
 
 
+def optimizar_url_cloudinary_video(url):
+    """
+    Inyecta parámetros de compresión automática y escalado a 720p
+    en la URL pública devuelta por Cloudinary.
+    """
+    if not url or 'cloudinary.com' not in url:
+        return url
+
+    # Evitamos duplicar parámetros si ya vienen en la URL
+    if '/video/upload/q_auto' in url:
+        return url
+
+    return url.replace('/video/upload/', '/video/upload/q_auto,vc_auto,w_1280,c_limit/')
+
+
+
 class AsociarVideoSalaView(LoginRequiredMixin, View):
     """
     Recibe la URL devuelta por Cloudinary junto con la miniatura
@@ -725,6 +735,7 @@ class AsociarVideoSalaView(LoginRequiredMixin, View):
         if revision.video_evidencia_url and revision.video_evidencia_url != video_url:
             eliminar_archivo_video_evidencia(revision.video_evidencia_url)
 
+        video_url = optimizar_url_cloudinary_video(video_url)
         revision.video_evidencia_url = video_url
 
         # 3. Procesar miniatura si viene en la petición
