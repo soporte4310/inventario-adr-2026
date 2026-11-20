@@ -698,38 +698,36 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
 
 
 
-class AsociarVideoSalaView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
-    revision_model = RevisionSala
-
+class AsociarVideoSalaView(LoginRequiredMixin, View):
+    """
+    Recibe la URL devuelta por Cloudinary junto con la miniatura
+    y la asocia a la RevisionSala correspondiente.
+    """
     def post(self, request, pk):
-        revision = self.revision
+        revision = get_object_or_404(RevisionSala, pk=pk)
 
+        # 1. Intentar obtener datos desde multipart (FormData)
         video_url = request.POST.get('video_url', '').strip()
-        duracion_raw = request.POST.get('duration')
         thumbnail_file = request.FILES.get('thumbnail')
 
-        if not video_url:
-            return JsonResponse({'error': 'No se proporcionó una URL válida.'}, status=400)
-
-        # Validar duración reportada por Cloudinary (31.5s máx.)
-        if duracion_raw:
+        # 2. Si no viene en POST, intentar leer JSON como fallback
+        if not video_url and request.body:
             try:
-                duracion = float(duracion_raw)
-                if duracion > 31.5:
-                    # Borramos de Cloudinary el archivo que excedió el tiempo
-                    eliminar_archivo_video_evidencia(video_url)
-                    return JsonResponse({
-                        'error': f'El video dura {round(duracion)}s y supera el máximo permitido de 30 segundos.'
-                    }, status=400)
-            except ValueError:
+                payload = json.loads(request.body)
+                video_url = payload.get('video_url', '').strip()
+            except (json.JSONDecodeError, AttributeError):
                 pass
 
-        # Si ya había un video anterior en la sala, lo eliminamos antes de reemplazarlo
+        if not video_url:
+            return JsonResponse({'error': 'No se proporcionó una URL válida de video.'}, status=400)
+
+        # Si ya había un video anterior en Cloudinary, se elimina para no acumular basura
         if revision.video_evidencia_url and revision.video_evidencia_url != video_url:
             eliminar_archivo_video_evidencia(revision.video_evidencia_url)
 
         revision.video_evidencia_url = video_url
 
+        # 3. Procesar miniatura si viene en la petición
         if thumbnail_file:
             sala_slug = slugify(revision.ubicacion.nombre)
             procesar_miniatura_revision_sala(revision, thumbnail_file, prefix=f"sala_{sala_slug}")

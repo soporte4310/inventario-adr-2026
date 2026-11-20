@@ -702,6 +702,9 @@ function subirVideoLocalAjax(file, thumbnailBlob) {
 async function subirVideoCloudinaryAjax(file, thumbnailBlob) {
     try {
         const authRes = await fetch(`{% url 'mantencion:firmar_cloudinary' %}?sala_id=${salaActivaId}`);
+        if (!authRes.ok) {
+            throw new Error('No se pudo obtener la firma de autenticación.');
+        }
         const authData = await authRes.json();
             
         const formData = new FormData();
@@ -718,28 +721,43 @@ async function subirVideoCloudinaryAjax(file, thumbnailBlob) {
         actualizarProgresoModal(xhr);
 
         xhr.onload = async function() {
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                const resAsociar = await asociarUrlASala(salaActivaId, data.secure_url, thumbnailBlob, data.duration);
-                
-                if (resAsociar.error) {
-                    mostrarErrorModal(resAsociar.error);
-                    return;
+            try {
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    document.getElementById('m-progress-text').innerText = 'Guardando evidencia en el sistema...';
+                    
+                    // Asociar la URL y miniatura en Django
+                    const resAsociar = await asociarUrlASala(salaActivaId, data.secure_url, thumbnailBlob);
+                    
+                    finalizarCargaExitosa(
+                        data.secure_url, 
+                        resAsociar ? resAsociar.thumb_url : '',
+                        resAsociar ? resAsociar.estado_general : 'PENDIENTE',
+                        resAsociar ? resAsociar.checklist_completado : false
+                    );
+                } else {
+                    let detalle = `HTTP ${xhr.status}`;
+                    try {
+                        const errCloudinary = JSON.parse(xhr.responseText);
+                        if (errCloudinary.error && errCloudinary.error.message) {
+                            detalle = errCloudinary.error.message;
+                        }
+                    } catch(e) {}
+                    mostrarErrorModal(`Error al subir a Cloudinary: ${detalle}`);
                 }
-                finalizarCargaExitosa(data.secure_url, resAsociar.thumb_url, resAsociar.estado_general, resAsociar.checklist_completado);
-            } else {
-                mostrarErrorModal('Error al subir el video a Cloudinary.');
+            } catch (errorInterno) {
+                mostrarErrorModal(`Video subido a la nube, pero falló el registro: ${errorInterno.message}`);
             }
         };
 
         xhr.onerror = function() {
-            mostrarErrorModal('Fallo de conexión con Cloudinary.');
+            mostrarErrorModal('Fallo de conexión al enviar el video a Cloudinary.');
         };
 
         xhr.send(formData);
 
     } catch (e) {
-        mostrarErrorModal('No se pudo autenticar la subida del video.');
+        mostrarErrorModal(`Error en el proceso de subida: ${e.message}`);
     }
 }
 
@@ -817,25 +835,38 @@ function mostrarErrorModal(msg) {
     setBotonesModalDisabled(false);
 }
 
-async function asociarUrlASala(salaId, url, thumbnailBlob, duration) {
+async function asociarUrlASala(salaId, url, thumbnailBlob) {
     const csrftoken = getCookie('csrftoken');
     const formData = new FormData();
     formData.append('video_url', url);
-    if (duration !== undefined && duration !== null) {
-        formData.append('duration', duration);
-    }
     if (thumbnailBlob) {
         formData.append('thumbnail', thumbnailBlob, 'thumbnail.jpg');
     }
 
-    const response = await fetch(`/mantencion/api/asociar-video/${salaId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken
-        },
-        body: formData
-    });
-    return await response.json();
+    try {
+        const response = await fetch(`/mantencion/api/asociar-video/${salaId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            let errorMsg = `Error del servidor (HTTP ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData.error) errorMsg = errData.error;
+            } catch (e) {
+                // Si la respuesta fue HTML (ej: error 500 de Render)
+            }
+            throw new Error(errorMsg);
+        }
+
+        return await response.json();
+    } catch (err) {
+        throw err;
+    }
 }
 
 function getCookie(name) {
