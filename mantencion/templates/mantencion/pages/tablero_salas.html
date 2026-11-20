@@ -717,6 +717,7 @@ async function subirVideoCloudinaryAjax(file, thumbnailBlob) {
         formData.append('signature', authData.signature);
         formData.append('folder', authData.folder);
         formData.append('public_id', authData.public_id);
+        formData.append('transformation', authData.transformation);
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `https://api.cloudinary.com/v1_1/${authData.cloud_name}/video/upload`);

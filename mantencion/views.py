@@ -656,26 +656,31 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
     pk_url_kwarg = 'sala_id'
 
     def get(self, request):
-        revision = self.revision
+        sala_id = request.GET.get('sala_id')
+        revision = get_object_or_404(
+            RevisionSala.objects.select_related('ubicacion'), 
+            pk=sala_id
+        )
 
-        # Generar identificador único normalizado
         ahora = timezone.now()
         periodo = ahora.strftime('%Y-%m')
         hora_marca = ahora.strftime('%H%M%S')
         sala_slug = slugify(revision.ubicacion.nombre)
 
-        # Nombre sin extensión (Cloudinary la añade sola)
         public_id = f"evidencia_{periodo}_{sala_slug}_{hora_marca}"
         folder = "evidencias_salas"
         timestamp = int(time.time())
+        
+        # Redimensiona a 720p máximo y comprime con bitrate económico antes de guardar en disco
+        transformation = "c_limit,w_1280,q_auto:eco"
 
         params_a_firmar = {
             'timestamp': timestamp,
             'folder': folder,
             'public_id': public_id,
+            'transformation': transformation,
         }
 
-        # Generar firma incluyendo el public_id
         storage_settings = getattr(settings, 'CLOUDINARY_STORAGE', {})
         api_secret = storage_settings.get('API_SECRET') or cloudinary.config().api_secret
         signature = cloudinary.utils.api_sign_request(params_a_firmar, api_secret)
@@ -687,6 +692,7 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
             'cloud_name': storage_settings.get('CLOUD_NAME') or cloudinary.config().cloud_name,
             'folder': folder,
             'public_id': public_id,
+            'transformation': transformation,
         })
 
 
