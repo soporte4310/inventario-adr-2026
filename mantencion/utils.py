@@ -104,12 +104,16 @@ def procesar_miniatura_revision_sala(instance, image_file, prefix="evidencia"):
         return
 
     ext = ".jpg"
-    uuid_str = str(uuid.uuid4())
-    base_name = f"{prefix}_{uuid_str}"
+    # Usamos solo los primeros 10 caracteres del hex del UUID (ej: 'c8f3b62080')
+    token_corto = uuid.uuid4().hex[:10]
 
-    main_name = f"{base_name}{ext}"
-    med_name = f"{base_name}_medium{ext}"
-    small_name = f"{base_name}_small{ext}"
+    # Nombres compactos:
+    # ej: th_c8f3b62080.jpg (16 caracteres)
+    # ej: th_c8f3b62080_med.jpg (20 caracteres)
+    # ej: th_c8f3b62080_sm.jpg (19 caracteres)
+    main_name = f"th_{token_corto}{ext}"
+    med_name = f"th_{token_corto}_med{ext}"
+    small_name = f"th_{token_corto}_sm{ext}"
 
     # 1. Imagen Principal
     processed_main = procesar_imagen_en_memoria(

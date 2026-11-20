@@ -398,12 +398,14 @@ class RevisionSala(models.Model):
     imagen_evidencia = models.ImageField(
         verbose_name="Miniatura de Evidencia",
         upload_to="evidencias_salas/thumbnails/main/",
+        max_length=255,
         blank=True,
         null=True
     )
     imagen_thumb_medium = models.ImageField(
         verbose_name="Thumbnail (600x600)",
         upload_to="evidencias_salas/thumbnails/medium/",
+        max_length=255,
         blank=True,
         null=True,
         editable=False
@@ -411,6 +413,7 @@ class RevisionSala(models.Model):
     imagen_thumb_small = models.ImageField(
         verbose_name="Thumbnail (50x50)",
         upload_to="evidencias_salas/thumbnails/small/",
+        max_length=255,
         blank=True,
         null=True,
         editable=False
