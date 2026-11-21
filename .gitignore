@@ -28,7 +28,15 @@ desktop.ini
 # Sensitive files
 *.ppk
 *.sql
+*.sql.gz
+*.gz
 backups/
+
+# Staging local: credenciales, dumps de producción y correos capturados.
+# Nunca deben subirse al repositorio compartido.
+staging/credenciales.env
+staging/dumps/
+staging/correos/
 
 # Temporary files
 ultimo_reporte.xlsx
