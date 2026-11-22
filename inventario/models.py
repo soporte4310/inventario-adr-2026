@@ -92,12 +92,44 @@ class Piso(models.Model):
 
 class Ubicacion(models.Model):
     """Modelo para registrar la ubicación final de los equipos. Estas pueden ser, salas, pasillos, bodegas, etc."""
+
+    class TipoUbicacion(models.TextChoices):
+        SALA_CLASES = 'SALA_CLASES', 'Sala de Clases / Aula'
+        LABORATORIO = 'LABORATORIO', 'Laboratorio / Taller'
+        OFICINA = 'OFICINA', 'Oficina Administrativa'
+        INFRAESTRUCTURA_TI = 'INFRAESTRUCTURA_TI', 'Infraestructura TI / Rack'
+        BODEGA_PANOL = 'BODEGA_PANOL', 'Bodega / Pañol'
+        BIBLIOTECA = 'BIBLIOTECA', 'Biblioteca'
+        AREA_COMUN = 'AREA_COMUN', 'Área Común / Tránsito'
+
     nombre = models.CharField(verbose_name="Ubicación", max_length=100, help_text="Ingrese de la ubicación (sala, bodega, pasillo, etc.)", validators=[validador_alfanumerico_nombres])
     descripcion = models.TextField(verbose_name="Descripción (opcional)", null=True, blank=True, validators=[validador_texto_seguro])
     imagen = models.ImageField(verbose_name="Imagen de la ubicación", null=True, blank=True, upload_to="ubicaciones/imagen/main")
     imagen_thumb_medium = models.ImageField(verbose_name="Thumbnail (600x600)", upload_to="ubicaciones/imagen/medium/", blank=True, null=True,editable=False)
     imagen_thumb_small = models.ImageField(verbose_name="Thumbnail (50x50)",upload_to="ubicaciones/imagen/small/", blank=True, null=True,editable=False)
     piso = models.ForeignKey(Piso, on_delete=models.PROTECT, verbose_name="Piso", help_text="Seleccione el piso/nivel correspondiente")
+    tipo = models.CharField(max_length=25, choices=TipoUbicacion.choices, default=TipoUbicacion.SALA_CLASES)
+
+    # Campos para mantenimiento
+    # ¿Entra en la revisión preventiva mensual?
+    aplica_mantenimiento = models.BooleanField(
+        default=False,
+        verbose_name="Incluir en ciclo de mantenimiento",
+        help_text="Marcar si esta sala/oficina debe ser inspeccionada en las revisiones mensuales."
+    )
+    
+    # ¿La sala está diseñada para proyectar? (Expectativa)
+    requiere_proyeccion = models.BooleanField(
+        default=False,
+        verbose_name="Requiere proyector",
+        help_text="Indica si este recinto debe contar obligatoriamente con proyector instalado."
+    )
+
+    # Tipos donde se guardan equipos en stock/repuesto y puede haber varios proyectores almacenados
+    TIPOS_BODEGA = {
+        TipoUbicacion.BODEGA_PANOL,
+        TipoUbicacion.INFRAESTRUCTURA_TI,
+    }
 
     class Meta:
         verbose_name = "Ubicación"
@@ -105,6 +137,38 @@ class Ubicacion(models.Model):
 
     def __str__(self):
         return f'{self.piso}, {self.nombre}'
+
+    @property
+    def alerta_exceso_proyectores(self):
+        """
+        Retorna True si el recinto es operativo (Sala, Laboratorio, Oficina, Biblioteca, Área Común)
+        y tiene más de 1 proyector asignado.
+        """
+        if self.tipo in self.TIPOS_BODEGA:
+            return False
+        
+        conteo = getattr(self, 'proyectores_count', None)
+        if conteo is None:
+            conteo = self.activo_set.filter(
+                catalogo__categoria__nombre__icontains='PROYECTOR'
+            ).count()
+        return conteo > 1
+
+    @property
+    def alerta_falta_proyector(self):
+        """
+        Retorna True si la ubicación tiene marcado 'requiere_proyeccion=True'
+        pero actualmente tiene 0 proyectores asignados.
+        """
+        if not self.requiere_proyeccion:
+            return False
+
+        conteo = getattr(self, 'proyectores_count', None)
+        if conteo is None:
+            conteo = self.activo_set.filter(
+                catalogo__categoria__nombre__icontains='PROYECTOR'
+            ).count()
+        return conteo == 0
 
 
 class Marca(models.Model):

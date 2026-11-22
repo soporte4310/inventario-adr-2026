@@ -1,6 +1,19 @@
 <section id="MenuUsuarioDropdown" class="menu_desplegable_usuario">
     <ul class="menu_desplegable_usuario__opciones fs_pequena color_primario">
 
+        <!-- Botón para Volver al Portal -->
+        <li class="menu_desplegable_usuario__opcion">
+            <a class="fs_normal color_primario_variante font-bold text-red-600 dark:text-red-400" href="{% url 'portal:index' %}">
+                <!-- Icono de cuadrícula / Portal (Th Large) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                    <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+                </svg>
+                Volver al portal
+            </a>
+        </li>
+
+        <li class="menu_desplegable_usuario__opcion border-t border-slate-100 my-1"></li>
+
         <li class="menu_desplegable_usuario__opcion">
             <a class="fs_normal color_primario_variante" href="{% url 'my_profile' %}">
                 <!-- Mi cuenta (ID Card) -->

@@ -82,44 +82,6 @@
   {% endif %}
 
 
-  <!-- <script>
-      document.addEventListener('touchstart', function (event) {
-          const touch = event.touches[0];
-          const screenWidth = window.innerWidth;
-  
-          // Si el usuario toca en los primeros 20px del lado izquierdo de la pantalla
-          if (touch.clientX < 20) {
-              const sidebar = document.querySelector('.sidebar');
-              if (sidebar) {
-                  sidebar.style.left = '0';
-              }
-          }
-  
-          // Si el usuario toca en los primeros 20px de la parte superior de la pantalla
-          if (touch.clientY < 20) {
-              const navbar = document.querySelector('.navbar');
-              if (navbar) {
-                  navbar.style.top = '0';
-              }
-          }
-      });
-  
-      // Evento para ocultar la sidebar si se toca fuera de ella
-      document.addEventListener('touchend', function (event) {
-          const sidebar = document.querySelector('.sidebar');
-          if (sidebar && sidebar.style.left === '0px') {
-              setTimeout(() => {
-                  sidebar.style.left = '-300px';
-              }, 3000); // Después de 3 segundos de haber terminado el toque
-          }
-      });
-
-      // Deshabilitar clic derecho
-      // document.addEventListener('contextmenu', function(e) {
-      //  e.preventDefault();
-      // });
-    </script> -->
-
   {% block js %}
   <script src="{% static 'js/virtual-keyboard.js' %}"></script>
   <script src="{% static 'js/sidebar.js' %}"></script>

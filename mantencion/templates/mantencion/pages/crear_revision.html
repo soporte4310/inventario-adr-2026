@@ -1,0 +1,60 @@
+{% extends 'mantencion/layouts/base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i> {{ titulo }}
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">
+                        Esta acción generará un nuevo ciclo preventivo extraordinario para el período <strong>{{ mes_nombre }} {{ anio }}</strong>.
+                    </p>
+
+                    <div class="alert alert-light border mb-4">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2">
+                                <i class="fas fa-door-open text-primary me-2"></i>
+                                <strong>Recintos a auditar:</strong> {{ total_salas }} salas de clases activas.
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-user-shield text-dark me-2"></i>
+                                <strong>Iniciado por:</strong> {{ request.user.username }} (Superusuario).
+                            </li>
+                            <li>
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                <strong>Condición:</strong> Solo se permite si no hay ciclos en curso en el mes.
+                            </li>
+                        </ul>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label small fw-bold text-muted">Nombre del ciclo (Opcional)</label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" 
+                                   placeholder="Revisión Extraordinaria Salas - {{ mes_nombre }} {{ anio }}">
+                            <div class="form-text small">Si se deja en blanco, se asignará el nombre estándar automático.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{% url 'mantencion:lista_revisiones' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4 font-weight-bold">
+                                <i class="fas fa-play me-1"></i> Confirmar e Iniciar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

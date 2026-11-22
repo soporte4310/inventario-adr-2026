@@ -263,17 +263,37 @@ class FuncionarioForm(forms.ModelForm):
 
 
 
-class UbicacionForm(forms.ModelForm):
+class UbicacionForm(ImageProcessingFormMixin, forms.ModelForm):
     class Meta:
         model = Ubicacion
-        fields = ['nombre', 'piso', 'descripcion', 'imagen']
+        fields = [
+            'nombre',
+            'tipo',
+            'piso',
+            'aplica_mantenimiento',
+            'requiere_proyeccion',
+            'descripcion',
+            'imagen'
+        ]
         widgets = {
             'nombre': forms.TextInput(attrs={
                 'class': 'form-control shadow-none',
                 'placeholder': 'Ej: Sala 204, Laboratorio de Computación, Bodega Central'
             }),
+            'tipo': forms.Select(attrs={
+                'class': 'form-select shadow-none',
+                'id': 'id_tipo_ubicacion'
+            }),
             'piso': forms.Select(attrs={
                 'class': 'form-select shadow-none'
+            }),
+            'aplica_mantenimiento': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch'
+            }),
+            'requiere_proyeccion': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch'
             }),
             'descripcion': forms.Textarea(attrs={
                 'class': 'form-control shadow-none',
@@ -291,3 +311,20 @@ class UbicacionForm(forms.ModelForm):
         # para evitar consultas redundantes en el desplegable
         self.fields['piso'].queryset = Piso.objects.select_related('edificio').order_by('edificio__nombre', 'nombre')
         self.fields['piso'].empty_label = "--- Seleccione un Piso / Nivel ---"
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Si se subió una imagen nueva, procesamos los thumbnails
+        if 'imagen' in self.changed_data and self.cleaned_data.get('imagen'):
+            self.process_image_upload(
+                instance=instance,
+                field_name='imagen',
+                max_dim=(1024, 1024),
+                crop=False,          # Generalmente en ubicaciones conviene mantener la proporción panorámica/original (no forzar 1:1)
+                image_prefix='ubi'
+            )
+            
+        if commit:
+            instance.save()
+        return instance

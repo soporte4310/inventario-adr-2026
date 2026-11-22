@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal ADR • INACAP Iquique</title>
+    <link rel="shortcut icon" href="{% static 'imagenes/favicon.ico' %}" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 bg-gradient-to-br from-red-950 via-slate-900 to-blue-950 text-white font-sans flex flex-col justify-between relative overflow-x-hidden selection:bg-red-500 selection:text-white">
+
+    <!-- Luces ambientales de fondo (coherencia con el degradado de Login) -->
+    <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-red-600/25 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/3 -right-24 w-96 h-96 bg-blue-600/25 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-24 left-1/3 w-80 h-80 bg-indigo-600/20 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Topbar flotante estilo Glassmorphism -->
+    <header class="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+        <div class="bg-white/10 backdrop-blur-md border border-white/15 rounded-3xl px-4 sm:px-6 py-3.5 flex items-center justify-between shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-black p-1.5 rounded-2xl shadow-sm">
+                    <img src="{% static 'imagenes/adr_logo.png' %}" alt="Logo ADR" class="h-8 sm:h-9 w-auto object-contain">
+                </div>
+                <div>
+                    <span class="block text-sm sm:text-base font-black tracking-tight text-white leading-none">Sistema ADR</span>
+                    <span class="block text-[10px] font-bold text-red-400 uppercase tracking-widest mt-1">INACAP Iquique</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Chip de usuario -->
+                <div class="flex items-center gap-2.5 bg-slate-900/60 border border-white/10 px-3 py-1.5 rounded-2xl">
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-xs font-black uppercase shadow">
+                        {{ request.user.username|slice:":1"|default:"U" }}
+                    </div>
+                    <span class="text-xs font-bold text-slate-200 hidden sm:inline pr-1">
+                        {{ request.user.get_full_name|default:request.user.username }}
+                    </span>
+                </div>
+
+                <!-- Botón Cerrar Sesión -->
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" title="Cerrar sesión"
+                            class="p-2.5 rounded-2xl bg-red-500/20 hover:bg-red-600 text-red-200 hover:text-white border border-red-500/30 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Central -->
+    <main class="relative z-10 flex-1 flex flex-col justify-center max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        
+        <!-- Saludo principal -->
+        <div class="text-center mb-8 sm:mb-10">
+            <span class="inline-block px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] font-black uppercase tracking-widest text-blue-300 mb-3">
+                Sistema de Gestión de Recursos
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                ¿A dónde vamos hoy?
+            </h1>
+            <p class="text-slate-300 text-sm sm:text-base font-medium mt-2">
+                Selecciona un módulo o escanea un equipo directamente
+            </p>
+        </div>
+
+        <!-- Buscador rápido directo a lista_activos -->
+        <div class="w-full max-w-2xl mx-auto mb-8 sm:mb-12">
+            <form method="get" action="{% url 'lista_activos' %}" class="relative group">
+                <input type="text" name="search" placeholder="Escanear BDO, Serie o Etiqueta en Inventario..." 
+                       class="w-full pl-12 pr-24 py-4 bg-white/95 focus:bg-white text-slate-800 placeholder-slate-400 border-2 border-transparent focus:border-red-500 rounded-3xl focus:ring-4 focus:ring-red-500/30 outline-none transition-all shadow-2xl text-sm sm:text-base font-bold">
+                <div class="absolute left-4 top-4 text-slate-400 group-focus-within:text-red-600 transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+                    </svg>
+                </div>
+                <button type="submit" class="absolute right-2.5 top-2.5 bottom-2.5 px-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow transition-all">
+                    Buscar
+                </button>
+            </form>
+        </div>
+
+        <!-- Grid de Módulos a todo color -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+            
+            <!-- TARJETA 1: INVENTARIO -->
+            <a href="{% url 'dashboard_inventario' %}" 
+               class="group relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-blue-950/60 border border-blue-400/30 hover:border-blue-300 transform hover:-translate-y-1.5 hover:scale-[1.01] transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[250px]">
+                
+                <!-- Círculo decorativo interno -->
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-md group-hover:scale-125 transition-transform duration-500"></div>
+
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-inner group-hover:scale-110 group-hover:bg-white group-hover:text-blue-700 transition-all duration-300">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                            </svg>
+                        </div>
+                        <span class="px-3 py-1 bg-black/25 backdrop-blur-sm text-blue-100 rounded-full text-[11px] font-black uppercase tracking-widest border border-white/10">
+                            Módulo Activos
+                        </span>
+                    </div>
+
+                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+                        Inventario
+                    </h2>
+                    <p class="text-blue-100/90 text-sm sm:text-base font-medium leading-relaxed">
+                        Control de equipamiento, préstamos en curso, bodegas, ubicaciones y auditoría.
+                    </p>
+                </div>
+
+                <div class="relative z-10 mt-8 pt-4 border-t border-white/15 flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        Ir al Panel de Inventario
+                    </span>
+                    <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-blue-700 group-hover:translate-x-1 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+
+            <!-- TARJETA 2: MANTENCIÓN -->
+            <a href="{% url 'mantencion:dashboard_mantenimiento' %}" 
+               class="group relative bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/60 border border-emerald-300/30 hover:border-emerald-200 transform hover:-translate-y-1.5 hover:scale-[1.01] transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[250px]">
+                
+                <!-- Círculo decorativo interno -->
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-md group-hover:scale-125 transition-transform duration-500"></div>
+
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-inner group-hover:scale-110 group-hover:bg-white group-hover:text-teal-700 transition-all duration-300">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                        <span class="px-3 py-1 bg-black/25 backdrop-blur-sm text-emerald-100 rounded-full text-[11px] font-black uppercase tracking-widest border border-white/10">
+                            Módulo Operativo
+                        </span>
+                    </div>
+
+                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+                        Mantención
+                    </h2>
+                    <p class="text-emerald-50/90 text-sm sm:text-base font-medium leading-relaxed">
+                        Ciclos de revisión mensual, estado de salas, proyectores, audio e impresoras.
+                    </p>
+                </div>
+
+                <div class="relative z-10 mt-8 pt-4 border-t border-white/15 flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        Ir al Panel de Mantención
+                    </span>
+                    <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-teal-700 group-hover:translate-x-1 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+    </main>
+
+    <!-- Footer sutil -->
+    <footer class="relative z-10 py-5 text-center text-xs font-bold text-slate-400">
+        ADR • INACAP Sede Iquique
+    </footer>
+
+    {% include "soporte/partials/_blacklist_trigger.html" %}
+</body>
+</html>

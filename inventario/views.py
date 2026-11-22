@@ -1817,61 +1817,120 @@ class ListaUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     paginate_by = 20
     permission_required = 'inventario.view_ubicacion'
 
+    def get(self, request, *args, **kwargs):
+        if 'reset' in request.GET:
+            request.session.pop('ubicaciones_filtros', None)
+            return redirect('lista_ubicaciones')
+
+        if not request.GET and 'ubicaciones_filtros' in request.session:
+            saved_params = request.session['ubicaciones_filtros']
+            if saved_params:
+                return redirect(f"{reverse('lista_ubicaciones')}?{saved_params}")
+
+        if request.GET:
+            request.session['ubicaciones_filtros'] = request.GET.urlencode()
+
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
-        # Usamos select_related para traer los datos del piso y del edificio en una sola consulta SQL
         queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
-            activos_count=Count('activo')
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False), distinct=True),
+            proyectores_count=Count(
+                'activo',
+                filter=Q(
+                    activo__is_deleted=False,
+                    activo__catalogo__categoria__nombre__icontains='PROYECTOR'
+                ),
+                distinct=True
+            )
         )
         
         # 1. Obtener parámetros GET
-        search_query = self.request.GET.get('search', '')
-        edificio_id = self.request.GET.get('edificio', '')
-        piso_nombre = self.request.GET.get('piso', '')
+        self.search_query = self.request.GET.get('search', '').strip()
+        self.edificio_id = self.request.GET.get('edificio', '')
+        self.piso_nombre = self.request.GET.get('piso', '')
+        self.tipo = self.request.GET.get('tipo', '')
+        self.mantenimiento = self.request.GET.get('mantenimiento', '')
+        self.proyeccion = self.request.GET.get('proyeccion', '')
+        self.alerta_proyector = self.request.GET.get('alerta_proyector', '')
+        self.orden = self.request.GET.get('orden', '-id')
 
         # 2. Aplicar filtros dinámicamente
-        if search_query:
-            queryset = queryset.filter(nombre__icontains=search_query)
+        if self.search_query:
+            queryset = queryset.filter(nombre__icontains=self.search_query)
         
-        if edificio_id:
-            # Filtramos cruzando la relación hacia el edificio
-            queryset = queryset.filter(piso__edificio_id=edificio_id)
+        if self.edificio_id:
+            queryset = queryset.filter(piso__edificio_id=self.edificio_id)
             
-        if piso_nombre:
-            # Filtramos exactamente por el nombre del string del piso
-            queryset = queryset.filter(piso__nombre=piso_nombre)
+        if self.piso_nombre:
+            queryset = queryset.filter(piso__nombre=self.piso_nombre)
+
+        if self.tipo:
+            queryset = queryset.filter(tipo=self.tipo)
+
+        if self.mantenimiento in ['1', '0']:
+            queryset = queryset.filter(aplica_mantenimiento=(self.mantenimiento == '1'))
+
+        if self.proyeccion in ['1', '0']:
+            queryset = queryset.filter(requiere_proyeccion=(self.proyeccion == '1'))
+
+        # Nuevo filtro de alertas de proyector
+        if self.alerta_proyector == 'exceso':
+            queryset = queryset.exclude(
+                tipo__in=Ubicacion.TIPOS_BODEGA
+            ).filter(proyectores_count__gt=1)
+        elif self.alerta_proyector == 'faltante':
+            queryset = queryset.filter(requiere_proyeccion=True, proyectores_count=0)
         
-        return queryset.order_by('-id')
+        # 3. Aplicar ordenamiento
+        ordenes_validos = {
+            '-id': ('-id',),
+            'id': ('id',),
+            'nombre': ('nombre', 'id'),
+            '-nombre': ('-nombre', '-id'),
+            'activos': ('activos_count', 'nombre'),
+            '-activos': ('-activos_count', 'nombre'),
+        }
+        
+        criterio_orden = ordenes_validos.get(self.orden, ('-id',))
+        return queryset.order_by(*criterio_orden)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_lista'] = 'Lista de Ubicaciones'
         
-        # Guardar valores actuales para mantenerlos en el HTML (formularios y paginación)
-        search_query = self.request.GET.get('search', '')
-        edificio_id = self.request.GET.get('edificio', '')
-        piso_nombre = self.request.GET.get('piso', '')
+        context['search_query'] = self.search_query
+        context['edificio_id'] = self.edificio_id
+        context['piso_nombre'] = self.piso_nombre
+        context['tipo_seleccionado'] = self.tipo
+        context['mantenimiento_seleccionado'] = self.mantenimiento
+        context['proyeccion_seleccionado'] = self.proyeccion
+        context['alerta_proyector_seleccionada'] = self.alerta_proyector
+        context['orden_seleccionado'] = self.orden
+
+        hay_filtros = any([
+            self.search_query, self.edificio_id, self.piso_nombre,
+            self.tipo, self.mantenimiento, self.proyeccion, self.alerta_proyector
+        ])
+        context['hay_filtros'] = hay_filtros
+        context['total_ubicaciones_general'] = Ubicacion.objects.count()
         
-        context['search_query'] = search_query
-        context['edificio_id'] = edificio_id
-        context['piso_nombre'] = piso_nombre
-        
-        # Listas para poblar los elementos <select> del filtro
-        context['edificios'] = Edificio.objects.all()
-        # Traemos solo los nombres de los pisos, descartamos los repetidos y los ordenamos
+        context['edificios'] = Edificio.objects.all().order_by('nombre')
         context['pisos'] = Piso.objects.values_list('nombre', flat=True).distinct().order_by('nombre')
+        context['tipos_ubicacion'] = Ubicacion.TipoUbicacion.choices
         
-        # Reconstruir query_string dinámicamente para la paginación
-        query_params = []
-        if search_query: query_params.append(f'search={search_query}')
-        if edificio_id: query_params.append(f'edificio={edificio_id}')
-        if piso_nombre: query_params.append(f'piso={piso_nombre}')
+        get_copy = self.request.GET.copy()
+        if 'page' in get_copy:
+            get_copy.pop('page')
+        query_string = get_copy.urlencode()
         
-        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
+        context['query_string'] = f"&{query_string}" if query_string else ""
+        context['full_query_string'] = self.request.GET.urlencode()
             
         return context
 
 
-class CrearUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin,  CreateView):
+class CrearUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
     model = Ubicacion
     form_class = UbicacionForm
     template_name = 'inventario/pages/agregar_ubicacion.html'
@@ -1883,6 +1942,11 @@ class CrearUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMes
         context = super().get_context_data(**kwargs)
         context['titulo_formulario'] = 'Nueva Ubicación'
         return context
+
+    def get_success_url(self):
+        params = self.request.GET.urlencode() or self.request.session.get('ubicaciones_filtros', '')
+        url = reverse('lista_ubicaciones')
+        return f"{url}?{params}" if params else url
 
 
 class EditarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
@@ -1898,6 +1962,11 @@ class EditarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMe
         context['titulo_formulario'] = 'Editar Ubicación'
         return context
 
+    def get_success_url(self):
+        params = self.request.GET.urlencode() or self.request.session.get('ubicaciones_filtros', '')
+        url = reverse('lista_ubicaciones')
+        return f"{url}?{params}" if params else url
+
 
 class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Ubicacion
@@ -1906,21 +1975,36 @@ class DetalleUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
     permission_required = 'inventario.view_ubicacion'
 
     def get_queryset(self):
-        # Optimizamos la consulta de la ubicación trayendo el piso y el edificio de una sola vez
         return super().get_queryset().select_related('piso', 'piso__edificio')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_detalle'] = 'Detalle de la Ubicación'
         
-        # Obtenemos los activos asociados a esta ubicación específica.
-        # Al usar el manager por defecto, automáticamente omitimos los activos marcados como is_deleted.
-        context['activos'] = self.object.activo_set.select_related(
+        activos = self.object.activo_set.select_related(
             'catalogo__categoria',
             'catalogo__marca',
             'estado',
             'asignado_a'
         ).order_by('-id')
+        context['activos'] = activos
+
+        # Contamos cuántos proyectores hay registrados en esta ubicación
+        proyectores_count = activos.filter(
+            catalogo__categoria__nombre__icontains='PROYECTOR'
+        ).count()
+
+        context['proyectores_count'] = proyectores_count
+        context['tiene_proyector'] = proyectores_count > 0
+        
+        # Evaluamos la advertencia de exceso solo si NO es bodega ni rack
+        tipos_excluidos = {
+            Ubicacion.TipoUbicacion.BODEGA_PANOL,
+            Ubicacion.TipoUbicacion.INFRAESTRUCTURA_TI,
+        }
+        context['alerta_exceso_proyectores'] = (
+            self.object.tipo not in tipos_excluidos and proyectores_count > 1
+        )
         
         return context
 
@@ -1930,6 +2014,11 @@ class EliminarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DeleteV
     template_name = 'inventario/pages/eliminar_ubicacion.html'
     success_url = reverse_lazy('lista_ubicaciones')
     permission_required = 'inventario.delete_ubicacion'
+
+    def get_success_url(self):
+        params = self.request.GET.urlencode() or self.request.session.get('ubicaciones_filtros', '')
+        url = reverse('lista_ubicaciones')
+        return f"{url}?{params}" if params else url
 
     # En Django moderno, se debe sobreescribir form_valid en lugar de delete
     def form_valid(self, form):
@@ -1941,7 +2030,7 @@ class EliminarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DeleteV
                 self.request, 
                 f"Operación cancelada: No se puede eliminar '{self.object.nombre}' porque tiene equipos tecnológicos asignados."
             )
-            return HttpResponseRedirect(self.success_url)
+            return HttpResponseRedirect(self.get_success_url())
         
         # Guardamos el nombre antes de borrar para poder mostrarlo en el SweetAlert
         nombre_ubicacion = self.object.nombre
@@ -1954,3 +2043,92 @@ class EliminarUbicacionView(LoginRequiredMixin, PermissionRequiredMixin, DeleteV
         
         # Redirigimos a la lista
         return HttpResponseRedirect(self.get_success_url())
+
+
+
+
+class DescargarExcelUbicacionesView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Vista para exportar las ubicaciones a un archivo Excel (.xlsx),
+    respetando los filtros y el ordenamiento activos en la vista de lista.
+    """
+    permission_required = 'inventario.view_ubicacion'
+
+    def get(self, request, *args, **kwargs):
+        queryset = Ubicacion.objects.select_related('piso', 'piso__edificio').annotate(
+            activos_count=Count('activo', filter=Q(activo__is_deleted=False)),
+            proyectores_count=Count(
+                'activo',
+                filter=Q(
+                    activo__is_deleted=False,
+                    activo__catalogo__categoria__nombre__icontains='PROYECTOR'
+                )
+            )
+        )
+
+        search_query = request.GET.get('search', '').strip()
+        edificio_id = request.GET.get('edificio', '')
+        piso_nombre = request.GET.get('piso', '')
+        tipo = request.GET.get('tipo', '')
+        mantenimiento = request.GET.get('mantenimiento', '')
+        proyeccion = request.GET.get('proyeccion', '')
+        orden = request.GET.get('orden', '-id')
+
+        if search_query:
+            queryset = queryset.filter(nombre__icontains=search_query)
+        if edificio_id:
+            queryset = queryset.filter(piso__edificio_id=edificio_id)
+        if piso_nombre:
+            queryset = queryset.filter(piso__nombre=piso_nombre)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        if mantenimiento in ['1', '0']:
+            queryset = queryset.filter(aplica_mantenimiento=(mantenimiento == '1'))
+        if proyeccion in ['1', '0']:
+            queryset = queryset.filter(requiere_proyeccion=(proyeccion == '1'))
+
+        ordenes_validos = {
+            '-id': ('-id',),
+            'id': ('id',),
+            'nombre': ('nombre', 'id'),
+            '-nombre': ('-nombre', '-id'),
+            'activos': ('activos_count', 'nombre'),
+            '-activos': ('-activos_count', 'nombre'),
+        }
+        criterio_orden = ordenes_validos.get(orden, ('-id',))
+        ubicaciones = queryset.order_by(*criterio_orden)
+
+        data = []
+        for ub in ubicaciones:
+            data.append({
+                'ID': ub.id,
+                'UBICACION': ub.nombre,
+                'TIPO': ub.get_tipo_display(),
+                'EDIFICIO': ub.piso.edificio.nombre if ub.piso and ub.piso.edificio else '',
+                'PISO_NIVEL': ub.piso.nombre if ub.piso else '',
+                'CICLO_MANTENIMIENTO': 'Sí' if ub.aplica_mantenimiento else 'No',
+                'REQUIERE_PROYECTOR': 'Sí' if ub.requiere_proyeccion else 'No',
+                'PROYECTORES_INSTALADOS': ub.proyectores_count,
+                'CANTIDAD_ACTIVOS': ub.activos_count,
+                'DESCRIPCION': ub.descripcion or '',
+            })
+
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        hay_filtros = any([search_query, edificio_id, piso_nombre, tipo, mantenimiento, proyeccion])
+        nombre_archivo = "Ubicaciones_Filtradas.xlsx" if hay_filtros else "Listado_General_Ubicaciones.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Ubicaciones')
+            worksheet = writer.sheets['Ubicaciones']
+
+            for cell in worksheet[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+
+            for idx, col in enumerate(df.columns):
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(idx + 1)].width = max(len(col) + 4, 15)
+
+        return response
