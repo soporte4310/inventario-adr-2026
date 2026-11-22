@@ -529,6 +529,25 @@ def credenciales_locales() -> dict:
     }
 
 
+# Sufijo que se añade al nombre configurado. El script nunca opera sobre la
+# base del .env: siempre sobre esta variante, de modo que una sentencia
+# destructiva no puede nombrar la base que usa producción.
+SUFIJO_BASE_STAGING = '_staging'
+
+
+def nombre_base_staging(nombre_configurado: str) -> str:
+    """
+    Deriva el nombre de la base de staging a partir del configurado.
+
+    `inventario_adr` pasa a `inventario_adr_staging`. Si el nombre ya trae el
+    sufijo se deja igual, para que ejecutar dos veces no lo duplique.
+    """
+    nombre = (nombre_configurado or 'inventario_adr').strip()
+    if nombre.endswith(SUFIJO_BASE_STAGING):
+        return nombre
+    return f'{nombre}{SUFIJO_BASE_STAGING}'
+
+
 # Hosts que designan esta misma máquina. Cualquier otro valor significa que la
 # base está en un servidor ajeno, y ahí no se borra nada bajo ninguna excusa.
 HOSTS_LOCALES = ('127.0.0.1', 'localhost', '::1', '0.0.0.0', '')
@@ -880,6 +899,66 @@ def preguntar_si_no(texto: str) -> bool:
     return respuesta in ('s', 'si', 'sí', 'y', 'yes')
 
 
+# Nombres de rama donde este script puede ejecutarse. Producción queda fuera a
+# propósito: si la rama actual no está en esta lista, el script no arranca.
+RAMAS_PERMITIDAS = ('staging', 'desarrollo', 'develop')
+
+
+def _rama_actual() -> str | None:
+    """Devuelve el nombre de la rama git actual, o None si no se puede leer."""
+    try:
+        resultado = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=RAIZ_PROYECTO, capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    if resultado.returncode != 0:
+        return None
+    return resultado.stdout.strip()
+
+
+def verificar_entorno_seguro() -> None:
+    """
+    Se niega a continuar si no está en una rama de trabajo local.
+
+    Este script borra y recrea la base de datos, así que solo debe correr en
+    ramas donde los datos no son los de producción. La comprobación es la
+    primera que se ejecuta, antes de leer credenciales o tocar la base.
+    """
+    problemas = []
+
+    if os.environ.get('RENDER'):
+        problemas.append('se detectó la variable RENDER: esto es producción')
+
+    rama = _rama_actual()
+    if rama is None:
+        problemas.append('no se pudo determinar la rama git del proyecto')
+    elif rama not in RAMAS_PERMITIDAS and not rama.startswith('practicantes-'):
+        problemas.append(
+            f'la rama actual es "{rama}" y el script solo corre en '
+            f'{", ".join(RAMAS_PERMITIDAS)} o en ramas "practicantes-*"'
+        )
+
+    if not sys.stdin.isatty():
+        problemas.append('no hay terminal interactiva: parece una ejecución remota')
+
+    if problemas:
+        print()
+        print('[staging] EJECUCIÓN BLOQUEADA', file=sys.stderr)
+        for problema in problemas:
+            print(f'[staging]   - {problema}', file=sys.stderr)
+        print(
+            '[staging] este script borra y recrea la base de datos, así que '
+            'solo se permite en ramas de trabajo local.',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    informar(f'entorno verificado: rama "{rama}", ejecución local')
+
+
 def arrancar_servidor(puerto: int) -> None:
     """Levanta el servidor de desarrollo con la configuración de staging."""
     titulo('Servidor listo')
@@ -985,6 +1064,8 @@ def main() -> None:
 
     titulo('Inventario ADR - staging local')
 
+    verificar_entorno_seguro()
+
     sin_dump, reimportar, crear_cuenta = elegir_modo(opciones)
 
     if not hay_conexion_internet():
@@ -998,6 +1079,9 @@ def main() -> None:
     DIRECTORIO_CORREOS.mkdir(parents=True, exist_ok=True)
 
     locales = credenciales_locales()
+    locales['NAME'] = nombre_base_staging(locales['NAME'])
+    informar(f'base de staging: {locales["NAME"]}')
+
     dump_elegido = None
     dump_es_nuevo = False
 
