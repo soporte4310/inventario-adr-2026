@@ -674,11 +674,16 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
         # Redimensiona a 720p máximo y comprime con bitrate económico antes de guardar en disco
         #transformation = "c_limit,w_1280,q_auto:eco"
 
+        # Transformación asíncrona recomendada por Cloudinary para videos pesados
+        eager_transformation = "q_auto,vc_auto,w_1280,c_limit"
+
         params_a_firmar = {
             'timestamp': timestamp,
             'folder': folder,
             'public_id': public_id,
             #'transformation': transformation,
+            'eager': eager_transformation,
+            'eager_async': True,
         }
 
         storage_settings = getattr(settings, 'CLOUDINARY_STORAGE', {})
@@ -693,6 +698,8 @@ class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, 
             'folder': folder,
             'public_id': public_id,
             #'transformation': transformation,
+            'eager': eager_transformation,
+            'eager_async': 'true',
         })
 
 
