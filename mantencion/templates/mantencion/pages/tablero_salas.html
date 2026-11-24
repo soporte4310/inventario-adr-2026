@@ -719,6 +719,12 @@ async function subirVideoCloudinaryAjax(file, thumbnailBlob) {
         formData.append('public_id', authData.public_id);
         /*formData.append('transformation', authData.transformation);*/
 
+        // Parámetros para procesar videos pesados en segundo plano
+        if (authData.eager) {
+            formData.append('eager', authData.eager);
+            formData.append('eager_async', authData.eager_async);
+        }
+
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `https://api.cloudinary.com/v1_1/${authData.cloud_name}/video/upload`);
 
@@ -1032,6 +1038,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalEl = document.getElementById('modalEvidenciaVideo');
     if (modalEl) {
         modalEl.addEventListener('hidden.bs.modal', pausarVideoModal);
+    }
+
+    // Detección de dispositivos iOS (iPhone / iPad)
+    const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (esIOS) {
+        const inputCamara = document.getElementById('input-video-camara');
+        if (inputCamara) {
+            // Remueve capture solo en iOS para evitar el grabador web VGA (360x480)
+            inputCamara.removeAttribute('capture');
+        }
     }
 });
 
