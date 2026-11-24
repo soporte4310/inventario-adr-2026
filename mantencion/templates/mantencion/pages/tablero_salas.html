@@ -321,7 +321,7 @@
                     {% if ciclo.esta_cerrado %}
                         <span class="text-muted small d-block mb-1">Este ciclo se encuentra finalizado y no permite adjuntar nuevos videos.</span>
                     {% else %}
-                        <span class="text-muted small d-block mb-3">Graba con tu cámara o selecciona un video desde tu galería (máx. 30s).</span>
+                        <span class="text-muted small d-block mb-3">Graba con tu cámara o selecciona un video desde tu galería (máx. 40s).</span>
                     {% endif %}
                 </div>
 
@@ -898,7 +898,7 @@ function getCookie(name) {
 const FORMATOS_VALIDOS = ['video/mp4', 'video/quicktime', 'video/webm'];
 const EXTENSIONES_VALIDAS = ['.mp4', '.mov', '.webm'];
 const LIMITE_MB = 100;
-const DURACION_MAX_SEGUNDOS = 31.5;
+const DURACION_MAX_SEGUNDOS = 41.5;
 
 function validarArchivoEnCliente(file) {
     const ext = '.' + file.name.split('.').pop().toLowerCase();
