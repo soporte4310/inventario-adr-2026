@@ -1,3 +1,4 @@
+import re
 from django.db import models
 from django.db.models import Q
 from django.conf import settings
@@ -345,9 +346,18 @@ class Activo(models.Model):
     acta_devolucion = models.FileField(upload_to='documentos/actas/devoluciones/', validators=[FileExtensionValidator(allowed_extensions=['pdf'])], verbose_name="Acta de Devolución", help_text="Suba el acta de devolución escaneada en formato PDF", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
     # Campos extendidos pensados para la categoría Proyectores
     nombre_proyector = models.CharField(verbose_name="Nombre en Red (Control Remoto)", max_length=50, help_text="Ingrese el nombre configurado mediante el control remoto", null=True, blank=True, validators=[validador_alfanumerico_nombres])
     conexion_proyector = models.CharField(max_length=4, choices=TipoConexionProyector.choices, verbose_name="Medio de Conexión", help_text="Seleccione cómo se conecta el proyector a la red", null=True, blank=True)
+
+    # Atributos de red transversales (opcionales)
+    ip = models.GenericIPAddressField(protocol='IPv4', unpack_ipv4=False, null=True, blank=True, verbose_name="Dirección IP", help_text="Dirección IPv4 asignada al equipo (estática o por reserva DHCP).")
+    mac = models.CharField(max_length=17, null=True, blank=True, verbose_name="Dirección MAC", help_text="Formato: XX:XX:XX:XX:XX:XX o XX-XX-XX-XX-XX-XX.")
+
+    # Identificación externa
+    es_externo = models.BooleanField(default=False, verbose_name="¿Es equipo externo / arriendo?", help_text="Marcar si el equipo pertenece a una empresa externa (ej. Sonda, Canon, etc.).")
+    codigo_externo = models.CharField(max_length=50, null=True, blank=True, verbose_name="Código de Activo Externo", help_text="Identificador o placa asignada por el proveedor externo (ej. Código SONDA).")
 
     objects = ActivoManager() # El manager principal ahora oculta los eliminados
     all_objects = models.Manager() # Manager secundario para ver TODO (ej: panel de admin)
@@ -456,6 +466,17 @@ class Activo(models.Model):
         #        if self.bdo:
         #            raise ValidationError({'bdo': f"La categoría '{categoria.nombre}' no requiere placa BDO. Deje este campo en blanco."})
 
+        if self.mac:
+            # Quitar espacios y convertir a mayúsculas
+            mac_limpia = self.mac.strip().upper().replace('-', ':')
+
+            # Validar formato estándar XX:XX:XX:XX:XX:XX
+            patron_mac = r'^([0-9A-F]{2}[:]){5}([0-9A-F]{2})$'
+            if not re.match(patron_mac, mac_limpia):
+                raise ValidationError({'mac': 'La dirección MAC debe tener un formato válido (ej: 00:1A:2B:3C:4D:5E).'})
+
+            self.mac = mac_limpia
+
     def save(self, *args, **kwargs):
         self.full_clean() # Ejecuta el clean() automáticamente antes de guardar
         super().save(*args, **kwargs)
@@ -466,6 +487,76 @@ class Activo(models.Model):
         """
         self.is_deleted = True
         self.save()
+
+
+
+
+class ActivoImpresora(models.Model):
+    """
+    Extensión 1:1 para activos que corresponden a impresoras o multifuncionales.
+    Almacena particularidades técnicas y del contrato de impresión.
+    """
+
+    class TipoImpresion(models.TextChoices):
+        LASER_MONO = 'LASER_BN', 'Láser Monocromática (B/N)'
+        LASER_COLOR = 'LASER_COL', 'Láser Color'
+        TINTA = 'TINTA', 'Inyección de Tinta'
+        TERMICA = 'TERMICA', 'Térmica (Tickets/Etiquetas)'
+        MATRICIAL = 'MATRICIAL', 'Matriz de Punto'
+        OTRO = 'OTRO', 'Otro'
+
+    activo = models.OneToOneField(
+        'Activo',
+        on_delete=models.CASCADE,
+        related_name='impresora',
+        verbose_name="Activo Base",
+        primary_key=True,
+        help_text="Activo de inventario general al que extienden estos datos."
+    )
+    tipo_impresion = models.CharField(
+        max_length=15,
+        choices=TipoImpresion.choices,
+        default=TipoImpresion.LASER_MONO,
+        verbose_name="Tecnología de Impresión"
+    )
+    rango_impresiones = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name="Rango / Cuota de Impresiones",
+        help_text="Volumen mensual contratado o ciclo de trabajo recomendado (ej: 0 - 5.000 copias/mes)."
+    )
+    es_multifuncional = models.BooleanField(
+        default=True,
+        verbose_name="¿Es multifuncional?",
+        help_text="Indica si incluye escáner/fotocopiadora además de impresión."
+    )
+    observaciones = models.TextField(
+        verbose_name="Notas de contrato / soporte",
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = "Detalle de Impresora"
+        verbose_name_plural = "Detalles de Impresoras"
+
+    def __str__(self):
+        return f"Impresora: {self.activo}"
+
+    def clean(self):
+        super().clean()
+
+        # Validación cruzada: comprobar que la categoría del activo base sea coherente
+        if hasattr(self, 'activo') and self.activo and self.activo.catalogo:
+            categoria_nombre = self.activo.catalogo.categoria.nombre.upper()
+            palabras_clave = ['IMPRESORA', 'MULTIFUNCIONAL', 'PLOTTER']
+            if not any(palabra in categoria_nombre for palabra in palabras_clave):
+                raise ValidationError({
+                    'activo': f"El activo seleccionado pertenece a la categoría '{self.activo.catalogo.categoria.nombre}', la cual no corresponde a un equipo de impresión."
+                })
+
+
 
 
 class MapeoUbicacion(models.Model):
