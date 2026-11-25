@@ -120,7 +120,6 @@ El script deja tres cosas en disco, todas ignoradas por git:
 
 - `staging/credenciales.env` con los datos de acceso a producción, con permisos de solo lectura y escritura para tu usuario.
 - `staging/dumps/` con los volcados y los respaldos locales.
-**Nota importante sobre los dumps:** Si se es practicante, solicitar al administrador de turno un .sql.gz de la base de datos, y luego introducirlo en aquel directorio, para así con opción 2 del menú interactivo cargar el dump más reciente
 - `staging/correos/` con los correos capturados.
 
 El `.gitignore` cubre `*.sql`, `*.sql.gz`, `*.gz` y las tres rutas anteriores. Un volcado de producción trae datos personales de funcionarios de INACAP, así que esto no es un detalle menor: si ese archivo llegara al repositorio compartido, sería una filtración. Si necesitas compartir un volcado, anonimízalo antes.
