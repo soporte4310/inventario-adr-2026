@@ -265,9 +265,6 @@ class ListaActivosView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
 
 class EditarActivoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
-    """
-    Vista unificada para editar cualquier tipo de activo.
-    """
     model = Activo
     form_class = ActivoForm
     template_name = 'inventario/pages/editar_activo.html'
@@ -275,30 +272,38 @@ class EditarActivoView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     permission_required = 'inventario.change_activo'
     success_url = reverse_lazy('lista_activos')
 
+    def _es_impresora(self):
+        cat = getattr(self.object.catalogo, 'categoria', None)
+        return cat and any(term in cat.nombre.upper() for term in ['IMPRESORA', 'MULTIFUNCIONAL', 'PLOTTER'])
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # self.object es la instancia del activo que estamos editando
         context['titulo_form'] = f"Editar {self.object.catalogo.categoria.nombre}"
+        if self._es_impresora() and 'impresora_form' not in context:
+            instancia_impresora = getattr(self.object, 'impresora', None)
+            context['impresora_form'] = ActivoImpresoraForm(instance=instancia_impresora)
         return context
 
-    def form_valid(self, form):
-        # Dispara el guardado y emite el mensaje de éxito
-        response = super().form_valid(form)
-        messages.success(self.request, f'El activo {self.object} ha sido actualizado correctamente.')
-        return response
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        
+        impresora_form = None
+        if self._es_impresora():
+            instancia_impresora = getattr(self.object, 'impresora', None)
+            impresora_form = ActivoImpresoraForm(request.POST, instance=instancia_impresora)
 
-    def form_invalid(self, form):
-        # Emite el mensaje de error si la validación falla
-        messages.error(self.request, 'No se pudo guardar. Por favor, corrige los errores en el formulario.')
-        return super().form_invalid(form)
+        if form.is_valid() and (impresora_form is None or impresora_form.is_valid()):
+            with transaction.atomic():
+                self.object = form.save()
+                if impresora_form:
+                    impresora = impresora_form.save(commit=False)
+                    impresora.activo = self.object
+                    impresora.save()
+            messages.success(self.request, f'El activo {self.object} ha sido actualizado correctamente.')
+            return HttpResponseRedirect(self.get_success_url())
 
-    def get_success_url(self):
-        # Redirección dinámica
-        params = self.request.GET.urlencode()
-        url = self.success_url
-        if params:
-            return f"{url}?{params}"
-        return url
+        return self.render_to_response(self.get_context_data(form=form, impresora_form=impresora_form))
 
 
 class DetalleActivoView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):

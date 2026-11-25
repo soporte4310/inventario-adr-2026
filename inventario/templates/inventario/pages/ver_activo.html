@@ -8,9 +8,17 @@
     <!-- Encabezado y Acciones -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="h3 mb-1 font-weight-bold text-dark">
-                <i class="fas fa-info-circle text-primary mr-2"></i> {{ titulo_detalle }}
-            </h2>
+            <div class="d-flex align-items-center mb-1">
+                <h2 class="h3 font-weight-bold text-dark mb-0 mr-3">
+                    <i class="fas fa-info-circle text-primary mr-2"></i> {{ titulo_detalle }}
+                </h2>
+                <!-- Distintivo de Equipo Externo -->
+                {% if activo.es_externo %}
+                    <span class="badge badge-warning text-dark px-3 py-2 shadow-sm font-weight-bold" style="font-size: 0.85rem; letter-spacing: 0.5px;">
+                        <i class="fas fa-handshake mr-1"></i> EQUIPO EXTERNO / ARRIENDO
+                    </span>
+                {% endif %}
+            </div>
             <p class="text-muted mb-0">
                 Categoría: <span class="font-weight-bold text-dark">{{ activo.catalogo.categoria.nombre }}</span>
                 | Registrado por <span class="font-weight-bold text-dark">{{ activo.creado_por.username|default:"SISTEMA" }}</span> el {{ activo.created_at|date:"d/m/Y" }}
@@ -21,14 +29,12 @@
                 <i class="fas fa-arrow-left"></i> Volver
             </a>
 
-            {# Editar activo #}
             {% if perms.inventario.change_activo %}
             <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="btn btn-light border text-primary" title="Editar">
                 <i class="fas fa-edit"></i> Editar
             </a>
             {% endif %}
 
-            {# Eliminar activo #}
             {% if perms.inventario.delete_activo %}
             <a href="{% url 'eliminar_activo' activo.id %}?{{ request.GET.urlencode }}" type="button" class="btn btn-light border text-danger" title="Eliminar">
                 <i class="fas fa-trash"></i>
@@ -66,6 +72,23 @@
                     {% endwith %}
                 </div>
                 <div class="card-body">
+                    {% if activo.es_externo %}
+                    <div class="alert alert-warning border-left-warning d-flex align-items-center justify-content-between py-2 px-3 mb-3">
+                        <div>
+                            <i class="fas fa-building text-warning mr-2"></i>
+                            <strong>Activo con proveedor externo</strong>
+                        </div>
+                        {% if activo.codigo_externo %}
+                        <div>
+                            <span class="text-muted small text-uppercase mr-1 font-weight-bold">Código Proveedor:</span>
+                            <span class="badge badge-dark px-2 py-1 font-weight-bold" style="font-size: 0.85rem; font-family: monospace;">
+                                {{ activo.codigo_externo }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="row mb-3">
                         <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Número de Serie</div>
                         <div class="col-sm-8 font-weight-bold text-dark">{{ activo.numero_serie|default:"<span class='text-muted font-weight-normal'>No registrado</span>" }}</div>
@@ -89,14 +112,59 @@
                     <hr>
                     <div class="row mb-2">
                         <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Marca y Modelo</div>
-                        <div class="col-sm-8">{{ activo.catalogo.marca }} {{ activo.catalogo.modelo|default:"" }}</div>
+                        <div class="col-sm-8 font-weight-bold">{{ activo.catalogo.marca }} {{ activo.catalogo.modelo|default:"" }}</div>
                     </div>
                     <div class="row">
                         <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Detalle Catálogo</div>
-                        <div class="col-sm-8">{{ activo.catalogo.descripcion|default:"<span class='text-muted italic'>Sin descripción adicional</span>" }}</div>
+                        <div class="col-sm-8">{{ activo.catalogo.descripcion|default:"<span class='text-muted font-italic'>Sin descripción adicional</span>" }}</div>
                     </div>
                 </div>
             </div>
+
+            <!-- SECCIÓN EXTENDIDA: IMPRESORAS -->
+            {% if activo.impresora or 'IMPRESORA' in activo.catalogo.categoria.nombre|upper or 'MULTIFUNCIONAL' in activo.catalogo.categoria.nombre|upper or 'PLOTTER' in activo.catalogo.categoria.nombre|upper %}
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                        <i class="fas fa-print mr-1 text-primary"></i> Información de Impresión
+                    </h6>
+                    {% if activo.impresora.es_multifuncional %}
+                        <span class="badge badge-info px-2 py-1"><i class="fas fa-copy mr-1"></i> Multifuncional</span>
+                    {% else %}
+                        <span class="badge badge-light border text-muted px-2 py-1"><i class="fas fa-print mr-1"></i> Monofuncional</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if activo.impresora %}
+                        <div class="row mb-3">
+                            <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Tecnología / Tipo</div>
+                            <div class="col-sm-8 font-weight-bold text-dark">
+                                {{ activo.impresora.get_tipo_impresion_display }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Rango / Cuota Contratada</div>
+                            <div class="col-sm-8">
+                                {{ activo.impresora.rango_impresiones|default:"<span class='text-muted'>Sin cuota mensual asignada</span>" }}
+                            </div>
+                        </div>
+                        {% if activo.impresora.observaciones %}
+                        <div class="row">
+                            <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Observaciones Contrato</div>
+                            <div class="col-sm-8">
+                                <p class="text-muted small mb-0 bg-light p-2 rounded border">{{ activo.impresora.observaciones }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0 small">
+                            <i class="fas fa-info-circle mr-1"></i> Este equipo pertenece a la categoría de impresión pero aún no tiene completados sus parámetros específicos.
+                            <a href="{% url 'editar_activo' activo.id %}?{{ request.GET.urlencode }}" class="font-weight-bold text-primary ml-1">Completar ficha</a>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- SECCIÓN EXTENDIDA: PROYECTORES -->
             {% if 'PROYECTOR' in activo.catalogo.categoria.nombre|upper %}
@@ -125,7 +193,7 @@
             </div>
             {% endif %}
 
-            <!-- Sección 2: Conectividad -->
+            <!-- Sección 2: Conectividad y Red -->
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                     <h6 class="text-uppercase text-muted font-weight-bold mb-0">
@@ -134,11 +202,35 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Nombre NetBIOS</div>
+                        <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Nombre en Red (NetBIOS)</div>
                         <div class="col-sm-8">
                             <code class="text-dark font-weight-bold p-1 bg-light border rounded" style="font-size: 1rem;">
                                 {{ activo.netbios|default:"NO APLICA" }}
                             </code>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Dirección IP</div>
+                        <div class="col-sm-8">
+                            {% if activo.ip %}
+                                <code class="text-primary font-weight-bold p-1 bg-light border rounded" style="font-size: 0.95rem;">
+                                    <i class="fas fa-globe mr-1"></i>{{ activo.ip }}
+                                </code>
+                            {% else %}
+                                <span class="text-muted">No asignada</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted small text-uppercase font-weight-bold">Dirección MAC</div>
+                        <div class="col-sm-8">
+                            {% if activo.mac %}
+                                <code class="text-dark font-weight-bold p-1 bg-light border rounded" style="font-size: 0.95rem; font-family: monospace;">
+                                    {{ activo.mac }}
+                                </code>
+                            {% else %}
+                                <span class="text-muted">No registrada</span>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -156,7 +248,7 @@
                 </div>
             </div>
 
-            <!-- NUEVA SECCIÓN 3: CONTROL DE ACTAS Y DOCUMENTACIÓN -->
+            <!-- SECCIÓN 3: CONTROL DE ACTAS Y DOCUMENTACIÓN -->
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                     <h6 class="text-uppercase text-muted font-weight-bold mb-0">
@@ -165,7 +257,6 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        
                         <!-- PANEL: ACTA DE ENTREGA -->
                         <div class="col-md-6 mb-3 mb-md-0">
                             <div class="p-3 border rounded bg-light d-flex flex-column h-100 justify-content-between shadow-sm">

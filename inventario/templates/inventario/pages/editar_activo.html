@@ -6,7 +6,6 @@
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* Pequeño ajuste para que Select2 se vea bien con Bootstrap */
     .select2-container .select2-selection--single {
         height: 38px !important;
         border: 1px solid #ced4da !important;
@@ -31,7 +30,7 @@
                     </h2>
                     <p class="text-muted mb-0">Modificando el equipo <strong class="text-dark">{{ activo }}</strong></p>
                 </div>
-                <a href="{% url 'lista_activos' %}" class="btn btn-outline-secondary shadow-sm">
+                <a href="{% url 'lista_activos' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary shadow-sm">
                     <i class="fas fa-arrow-left"></i> Volver a la lista
                 </a>
             </div>
@@ -41,7 +40,7 @@
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
                         {{ message }}
                         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
+                            <span aria-hidden="true">×</span>
                         </button>
                     </div>
                 {% endfor %}
@@ -74,6 +73,7 @@
                                 <label class="font-weight-bold">{{ form.catalogo.label }}</label>
                                 {{ form.catalogo }}
                                 {% if form.catalogo.errors %}<div class="text-danger small mt-1">{{ form.catalogo.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.catalogo.help_text }}</small>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">{{ form.estado.label }}</label>
@@ -84,7 +84,48 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN EXTENDIDA: PROYECTORES (Solo visible si la categoría es Proyector) -->
+                <!-- SECCIÓN EXTENDIDA: IMPRESORAS (Visible si es categoría Impresora/Multifuncional) -->
+                {% if 'IMPRESORA' in activo.catalogo.categoria.nombre|upper or 'MULTIFUNCIONAL' in activo.catalogo.categoria.nombre|upper or 'PLOTTER' in activo.catalogo.categoria.nombre|upper %}
+                <div class="card shadow-sm border-0 mb-4 border-left-primary">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-print mr-1 text-primary"></i> Información Extendida: Impresión
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% if impresora_form %}
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-bold">{{ impresora_form.tipo_impresion.label }}</label>
+                                    {{ impresora_form.tipo_impresion }}
+                                    {% if impresora_form.tipo_impresion.errors %}<div class="text-danger small mt-1">{{ impresora_form.tipo_impresion.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-5 mb-3">
+                                    <label class="font-weight-bold">{{ impresora_form.rango_impresiones.label }}</label>
+                                    {{ impresora_form.rango_impresiones }}
+                                    {% if impresora_form.rango_impresiones.errors %}<div class="text-danger small mt-1">{{ impresora_form.rango_impresiones.errors.0 }}</div>{% endif %}
+                                    <small class="form-text text-muted">Volumen o tramo mensual contratado</small>
+                                </div>
+                                <div class="col-md-3 mb-3 d-flex align-items-center pt-3">
+                                    <div class="custom-control custom-switch">
+                                        {{ impresora_form.es_multifuncional }}
+                                        <label class="font-weight-bold ml-2" for="{{ impresora_form.es_multifuncional.id_for_label }}">
+                                            {{ impresora_form.es_multifuncional.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="font-weight-bold">{{ impresora_form.observaciones.label }}</label>
+                                    {{ impresora_form.observaciones }}
+                                    {% if impresora_form.observaciones.errors %}<div class="text-danger small mt-1">{{ impresora_form.observaciones.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- SECCIÓN EXTENDIDA: PROYECTORES (Visible si es categoría Proyector) -->
                 {% if 'PROYECTOR' in activo.catalogo.categoria.nombre|upper %}
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
@@ -115,7 +156,7 @@
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                         <h6 class="text-uppercase text-muted font-weight-bold mb-0">
-                            <i class="fas fa-barcode mr-1"></i> Identificadores Únicos
+                            <i class="fas fa-barcode mr-1"></i> Identificadores Únicos y Propiedad
                         </h6>
                     </div>
                     <div class="card-body">
@@ -135,6 +176,24 @@
                                 {{ form.bdo }}
                                 {% if form.bdo.errors %}<div class="text-danger small mt-1">{{ form.bdo.errors.0 }}</div>{% endif %}
                                 <small class="form-text text-muted">Acepta formato corto</small>
+                            </div>
+                        </div>
+
+                        <!-- FILA DE PROPIEDAD EXTERNA -->
+                        <div class="row pt-2 border-top mt-2">
+                            <div class="col-md-4 mb-3 d-flex align-items-center pt-3">
+                                <div class="custom-control custom-switch">
+                                    {{ form.es_externo }}
+                                    <label class="font-weight-bold ml-2 mb-0" for="{{ form.es_externo.id_for_label }}">
+                                        {{ form.es_externo.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="font-weight-bold">{{ form.codigo_externo.label }}</label>
+                                {{ form.codigo_externo }}
+                                {% if form.codigo_externo.errors %}<div class="text-danger small mt-1">{{ form.codigo_externo.errors.0 }}</div>{% endif %}
+                                <small class="form-text text-muted">{{ form.codigo_externo.help_text|default:"Identificador o placa asignada por el proveedor (Ej: Código SONDA)" }}</small>
                             </div>
                         </div>
                     </div>
@@ -164,6 +223,18 @@
                                 {{ form.tipo_uso }}
                                 {% if form.tipo_uso.errors %}<div class="text-danger small mt-1">{{ form.tipo_uso.errors.0 }}</div>{% endif %}
                             </div>
+
+                            <!-- CAMPOS IP Y MAC -->
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.ip.label }}</label>
+                                {{ form.ip }}
+                                {% if form.ip.errors %}<div class="text-danger small mt-1">{{ form.ip.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="font-weight-bold">{{ form.mac.label }}</label>
+                                {{ form.mac }}
+                                {% if form.mac.errors %}<div class="text-danger small mt-1">{{ form.mac.errors.0 }}</div>{% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -177,7 +248,6 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <!-- CAMPO DE UBICACIÓN INTELIGENTE -->
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">{{ form.ubicacion.label }}</label>
                                 {{ form.ubicacion }}
@@ -235,34 +305,17 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-    // Usamos jQuery standard ya que Select2 depende netamente de él
     $(document).ready(function() {
-        
-        // Inicialización Select2 normal para Catálogo y Asignatario
-        $('.select2').select2({
-            width: '100%'
-        });
+        $('.select2').select2({ width: '100%' });
 
-        // Lógica de Renderizado Personalizado para la Ubicación
         function formatUbicacionResult(state) {
-            if (!state.id) return state.text; // Retorna el placeholder
-            
-            // Dividimos el texto en Nombre y Contexto usando el delimitador |
+            if (!state.id) return state.text;
             var parts = state.text.split('|');
             var nombre = parts[0];
             var contexto = parts[1] || '';
 
             if (contexto) {
-                // Creamos HTML enriquecido para la lista desplegable
-                var $state = $(
-                    '<div>' +
-                        '<div class="font-weight-bold text-dark" style="font-size: 0.95rem;">' + nombre + '</div>' +
-                        '<div class="text-muted" style="font-size: 0.75rem;">' +
-                            '<i class="fas fa-building mr-1"></i> ' + contexto + 
-                        '</div>' +
-                    '</div>'
-                );
-                return $state;
+                return $('<div><div class="font-weight-bold text-dark" style="font-size: 0.95rem;">' + nombre + '</div><div class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-building mr-1"></i> ' + contexto + '</div></div>');
             }
             return state.text;
         }
@@ -270,31 +323,19 @@
         function formatUbicacionSelection(state) {
             if (!state.id) return state.text;
             var parts = state.text.split('|');
-            // Al estar seleccionado (cerrado), mostramos "Nombre (Edificio - Piso)"
             return parts[0] + (parts[1] ? ' (' + parts[1] + ')' : '');
         }
 
-        // Inicializamos el Select2 Inteligente
         $('.select2-ubicacion').select2({
             width: '100%',
             templateResult: formatUbicacionResult,
             templateSelection: formatUbicacionSelection,
             matcher: function(params, data) {
-                // Modificamos el motor de búsqueda para que busque tanto
-                // en el nombre de la sala como en el nombre del edificio/piso.
-                if ($.trim(params.term) === '') {
-                    return data;
-                }
-                if (typeof data.text === 'undefined') {
-                    return null;
-                }
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
                 var textToSearch = data.text.toLowerCase();
                 var term = params.term.toLowerCase();
-                
-                if (textToSearch.indexOf(term) > -1) {
-                    return data;
-                }
-                return null;
+                return textToSearch.indexOf(term) > -1 ? data : null;
             }
         });
     });
