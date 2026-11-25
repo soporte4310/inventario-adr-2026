@@ -4,16 +4,10 @@ Módulo centralizado de templates HTML para correos de notificación.
 Todas las notificaciones de la plataforma usan estas funciones para generar
 correos HTML formales con el branding de Inventario ADR.
 """
-from django.conf import settings
 from django.utils import timezone
 
-# URL pública del logo ADR. En producción vive en Cloudinary; en staging la
-# configuración la redefine para servir la misma imagen desde static/.
-LOGO_URL = getattr(
-    settings,
-    'EMAIL_LOGO_URL',
-    "https://res.cloudinary.com/dq25coekf/image/upload/v1773866581/inventario_adr/adr_logo_email_v2.png",
-)
+# URL pública del logo ADR (alojado en Cloudinary)
+LOGO_URL = "https://res.cloudinary.com/dq25coekf/image/upload/v1773866581/inventario_adr/adr_logo_email_v2.png"
 
 
 def _base_html(contenido_body: str) -> str:

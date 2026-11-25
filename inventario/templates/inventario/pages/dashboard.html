@@ -75,33 +75,20 @@
             <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center">
                 <span class="w-2 h-8 bg-red-600 rounded-full mr-3"></span> Categorías
             </h2>
-            <div class="relative">
-                <button type="button" id="categoriasPrev" aria-label="Ver categorías anteriores"
-                        class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14 items-center justify-center rounded-full bg-white/95 backdrop-blur border-2 border-red-500 text-red-600 shadow-lg transition-all hover:bg-red-50 hover:border-red-600 hover:text-red-700 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 opacity-0 pointer-events-none">
-                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                </button>
-
-                <div id="categoriasPista" tabindex="0" role="region" aria-label="Categorías de activos"
-                     class="flex overflow-x-auto gap-6 pb-6 snap-x hide-scrollbar">
-                    {% for cat in categorias %}
-                    <a href="{% url 'lista_activos' %}?categoria_nombre={{ cat.nombre }}" 
-                       class="flex-none w-44 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:border-red-200 hover:shadow-xl transition-all snap-start text-center group">
-                        <div class="h-20 w-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                            {% if cat.imagen_thumb_medium %}
-                                <img src="{{ cat.imagen_thumb_medium.url }}" alt="{{ cat.nombre }}" class="h-full object-contain">
-                            {% else %}
-                                <svg class="h-12 w-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                            {% endif %}
-                        </div>
-                        <span class="text-sm font-bold text-slate-700 block">{{ cat.nombre }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-
-                <button type="button" id="categoriasNext" aria-label="Ver más categorías"
-                        class="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14 items-center justify-center rounded-full bg-white/95 backdrop-blur border-2 border-red-500 text-red-600 shadow-lg transition-all hover:bg-red-50 hover:border-red-600 hover:text-red-700 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 opacity-0 pointer-events-none">
-                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                </button>
+            <div class="flex overflow-x-auto gap-6 pb-6 snap-x hide-scrollbar">
+                {% for cat in categorias %}
+                <a href="{% url 'lista_activos' %}?categoria_nombre={{ cat.nombre }}" 
+                   class="flex-none w-44 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:border-red-200 hover:shadow-xl transition-all snap-start text-center group">
+                    <div class="h-20 w-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                        {% if cat.imagen_thumb_medium %}
+                            <img src="{{ cat.imagen_thumb_medium.url }}" alt="{{ cat.nombre }}" class="h-full object-contain">
+                        {% else %}
+                            <svg class="h-12 w-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                        {% endif %}
+                    </div>
+                    <span class="text-sm font-bold text-slate-700 block">{{ cat.nombre }}</span>
+                </a>
+                {% endfor %}
             </div>
         </div>
 
@@ -208,51 +195,4 @@
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const pista = document.getElementById('categoriasPista');
-        const botonAnterior = document.getElementById('categoriasPrev');
-        const botonSiguiente = document.getElementById('categoriasNext');
-        if (!pista || !botonAnterior || !botonSiguiente) return;
-
-        const PASO = 320;
-
-        function enElBorde(direccion) {
-            const maximo = pista.scrollWidth - pista.clientWidth;
-            return direccion < 0 ? pista.scrollLeft <= 0 : pista.scrollLeft >= maximo - 1;
-        }
-
-        function alternarBoton(boton, oculto) {
-            boton.classList.toggle('opacity-0', oculto);
-            boton.classList.toggle('pointer-events-none', oculto);
-        }
-
-        function actualizarBotones() {
-            const hayDesborde = pista.scrollWidth - pista.clientWidth > 1;
-            alternarBoton(botonAnterior, !hayDesborde || enElBorde(-1));
-            alternarBoton(botonSiguiente, !hayDesborde || enElBorde(1));
-        }
-
-        // La rueda del mouse mueve el carrusel en horizontal sin necesidad de Shift.
-        // En los extremos no se intercepta, para no bloquear el scroll de la pagina.
-        pista.addEventListener('wheel', function (evento) {
-            if (evento.deltaY === 0 || enElBorde(evento.deltaY)) return;
-            evento.preventDefault();
-            pista.scrollLeft += evento.deltaY;
-        }, { passive: false });
-
-        botonAnterior.addEventListener('click', function () {
-            pista.scrollBy({ left: -PASO, behavior: 'smooth' });
-        });
-
-        botonSiguiente.addEventListener('click', function () {
-            pista.scrollBy({ left: PASO, behavior: 'smooth' });
-        });
-
-        pista.addEventListener('scroll', actualizarBotones, { passive: true });
-        window.addEventListener('resize', actualizarBotones);
-        actualizarBotones();
-    });
-</script>
 {% endblock %}

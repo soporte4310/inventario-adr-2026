@@ -34,14 +34,7 @@ desktop.ini
 # Sensitive files
 *.ppk
 *.sql
-*.sql.gz
-*.gz
 backups/
-
-# Staging local: dumps de producción y correos capturados. El archivo de
-# credenciales ya queda cubierto por la regla *.env de más arriba.
-staging/dumps/
-staging/correos/
 
 # Temporary files
 ultimo_reporte.xlsx
