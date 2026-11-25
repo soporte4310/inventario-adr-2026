@@ -69,9 +69,9 @@ Los flags existen para automatizar y tienen prioridad sobre el menú: `--sin-dum
 5. Si falla, traduce el código de error de MySQL a los campos concretos que hay que corregir y vuelve a preguntar solo esos. Un error de contraseña repite usuario y contraseña; una base inexistente repite solo el nombre; un puerto cerrado repite host y puerto. Hay cinco reintentos.
 6. Cuando la conexión funciona, guarda los datos en `staging/credenciales.env`.
 7. Ejecuta `mysqldump`, que solo lee, y guarda el resultado comprimido en `staging/dumps/`.
-8. Respalda tu base de staging antes de tocarla, en `staging/dumps/respaldo_local_*.sql.gz`.
-9. Vacía y recrea la base de staging.
-10. Importa el volcado, descartando las sentencias `CREATE DATABASE` y `USE` para que las tablas caigan en tu base de staging y no en otra.
+8. Respalda tu base local antes de tocarla, en `staging/dumps/respaldo_local_*.sql.gz`.
+9. Vacía y recrea la base local.
+10. Importa el volcado, descartando las sentencias `CREATE DATABASE` y `USE` para que las tablas caigan en tu base local y no en otra.
 11. Aplica migraciones y reúne los estáticos.
 12. Levanta el servidor.
 
@@ -80,14 +80,14 @@ Los flags existen para automatizar y tienen prioridad sobre el menú: `--sin-dum
 1. El script verifica que haya internet.
 2. No puede descargar nada, o elegiste la opción sin dumpeo.
 3. Busca el volcado más reciente en `staging/dumps/`, ignorando los archivos `respaldo_local_*` porque esos son copias de tu propia base.
-4. Si la base de staging está vacía, importa ese volcado. Si ya tiene datos y no pediste reimportar, la deja como está.
+4. Si la base local está vacía, importa ese volcado. Si ya tiene datos y no pediste reimportar, la deja como está.
 5. Aplica migraciones y levanta el servidor.
 
 **Flujo C: sin volcado disponible.**
 
 1. El script verifica que haya internet.
 2. No hay credenciales válidas y no hay ningún volcado guardado.
-3. Avisa que va a arrancar con la base de staging tal como esté.
+3. Avisa que va a arrancar con la base local tal como esté.
 4. Si la base no existe, la crea vacía. Si no tiene permiso para crearla, se detiene y te entrega el `CREATE DATABASE` exacto que debes ejecutar a mano.
 5. Aplica migraciones y levanta el servidor.
 
@@ -99,19 +99,13 @@ Los flags existen para automatizar y tienen prioridad sobre el menú: `--sin-dum
 4. También queda una copia en `staging/correos/` como archivo HTML, por si quieres revisar el diseño del correo.
 
 
-## Las salvaguardas que más importan
+## La salvaguarda que más importa
 
-El script borra y recrea la base de datos, así que tiene tres candados.
+Hay un único punto en todo el script que borra datos, y tiene un candado.
 
-**Primero, no arranca fuera de una rama de trabajo.** Antes de leer credenciales o tocar nada, comprueba tres cosas: que no exista la variable `RENDER`, que la rama git actual sea `staging`, `desarrollo`, `develop` o empiece con `practicantes-`, y que haya una terminal interactiva. Si alguna falla, se detiene con un mensaje que dice cuál. Así, aunque el archivo esté en producción, allí no se ejecuta.
+Antes de ejecutar cualquier `DROP DATABASE`, el script revisa el host configurado en tu `.env`. Si no es `127.0.0.1`, `localhost` o `::1`, aborta sin tocar nada. Ese candado está justo antes del borrado, no al inicio del programa, para que ningún cambio hecho a mitad de ejecución pueda saltárselo.
 
-**Segundo, el host tiene que ser local.** Antes de cualquier `DROP DATABASE`, revisa el host configurado en tu `.env`. Si no es `127.0.0.1`, `localhost` o `::1`, aborta sin tocar nada. Ese candado está justo antes del borrado, no al inicio del programa, para que ningún cambio hecho a mitad de ejecución pueda saltárselo.
-
-**Tercero, el nombre de la base lleva sufijo.** El script nunca opera sobre el nombre que dice el `.env`. Siempre le añade `_staging`: si configuras `inventario_adr`, trabaja sobre `inventario_adr_staging`. Eso significa que la sentencia destructiva literalmente no puede nombrar la base de producción, ni siquiera si el host mintiera.
-
-Los tres juntos: la rama impide arrancar en el lugar equivocado, el host impide apuntar a un servidor ajeno, y el sufijo impide que el borrado alcance el nombre real. El volcado de producción, además, va por una ruta de código que nunca pasa por la función que borra.
-
-Por eso necesitas permisos sobre dos bases. `adr_dev` tiene privilegios sobre `inventario_adr` y sobre `inventario_adr_staging`, y Django apunta a la segunda cuando `ENTORNO=staging`.
+En otras palabras: es estructuralmente imposible que este script borre la base de producción. El volcado de producción va por una ruta de código que nunca pasa por la función que borra, y esa función se niega a operar contra un servidor ajeno.
 
 
 ## Qué se guarda y qué no se sube
@@ -146,21 +140,17 @@ El `.gitignore` cubre `*.sql`, `*.sql.gz`, `*.gz` y las tres rutas anteriores. U
 
 - El host `testserver` está permitido en staging para que la suite de pruebas pueda correr completa.
 
-- Si la base de staging no existe, el script intenta crearla. Si el usuario de MySQL no tiene permiso para hacerlo, se detiene con instrucciones en vez de fallar más adelante con un error confuso.
-
-- La base de staging es distinta de tu base de trabajo. Si configuras `inventario_adr`, el staging usa `inventario_adr_staging`. Tu base diaria queda intacta, pero tus usuarios no viajan con ella: hay que crearlos en la base nueva.
+- Si la base local no existe, el script intenta crearla. Si el usuario de MySQL no tiene permiso para hacerlo, se detiene con instrucciones en vez de fallar más adelante con un error confuso.
 
 
 ## Cuando algo sale mal
 
 - **"sin conexión a internet".** El script se detiene a propósito. Conéctate y vuelve a intentarlo.
 
-- **"EJECUCIÓN BLOQUEADA".** No estás en una rama permitida, o hay una variable `RENDER` definida, o no hay terminal interactiva. Cambia a `staging`, `desarrollo` o una rama `practicantes-*`.
-
 - **"no se pudo conectar a producción".** Las credenciales están mal o la red bloquea el puerto 3306, algo común en redes institucionales. Prueba desde otra red o elige la opción sin dumpeo.
 
 - **"la base configurada apunta a ... que no es esta máquina".** El `.env` tiene un `DB_HOST` remoto. Corrígelo a `127.0.0.1` antes de continuar. Esta es la salvaguarda funcionando.
 
-- **La aplicación arranca pero no puedes entrar.** La base de staging no tiene usuarios. Usa la opción 2 del menú y responde que sí a "¿crear usuario?", o corre `ENTORNO=staging venv/bin/python manage.py createsuperuser`.
+- **La aplicación arranca pero no puedes entrar.** La base local no tiene usuarios. Créalos con `venv/bin/python manage.py createsuperuser`.
 
 - **Los estilos se ven rotos.** Falta conexión o los CDN están bloqueados. La lógica de la aplicación sigue funcionando, pero Tailwind y Bootstrap no cargan.
