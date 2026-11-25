@@ -1,5 +1,5 @@
 from django import forms
-from .models import Activo, Piso, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario
+from .models import Activo, Piso, Ubicacion, Catalogo, Categoria, Marca, Estado, AreaAdministrativa, Cargo, Funcionario, ActivoImpresora
 from common.mixins import ImageProcessingFormMixin, DocumentProcessingFormMixin
 
 
@@ -30,8 +30,9 @@ class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
             'catalogo', 'estado', 
             'numero_serie', 'etiqueta', 'bdo', 
             'tipo_red', 'netbios', 'tipo_uso', 
-            'ubicacion', 'asignado_a',
-            'acta_entrega', 'acta_devolucion',
+            'ip', 'mac', 'es_externo', 'codigo_externo', 
+            'ubicacion', 'asignado_a', 
+            'acta_entrega', 'acta_devolucion', 
             'nombre_proyector', 'conexion_proyector'
         ]
         widgets = {
@@ -54,6 +55,11 @@ class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
             # Nuevos widgets para Proyectores
             'nombre_proyector': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: SALA505C'}),
             'conexion_proyector': forms.Select(attrs={'class': 'form-control'}),
+
+            'ip': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 192.168.1.50'}),
+            'mac': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 00:1A:2B:3C:4D:5E'}),
+            'es_externo': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
+            'codigo_externo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: SONDA-98214'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -102,6 +108,27 @@ class ActivoForm(DocumentProcessingFormMixin, forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+
+
+class ActivoImpresoraForm(forms.ModelForm):
+    """Formulario para capturar los datos técnicos y contractuales de impresión."""
+    class Meta:
+        model = ActivoImpresora
+        fields = ['tipo_impresion', 'rango_impresiones', 'es_multifuncional', 'observaciones']
+        widgets = {
+            'tipo_impresion': forms.Select(attrs={'class': 'form-control'}),
+            'rango_impresiones': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0 - 5.000 copias/mes'}),
+            'es_multifuncional': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Detalles de contrato, leasing, etc.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Los campos son opcionales en el form para no bloquear si no aplica la categoría
+        for field in self.fields.values():
+            field.required = False
 
 
 

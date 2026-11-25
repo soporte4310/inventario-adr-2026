@@ -159,6 +159,41 @@
                     </div>
                 </div>
 
+                <!-- SECCIÓN EXTENDIDA: IMPRESORAS (Oculta por defecto) -->
+                <div id="section-impresora" class="card shadow-sm border-0 mb-4" style="display: none;">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-0">
+                            <i class="fas fa-print mr-1"></i> Información Extendida: Impresión
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ impresora_form.tipo_impresion.label }}</label>
+                                {{ impresora_form.tipo_impresion }}
+                                {% if impresora_form.tipo_impresion.errors %}<div class="text-danger small mt-1">{{ impresora_form.tipo_impresion.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="font-weight-bold">{{ impresora_form.rango_impresiones.label }}</label>
+                                {{ impresora_form.rango_impresiones }}
+                                <small class="form-text text-muted">{{ impresora_form.rango_impresiones.help_text }}</small>
+                            </div>
+                            <div class="col-md-3 mb-3 d-flex align-items-center pt-3">
+                                <div class="custom-control custom-switch">
+                                    {{ impresora_form.es_multifuncional }}
+                                    <label class="font-weight-bold ml-2" for="{{ impresora_form.es_multifuncional.id_for_label }}">
+                                        {{ impresora_form.es_multifuncional.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="font-weight-bold">{{ impresora_form.observaciones.label }}</label>
+                                {{ impresora_form.observaciones }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- SECCIÓN 2: NÚMEROS DE SERIE Y PLACAS -->
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
@@ -183,6 +218,18 @@
                                 {{ form.bdo }}
                                 {% if form.bdo.errors %}<div class="text-danger small mt-1">{{ form.bdo.errors.0 }}</div>{% endif %}
                                 <small class="form-text text-muted">Acepta formato corto (Ej. 11180)</small>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold">{{ form.codigo_externo.label }}</label>
+                                {{ form.codigo_externo }}
+                                <small class="form-text text-muted">Ej: Código de placa SONDA</small>
+                            </div>
+                            <div class="col-md-4 mb-3 d-flex align-items-center pt-3">
+                                <div class="custom-control custom-switch">
+                                    {{ form.es_externo }}
+                                    <label class="font-weight-bold ml-2" for="{{ form.es_externo.id_for_label }}">{{ form.es_externo.label }}</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -211,6 +258,14 @@
                                 <label class="font-weight-bold">{{ form.tipo_uso.label }}</label>
                                 {{ form.tipo_uso }}
                                 {% if form.tipo_uso.errors %}<div class="text-danger small mt-1">{{ form.tipo_uso.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">{{ form.ip.label }}</label>
+                                {{ form.ip }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="font-weight-bold">{{ form.mac.label }}</label>
+                                {{ form.mac }}
                             </div>
                         </div>
                     </div>
@@ -419,6 +474,36 @@
             // Usamos un pequeño delay para permitir que el flag $('#id_crear_nuevo_catalogo') se actualice primero
             setTimeout(toggleProyectorSection, 50); 
         });
+    });
+
+    function toggleImpresoraSection() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const categoriaUrl = (urlParams.get('categoria_nombre') || '').toUpperCase();
+        
+        // Obtener texto de categoría si se crea un catálogo nuevo
+        const categoriaSelect = ($('#id_categoria option:selected').text() || '').toUpperCase();
+        
+        // Obtener texto del catálogo seleccionado si ya existe
+        const catalogoSelect = ($('#id_catalogo option:selected').text() || '').toUpperCase();
+        const creandoNuevoCatalogo = $('#id_crear_nuevo_catalogo').val() === 'true';
+
+        const esImpresora = categoriaUrl.includes('IMPRESORA') || 
+                            categoriaUrl.includes('MULTIFUNCIONAL') ||
+                            (creandoNuevoCatalogo && (categoriaSelect.includes('IMPRESORA') || categoriaSelect.includes('MULTIFUNCIONAL'))) ||
+                            (!creandoNuevoCatalogo && (catalogoSelect.includes('IMPRESORA') || catalogoSelect.includes('MULTIFUNCIONAL')));
+
+        if (esImpresora) {
+            $('#section-impresora').fadeIn();
+        } else {
+            $('#section-impresora').hide();
+        }
+    }
+
+    // Ejecutar al cargar y al cambiar selecciones
+    toggleImpresoraSection();
+    $('#id_categoria, #id_catalogo').change(toggleImpresoraSection);
+    $('#btn-toggle-catalogo, #btn-cancelar-catalogo').click(function() {
+        setTimeout(toggleImpresoraSection, 50);
     });
 </script>
 

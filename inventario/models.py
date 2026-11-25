@@ -498,12 +498,8 @@ class ActivoImpresora(models.Model):
     """
 
     class TipoImpresion(models.TextChoices):
-        LASER_MONO = 'LASER_BN', 'Láser Monocromática (B/N)'
-        LASER_COLOR = 'LASER_COL', 'Láser Color'
-        TINTA = 'TINTA', 'Inyección de Tinta'
-        TERMICA = 'TERMICA', 'Térmica (Tickets/Etiquetas)'
-        MATRICIAL = 'MATRICIAL', 'Matriz de Punto'
-        OTRO = 'OTRO', 'Otro'
+        BLANCO_NEGRO = 'BLANCO_NEGRO', 'Blanco y Negro'
+        COLOR = 'COLOR', 'Color'
 
     activo = models.OneToOneField(
         'Activo',
@@ -516,8 +512,8 @@ class ActivoImpresora(models.Model):
     tipo_impresion = models.CharField(
         max_length=15,
         choices=TipoImpresion.choices,
-        default=TipoImpresion.LASER_MONO,
-        verbose_name="Tecnología de Impresión"
+        default=TipoImpresion.BLANCO_NEGRO,
+        verbose_name="Tipo de Impresión"
     )
     rango_impresiones = models.CharField(
         max_length=100,

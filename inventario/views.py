@@ -19,7 +19,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 from accounts.mixins import GroupRequiredMixin
-from .forms import ActivoForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm, UbicacionForm
+from .forms import ActivoForm, ActivoImpresoraForm, CatalogoForm, CategoriaForm, AreaAdministrativaForm, CargoForm, FuncionarioForm, UbicacionForm
 from .utils import _get_excel_val
 from .models import Activo, Edificio, Piso, Ubicacion, Marca, Categoria, Estado, Catalogo, Funcionario, AuditoriaActivo, AreaAdministrativa, Cargo
 from adr.models import Prestamo
@@ -331,41 +331,64 @@ class CrearActivoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     permission_required = 'inventario.add_activo'
     success_url = reverse_lazy('lista_activos')
 
+    def _es_categoria_impresora(self, catalogo):
+        if not catalogo or not catalogo.categoria:
+            return False
+        nombre_cat = catalogo.categoria.nombre.upper()
+        return any(term in nombre_cat for term in ['IMPRESORA', 'MULTIFUNCIONAL', 'PLOTTER'])
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if 'catalogo_form' not in context:
             context['catalogo_form'] = CatalogoForm()
+        if 'impresora_form' not in context:
+            context['impresora_form'] = ActivoImpresoraForm()
         return context
 
     def post(self, request, *args, **kwargs):
         self.object = None
         form = self.get_form()
+        impresora_form = ActivoImpresoraForm(request.POST)
         crear_nuevo = request.POST.get('crear_nuevo_catalogo') == 'true'
         
-        if crear_nuevo:
-            with transaction.atomic():
-                # El form procesa la Marca automáticamente en su clean_marca
+        with transaction.atomic():
+            # 1. Catálogo Inline
+            if crear_nuevo:
                 catalogo_form = CatalogoForm(request.POST, request.FILES)
                 if catalogo_form.is_valid():
                     nuevo_catalogo = catalogo_form.save()
-                    
-                    ## Log de Auditoría para el nuevo Catálogo
-                    #AuditoriaActivo.objects.create(
-                    #    usuario=request.user,
-                    #    accion=AuditoriaActivo.TipoAccion.CREACION,
-                    #    content_type=ContentType.objects.get_for_model(Catalogo),
-                    #    object_id=nuevo_catalogo.id,
-                    #    valor_nuevo=f"Producto creado desde activo: {nuevo_catalogo}"
-                    #)
-                    
                     data_activo = request.POST.copy()
                     data_activo['catalogo'] = nuevo_catalogo.id
-                    form = ActivoForm(data_activo)
+                    form = ActivoForm(data_activo, request.FILES)
                 else:
-                    return self.render_to_response(self.get_context_data(form=form, catalogo_form=catalogo_form))
+                    return self.render_to_response(
+                        self.get_context_data(form=form, catalogo_form=catalogo_form, impresora_form=impresora_form)
+                    )
 
-        if form.is_valid():
-            return self.form_valid(form)
+            # 2. Validación de Activo
+            if form.is_valid():
+                activo_instancia = form.save(commit=False)
+                activo_instancia.creado_por = request.user
+                activo_instancia.save()
+                form.save_m2m()
+                self.object = activo_instancia
+
+                # 3. Guardado condicional de ActivoImpresora
+                if self._es_categoria_impresora(activo_instancia.catalogo):
+                    if impresora_form.is_valid():
+                        impresora_instancia = impresora_form.save(commit=False)
+                        impresora_instancia.activo = activo_instancia
+                        impresora_instancia.save()
+                    else:
+                        # Si fallan los campos de impresora, rollback automático
+                        transaction.set_rollback(True)
+                        return self.render_to_response(
+                            self.get_context_data(form=form, impresora_form=impresora_form)
+                        )
+
+                messages.success(self.request, f"Activo '{activo_instancia}' registrado correctamente.")
+                return redirect(self.get_success_url())
+
         return self.form_invalid(form)
 
     def form_valid(self, form):
