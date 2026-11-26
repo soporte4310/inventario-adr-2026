@@ -53,3 +53,5 @@ template_config.py
 test_cloud.py
 cleanup_*.py
 prepare_*.py
+*.sql.gz
+*.gz
