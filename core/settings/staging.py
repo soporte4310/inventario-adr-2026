@@ -96,3 +96,9 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Parche de rendimiento 
+# Quita apps y middleware de desarrollo: en Render abren conexiones eternas
+# y consumen el único worker.
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in ('django_browser_reload', 'debug_toolbar')]
+MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m and 'django_browser_reload' not in m]
