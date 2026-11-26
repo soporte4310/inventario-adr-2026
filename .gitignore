@@ -5,7 +5,13 @@ __pycache__/
 # Virtual environment & env vars
 venv/
 .venv/
-.env
+
+# Cualquier archivo de variables de entorno, en cualquier carpeta. La regla es
+# un patrón y no una ruta fija para que también cubra los archivos que generan
+# los scripts (por ejemplo staging/credenciales.env). Las plantillas de ejemplo
+# sí se publican, porque no llevan valores reales.
+*.env
+!*.env.example
 
 # Django
 *.log
@@ -47,3 +53,5 @@ template_config.py
 test_cloud.py
 cleanup_*.py
 prepare_*.py
+*.sql.gz
+*.gz
