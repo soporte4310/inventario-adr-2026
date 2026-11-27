@@ -32,15 +32,25 @@ urlpatterns = [
     path("ciclos/<int:pk>/", DetalleRevisionView.as_view(), name="ver_revision"),
     path("ciclos/<int:pk>/cerrar/", CerrarRevisionView.as_view(), name="cerrar_revision"),
 
-    # Revisión de Salas
-    path("ciclos/<int:ciclo_id>/salas/", TableroSalasView.as_view(), name="tablero_salas"),
-    path("ciclos/<int:ciclo_id>/salas/fragmento/", FragmentoTableroSalasView.as_view(), name="fragmento_tablero_salas"),
-    path("revisiones/sala/<int:pk>/", FormularioRevisionSalaView.as_view(), name="revisar_sala"),
-    path("revisiones/sala/<int:pk>/restablecer/", RestablecerRevisionSalaView.as_view(), name="restablecer_revision_sala"),
+    # --- FLUJO 1: REVISIÓN DE SALAS DE CLASES ---
+    # Salas incluidas en mantenimiento
+    path('salas/', SalasMantenimientoListView.as_view(), name='salas_clases'),
+    # Ciclo de revisión específico
+    path('salas/ciclo/<int:ciclo_id>/', TableroSalasView.as_view(), name='tablero_salas'),
+    # Revisión de sala específica
+    path('salas/revision/<int:pk>/', FormularioRevisionSalaView.as_view(), name='revisar_sala'),
+    # Reiniciar revisión de sala específica (incluye formulario y video)
+    path('salas/revision/<int:pk>/restablecer/', RestablecerRevisionSalaView.as_view(), name='restablecer_sala'),
+    # Subir video en entorno local
+    path('salas/revision/<int:pk>/subir-video/', SubirVideoLocalView.as_view(), name='subir_video_local'),
+    # Asociar video a sala
+    path('salas/revision/<int:pk>/asociar-video/', AsociarVideoSalaView.as_view(), name='asociar_video_sala'),
+    # Firmar video de evidencia para luego enviarlo a Cloudinary
+    path('salas/firmar-cloudinary/', FirmarSubidaCloudinaryView.as_view(), name='firmar_cloudinary'),
     
-    # Revisión de Impresoras
-    path("ciclos/<int:ciclo_id>/impresoras/", TableroImpresorasView.as_view(), name="tablero_impresoras"),
-    path("revisiones/impresora/<int:pk>/", FormularioRevisionImpresoraView.as_view(), name="revisar_impresora"),
+    # --- FLUJO 2: REVISIÓN DE IMPRESORAS ---
+    path('impresoras/ciclo/<int:ciclo_id>/', TableroImpresorasView.as_view(), name='tablero_impresoras'),
+    path('impresoras/revision/<int:pk>/', FormularioRevisionImpresoraView.as_view(), name='revisar_impresora'),
     
     # Reportes y exportación
     path("ciclos/<int:pk>/reporte-pdf/", GenerarReportePdfView.as_view(), name="reporte_pdf"),
@@ -50,8 +60,5 @@ urlpatterns = [
     path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
     path("api/subir-video-local/<int:pk>/", SubirVideoLocalView.as_view(), name="subir_video_local"),
     path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
-
-    # Salas de clases
-    path('salas/', SalasMantenimientoListView.as_view(), name='salas_clases'),
 
 ]

@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Prefetch
+from django.db.models import Count, Q, Case, When, IntegerField, Value
 from django.views.generic import ListView, DetailView, View, TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -19,7 +19,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.http import JsonResponse
 
 from django.core.exceptions import ValidationError
-from .models import CicloRevision, RevisionSala
+from .models import CicloRevision, RevisionSala, RevisionImpresora
 from .forms import CerrarRevisionForm, RevisionSalaForm
 from inventario.models import Activo, Edificio, Piso, Ubicacion
 from .utils import procesar_miniatura_revision_sala
@@ -41,36 +41,64 @@ class ListaRevisionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     permission_required = 'mantencion.view_ciclorevision'
 
     def get_queryset(self):
-        # Optimizamos relaciones foráneas y calculamos métricas en una sola query
-        queryset = CicloRevision.objects.select_related('creado_por', 'cerrado_por').annotate(
-            total_items=Count('revisiones_salas', distinct=True),
-            completadas=Count(
-                'revisiones_salas',
-                filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE),
-                distinct=True
-            ),
-            con_observaciones=Count(
-                'revisiones_salas',
-                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES),
-                distinct=True
-            ),
-            criticas=Count(
-                'revisiones_salas',
-                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CRITICA),
-                distinct=True
-            ),
-        )
+        # Base con optimización de relaciones
+        queryset = CicloRevision.objects.select_related('creado_por', 'cerrado_por')
 
-        # 1. Obtener parámetros GET
+        # Anotación condicional: según sea ciclo de salas o impresoras
+        # (se anticipa la relación 'revisiones_impresoras' para cuando se cree el modelo)
+        tiene_rev_impresoras = hasattr(CicloRevision, 'revisiones_impresoras')
+
+        if tiene_rev_impresoras:
+            queryset = queryset.annotate(
+                total_items=Case(
+                    When(tipo=CicloRevision.TipoCiclo.SALAS, then=Count('revisiones_salas', distinct=True)),
+                    When(tipo=CicloRevision.TipoCiclo.IMPRESORAS, then=Count('revisiones_impresoras', distinct=True)),
+                    default=Value(0),
+                    output_field=IntegerField()
+                ),
+                completadas=Case(
+                    When(
+                        tipo=CicloRevision.TipoCiclo.SALAS,
+                        then=Count('revisiones_salas', filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE), distinct=True)
+                    ),
+                    When(
+                        tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+                        then=Count('revisiones_impresoras', filter=~Q(revisiones_impresoras__estado_general='PENDIENTE'), distinct=True)
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField()
+                )
+            )
+        else:
+            # Fallback seguro mientras se implementa el modelo RevisionImpresora
+            queryset = queryset.annotate(
+                total_items=Count('revisiones_salas', distinct=True),
+                completadas=Count(
+                    'revisiones_salas',
+                    filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE),
+                    distinct=True
+                ),
+                con_observaciones=Count(
+                    'revisiones_salas',
+                    filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES),
+                    distinct=True
+                ),
+                criticas=Count(
+                    'revisiones_salas',
+                    filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CRITICA),
+                    distinct=True
+                ),
+            )
+
+        # Filtros de búsqueda
         search_query = self.request.GET.get('search', '').strip()
         tipo_ciclo = self.request.GET.get('tipo', '').strip()
         estado_ciclo = self.request.GET.get('estado', '').strip()
 
-        # 2. Aplicar filtros dinámicos
         if search_query:
             queryset = queryset.filter(nombre__icontains=search_query)
 
-        if tipo_ciclo:
+        if tipo_ciclo in [CicloRevision.TipoCiclo.SALAS, CicloRevision.TipoCiclo.IMPRESORAS]:
             queryset = queryset.filter(tipo=tipo_ciclo)
 
         if estado_ciclo:
@@ -80,34 +108,40 @@ class ListaRevisionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['titulo_lista'] = 'Historial de Revisiones'
+        tipo_actual = self.request.GET.get('tipo', '').strip()
 
-        # Mantener valores en el formulario de búsqueda
-        search_query = self.request.GET.get('search', '').strip()
-        tipo_ciclo = self.request.GET.get('tipo', '').strip()
-        estado_ciclo = self.request.GET.get('estado', '').strip()
+        # Título dinámico según la pestaña activa
+        if tipo_actual == CicloRevision.TipoCiclo.SALAS:
+            context['titulo_lista'] = 'Revisiones de Salas de Clases'
+        elif tipo_actual == CicloRevision.TipoCiclo.IMPRESORAS:
+            context['titulo_lista'] = 'Revisiones de Impresoras'
+        else:
+            context['titulo_lista'] = 'Historial General de Revisiones'
 
-        context['search_query'] = search_query
-        context['tipo_ciclo'] = tipo_ciclo
-        context['estado_ciclo'] = estado_ciclo
+        # Conteos globales rápidos para las pestañas superiores
+        base_qs = CicloRevision.objects.all()
+        context['conteo_todos'] = base_qs.count()
+        context['conteo_salas'] = base_qs.filter(tipo=CicloRevision.TipoCiclo.SALAS).count()
+        context['conteo_impresoras'] = base_qs.filter(tipo=CicloRevision.TipoCiclo.IMPRESORAS).count()
 
-        # Opciones para los select
-        context['tipos'] = self.model.TipoCiclo.choices
+        # Variables de estado y filtros
+        context['search_query'] = self.request.GET.get('search', '').strip()
+        context['tipo_ciclo'] = tipo_actual
+        context['estado_ciclo'] = self.request.GET.get('estado', '').strip()
         context['estados'] = self.model.EstadoCiclo.choices
 
-        # Query string para mantener filtros al paginar
-        query_params = []
-        if search_query:
-            query_params.append(f'search={search_query}')
-        if tipo_ciclo:
-            query_params.append(f'tipo={tipo_ciclo}')
-        if estado_ciclo:
-            query_params.append(f'estado={estado_ciclo}')
+        # Construcción limpia de query string para paginación
+        params = []
+        if context['search_query']:
+            params.append(f"search={context['search_query']}")
+        if tipo_actual:
+            params.append(f"tipo={tipo_actual}")
+        if context['estado_ciclo']:
+            params.append(f"estado={context['estado_ciclo']}")
 
-        context['query_string'] = '&' + '&'.join(query_params) if query_params else ''
-
+        context['query_string'] = f"&{'&'.join(params)}" if params else ""
         return context
-
+    
 
 
 
@@ -635,21 +669,172 @@ class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, C
 
 
 
-class TableroImpresorasView(View):
-    def get():
-        pass
+class TableroImpresorasView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = CicloRevision
+    pk_url_kwarg = 'ciclo_id'
+    template_name = 'mantencion/pages/tablero_impresoras.html'
+    context_object_name = 'ciclo'
+    permission_required = 'mantencion.view_ciclorevision'
 
-class FormularioRevisionImpresoraView(View):
-    def get():
-        pass
+    def get_queryset(self):
+        return CicloRevision.objects.filter(tipo=CicloRevision.TipoCiclo.IMPRESORAS)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ciclo = self.object
+
+        # 1. Recuperar todas las revisiones del ciclo optimizando relaciones
+        revisiones = (
+            ciclo.revisiones_impresoras
+            .select_related(
+                'impresora',
+                'impresora__activo',
+                'impresora__activo__catalogo',
+                'impresora__activo__catalogo__marca',
+                'impresora__activo__ubicacion',
+                'impresora__activo__ubicacion__piso',
+                'impresora__activo__ubicacion__piso__edificio',
+                'operador'
+            )
+            .order_by(
+                'impresora__activo__ubicacion__piso__edificio__nombre',
+                'impresora__activo__ubicacion__piso__nombre',
+                'impresora__activo__ubicacion__nombre',
+                'impresora__activo__catalogo__modelo'
+            )
+        )
+
+        # 2. Agrupación jerárquica en memoria: Edificio -> Piso -> Impresoras
+        edificios_dict = {}
+
+        for rev in revisiones:
+            activo = rev.impresora.activo if hasattr(rev.impresora, 'activo') else None
+            ubicacion = activo.ubicacion if activo else None
+            piso = ubicacion.piso if ubicacion else None
+            edificio = piso.edificio if piso else None
+
+            ed_id = edificio.id if edificio else 0
+            ed_nombre = edificio.nombre if edificio else "Sin Edificio Asignado"
+
+            if ed_id not in edificios_dict:
+                edificios_dict[ed_id] = {
+                    'id': ed_id,
+                    'nombre': ed_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'operativas': 0,
+                    'no_operativas': 0,
+                    'pisos': {}
+                }
+
+            piso_id = piso.id if piso else 0
+            piso_nombre = piso.nombre if piso else "Sin Piso"
+
+            if piso_id not in edificios_dict[ed_id]['pisos']:
+                edificios_dict[ed_id]['pisos'][piso_id] = {
+                    'id': piso_id,
+                    'nombre': piso_nombre,
+                    'total': 0,
+                    'revisadas': 0,
+                    'impresoras': []
+                }
+
+            es_revisada = rev.estado_general != RevisionImpresora.EstadoGeneral.PENDIENTE
+
+            edificios_dict[ed_id]['total'] += 1
+            edificios_dict[ed_id]['pisos'][piso_id]['total'] += 1
+
+            if es_revisada:
+                edificios_dict[ed_id]['revisadas'] += 1
+                edificios_dict[ed_id]['pisos'][piso_id]['revisadas'] += 1
+
+            if rev.estado_general == RevisionImpresora.EstadoGeneral.OPERATIVA:
+                edificios_dict[ed_id]['operativas'] += 1
+            elif rev.estado_general == RevisionImpresora.EstadoGeneral.NO_OPERATIVA:
+                edificios_dict[ed_id]['no_operativas'] += 1
+
+            edificios_dict[ed_id]['pisos'][piso_id]['impresoras'].append(rev)
+
+        # 3. Convertir a listas con cálculo de porcentaje para el render
+        arbol_edificios = []
+        for ed in edificios_dict.values():
+            ed['pisos_lista'] = list(ed['pisos'].values())
+            ed['porcentaje'] = round((ed['revisadas'] / ed['total']) * 100) if ed['total'] > 0 else 0
+            for p in ed['pisos_lista']:
+                p['porcentaje'] = round((p['revisadas'] / p['total']) * 100) if p['total'] > 0 else 0
+            arbol_edificios.append(ed)
+
+        context['arbol_edificios'] = arbol_edificios
+        context['titulo_pagina'] = f"Tablero: {ciclo.nombre}"
+        return context
+
+
+
+
+class FormularioRevisionImpresoraView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Procesa la calificación operativa y las observaciones de una impresora,
+    soportando peticiones asíncronas desde el modal del tablero o envíos estándar.
+    """
+    permission_required = 'mantencion.change_revisionimpresora'
+
+    def post(self, request, pk):
+        revision = get_object_or_404(
+            RevisionImpresora.objects.select_related('ciclo', 'impresora__activo'),
+            pk=pk
+        )
+
+        if revision.ciclo.esta_cerrado:
+            return JsonResponse({'error': 'No se puede modificar una revisión de un ciclo finalizado.'}, status=400)
+
+        operativa_param = request.POST.get('esta_operativa')
+        observaciones = request.POST.get('observaciones', '').strip()
+
+        if operativa_param in ['1', 'true', 'True']:
+            revision.esta_operativa = True
+        elif operativa_param in ['0', 'false', 'False']:
+            revision.esta_operativa = False
+        else:
+            revision.esta_operativa = None
+
+        revision.observaciones = observaciones
+        revision.operador = request.user
+        revision.fecha_revision = timezone.now() if revision.esta_operativa is not None else None
+        revision.save()
+
+        # Respuesta JSON para actualización reactiva en el tablero
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('ajax') == '1':
+            fecha_str = timezone.localtime(revision.fecha_revision).strftime("%d/%m %H:%M") if revision.fecha_revision else ''
+            return JsonResponse({
+                'status': 'ok',
+                'revision_id': revision.id,
+                'esta_operativa': revision.esta_operativa,
+                'estado_general': revision.estado_general,
+                'estado_display': revision.get_estado_general_display(),
+                'observaciones': revision.observaciones,
+                'operador': revision.operador.username if revision.operador else '',
+                'fecha_revision': fecha_str,
+            })
+
+        messages.success(request, f"Revisión de {revision.impresora} guardada correctamente.")
+        return redirect('mantencion:tablero_impresoras', ciclo_id=revision.ciclo_id)
+
+
+
 
 class GenerarReportePdfView(View):
     def get():
         pass
 
+
+
+
 class ExportarExcelRevisionView(View):
     def get():
         pass
+
+
+
 
 class FirmarSubidaCloudinaryView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
     revision_model = RevisionSala

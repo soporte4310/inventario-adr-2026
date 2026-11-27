@@ -435,7 +435,7 @@
                 </div>
                 <div class="modal-footer bg-light d-flex justify-content-end">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-dismiss="modal" onclick="cerrarModalRestablecer()">Cancelar</button>
-                    <form method="POST" action="{% url 'mantencion:restablecer_revision_sala' revision.id %}">
+                    <form method="POST" action="{% url 'mantencion:restablecer_sala' revision.id %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger btn-sm fw-bold">
                             <i class="fas fa-undo-alt me-1"></i> Sí, restablecer a Pendiente

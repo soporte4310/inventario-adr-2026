@@ -8,110 +8,9 @@ from common.validators import (
     validador_alfanumerico_nombres, validador_codigo_estricto, validador_mac,
     validador_nombre_red, validador_solo_numeros, validador_texto_seguro,
 )
-from inventario.models import Activo, Ubicacion
+from inventario.models import Activo, ActivoImpresora, Ubicacion
 
 User = get_user_model()
-
-
-class Impresora(models.Model):
-    """
-    Una impresora administrada por un proveedor externo (hoy Sonda, podría
-    cambiar), por lo que NO es un Activo de inventario: INACAP no es dueño
-    del equipo, así que se modela aparte, sin ninguna FK a Activo/Catalogo/
-    Marca de 'inventario'. Sí reutiliza Ubicacion y Estado, porque esos son
-    catálogos de referencia compartidos (salas/edificios, "Operativo"/"De
-    Baja"), no datos de propiedad de un activo específico.
-    """
-
-    class EstadoImpresora(models.TextChoices):
-        OPERATIVA = 'OPER', 'Operativa'
-        DE_BAJA = 'BAJA', 'De Baja / Deprecada'
-
-    # El valor guardado es igual a la etiqueta (en vez de un código corto)
-    # porque los datos reales ya existentes usan ese mismo texto exacto
-    # ('Blanco y Negro' / 'Color'), así que no requiere migrar datos.
-    class TipoImpresion(models.TextChoices):
-        BLANCO_Y_NEGRO = 'Blanco y Negro', 'Blanco y Negro'
-        COLOR = 'Color', 'Color'
-
-    marca = models.CharField(
-        max_length=50, default='HP', verbose_name="Marca",
-        validators=[validador_alfanumerico_nombres]
-    )
-    modelo = models.CharField(
-        max_length=50, verbose_name="Modelo",
-        validators=[validador_codigo_estricto]
-    )
-    tipo_impresion = models.CharField(
-        max_length=30, blank=True, choices=TipoImpresion.choices, verbose_name="Tipo de impresión",
-    )
-    rango_impresiones = models.CharField(
-        max_length=30, blank=True, verbose_name="Rango de impresiones contratado",
-        validators=[validador_alfanumerico_nombres]
-    )
-    nombre_equipo = models.CharField(
-        max_length=100, blank=True, verbose_name="Nombre de red",
-        help_text="Hostname asignado por el proveedor, ej: IQQ_E540_BODEGA",
-        validators=[validador_nombre_red]
-    )
-    numero_serie = models.CharField(
-        max_length=50, unique=True, verbose_name="N° de Serie",
-        validators=[validador_codigo_estricto]
-    )
-    # Antes era GenericIPAddressField, pero eso exige una IPv4 completa y
-    # válida siempre. En la práctica bastantes impresoras no tienen una IP
-    # fija (la asigna el router por DHCP), así que se relajó a texto libre
-    # (ip_automatica cubre ese caso explícitamente) en vez de forzar un
-    # formato que no siempre corresponde.
-    ip = models.CharField(
-        max_length=50, null=True, blank=True, verbose_name="IP",
-        validators=[validador_texto_seguro]
-    )
-    ip_automatica = models.BooleanField(
-        default=False, verbose_name="Automático (DHCP)",
-        help_text="Márquelo si la IP la asigna el router automáticamente (no tiene IP fija)."
-    )
-    mac = models.CharField(max_length=17, blank=True, verbose_name="MAC", validators=[validador_mac])
-    codigo_proveedor = models.CharField(
-        # No es unique: en la práctica el proveedor a veces repite este
-        # código entre equipos distintos (ej: por contrato/lote). El N° de
-        # Serie es el identificador confiable, ese sí es único.
-        max_length=30, blank=True, null=True, verbose_name="Código del proveedor",
-        validators=[validador_solo_numeros]
-    )
-    ubicacion = models.ForeignKey(
-        Ubicacion, on_delete=models.PROTECT, null=True, blank=True, related_name='+'
-    )
-    estado = models.CharField(
-        max_length=4, choices=EstadoImpresora.choices, default=EstadoImpresora.OPERATIVA,
-        verbose_name="Estado"
-    )
-    creado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        verbose_name="Agregada por"
-    )
-    creado_en = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Impresora"
-        verbose_name_plural = "Impresoras"
-        ordering = ['modelo', 'nombre_equipo']
-
-    def save(self, *args, **kwargs):
-        # Si es DHCP, la IP fija queda obsoleta/contradictoria: se limpia acá
-        # para que no quede dato manual desactualizado junto a la marca.
-        if self.ip_automatica:
-            self.ip = ''
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.marca} {self.modelo} - {self.numero_serie}"
-
-
-
-
-
-
 
 
 
@@ -276,6 +175,69 @@ class CicloRevision(models.Model):
         self.fecha_cierre = timezone.now()
         self.observaciones_cierre = observaciones
         self.save()
+
+
+
+    @property
+    def total_impresoras(self):
+        return self.revisiones_impresoras.count()
+
+    @property
+    def total_impresoras_revisadas(self):
+        return self.revisiones_impresoras.exclude(
+            estado_general=RevisionImpresora.EstadoGeneral.PENDIENTE
+        ).count()
+
+    @property
+    def total_impresoras_pendientes(self):
+        return self.revisiones_impresoras.filter(
+            estado_general=RevisionImpresora.EstadoGeneral.PENDIENTE
+        ).count()
+
+    @property
+    def total_impresoras_operativas(self):
+        return self.revisiones_impresoras.filter(
+            estado_general=RevisionImpresora.EstadoGeneral.OPERATIVA
+        ).count()
+
+    @property
+    def total_impresoras_no_operativas(self):
+        return self.revisiones_impresoras.filter(
+            estado_general=RevisionImpresora.EstadoGeneral.NO_OPERATIVA
+        ).count()
+
+    @property
+    def porcentaje_avance_impresoras(self):
+        total = self.total_impresoras
+        if total == 0:
+            return 0
+        return round((self.total_impresoras_revisadas / total) * 100)
+
+    def poblar_impresoras_automaticamente(self):
+        """
+        Crea los registros de RevisionImpresora para todas las impresoras
+        activas en el sistema que no hayan sido dadas de baja en inventario.
+        """
+        if self.tipo != self.TipoCiclo.IMPRESORAS:
+            return
+
+        # Selecciona las impresoras vigentes (excluye eliminadas lógicamente y de baja)
+        impresoras_activas = ActivoImpresora.objects.filter(
+            activo__is_deleted=False
+        ).exclude(
+            activo__estado__nombre__icontains='BAJA'
+        ).select_related('activo')
+
+        nuevas_revisiones = [
+            RevisionImpresora(
+                ciclo=self,
+                impresora=impresora,
+                estado_general=RevisionImpresora.EstadoGeneral.PENDIENTE
+            )
+            for impresora in impresoras_activas
+        ]
+
+        RevisionImpresora.objects.bulk_create(nuevas_revisiones, ignore_conflicts=True)
 
 
 
@@ -517,5 +479,101 @@ class RevisionSala(models.Model):
             self.estado_general = self.EstadoGeneralSala.CON_OBSERVACIONES
         else:
             self.estado_general = self.EstadoGeneralSala.OPERATIVA
+
+        super().save(*args, **kwargs)
+
+
+
+
+class RevisionImpresora(models.Model):
+    """
+    Registra la inspección técnica preventiva mensual de una impresora o multifuncional.
+    Permite validar de forma rápida su operatividad técnica y registrar incidencias u observaciones.
+    """
+
+    class EstadoGeneral(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente de Revisión'
+        OPERATIVA = 'OPERATIVA', 'Operativa'
+        NO_OPERATIVA = 'NO_OPERATIVA', 'No Operativa / Con Falla'
+
+    ciclo = models.ForeignKey(
+        CicloRevision,
+        on_delete=models.CASCADE,
+        related_name='revisiones_impresoras',
+        verbose_name="Ciclo de Mantenimiento"
+    )
+    impresora = models.ForeignKey(
+        ActivoImpresora,
+        on_delete=models.PROTECT,
+        related_name='revisiones_mantenimiento',
+        verbose_name="Impresora"
+    )
+    operador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Técnico / Operador"
+    )
+
+    # Evaluación técnica
+    esta_operativa = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="¿Está operativa?",
+        help_text="Indica si la impresora enciende, conecta a la red e imprime correctamente."
+    )
+    estado_general = models.CharField(
+        max_length=20,
+        choices=EstadoGeneral.choices,
+        default=EstadoGeneral.PENDIENTE,
+        verbose_name="Estado de la Revisión"
+    )
+
+    # Trazabilidad y detalle
+    fecha_revision = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Revisión"
+    )
+    observaciones = models.TextField(
+        blank=True,
+        verbose_name="Observaciones / Incidencias",
+        help_text="Detalle atascos recurrentes, mensaje de error en pantalla, falta de tóner o solicitud de insumos a SONDA."
+    )
+
+    class Meta:
+        verbose_name = "Revisión de Impresora"
+        verbose_name_plural = "Revisiones de Impresoras"
+        unique_together = ('ciclo', 'impresora')
+        ordering = ['impresora__activo__ubicacion__nombre', 'impresora__activo__catalogo__modelo']
+
+    def __str__(self):
+        return f"{self.impresora} - {self.get_estado_general_display()} ({self.ciclo.nombre})"
+
+    def clean(self):
+        super().clean()
+        # Impedir modificaciones si el ciclo mensual ya fue cerrado formalmente
+        if self.pk and self.ciclo.estado == CicloRevision.EstadoCiclo.FINALIZADO:
+            raise ValidationError("No se puede modificar una revisión que pertenece a un ciclo cerrado.")
+
+    def save(self, *args, **kwargs):
+        # Asegurar consistencia de campos al actualizar solo columnas específicas
+        if kwargs.get('update_fields') is not None:
+            fields = set(kwargs['update_fields'])
+            fields.update({'estado_general', 'fecha_revision'})
+            kwargs['update_fields'] = list(fields)
+
+        # Regla de cálculo automático del estado
+        if self.esta_operativa is None:
+            self.estado_general = self.EstadoGeneral.PENDIENTE
+        elif self.esta_operativa is True:
+            self.estado_general = self.EstadoGeneral.OPERATIVA
+            if not self.fecha_revision:
+                self.fecha_revision = timezone.now()
+        else:
+            self.estado_general = self.EstadoGeneral.NO_OPERATIVA
+            if not self.fecha_revision:
+                self.fecha_revision = timezone.now()
 
         super().save(*args, **kwargs)

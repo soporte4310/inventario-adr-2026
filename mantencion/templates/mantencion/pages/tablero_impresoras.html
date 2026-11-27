@@ -1,0 +1,541 @@
+{% extends 'mantencion/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    
+    <!-- Barra superior de navegación y métricas -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 small text-muted">
+                            <li class="breadcrumb-item"><a href="{% url 'mantencion:lista_revisiones' %}?tipo=IMPRESORAS" class="text-decoration-none text-muted">Revisiones</a></li>
+                            <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">{{ ciclo.nombre }}</li>
+                        </ol>
+                    </nav>
+                    <h2 class="h3 mb-0 font-weight-bold text-dark">{{ ciclo.nombre }}</h2>
+                    <p class="text-muted small mb-0">Tablero de control y estado de flota de impresión por dependencia</p>
+                </div>
+                
+                <div class="d-flex gap-2 mt-3 mt-md-0">
+                    <a href="{% url 'mantencion:lista_revisiones' %}?tipo=IMPRESORAS" class="btn btn-outline-secondary btn-sm shadow-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Volver a Ciclos
+                    </a>
+                    <button type="button" class="btn btn-light border btn-sm shadow-sm" onclick="setAllAccordions(true)">
+                        <i class="fas fa-expand-arrows-alt me-1"></i> Expandir Todo
+                    </button>
+                    <button type="button" class="btn btn-light border btn-sm shadow-sm" onclick="setAllAccordions(false)">
+                        <i class="fas fa-compress-arrows-alt me-1"></i> Colapsar Todo
+                    </button>
+                    {% if ciclo.esta_cerrado %}
+                        <span class="btn btn-secondary btn-sm disabled shadow-sm opacity-75">
+                            <i class="fas fa-lock me-1"></i> Ciclo Cerrado (Solo Lectura)
+                        </span>
+                    {% elif request.user.is_superuser %}
+                        <a href="{% url 'mantencion:cerrar_revision' ciclo.id %}" class="btn btn-danger btn-sm shadow-sm">
+                            <i class="fas fa-lock me-1"></i> Cerrar Ciclo
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resumen numérico -->
+            <div class="row g-2 pt-2 border-top">
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Total Impresoras</span>
+                        <span class="h5 fw-bold mb-0 text-dark">{{ ciclo.total_impresoras }}</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Revisadas</span>
+                        <span class="h5 fw-bold mb-0 text-success">{{ ciclo.total_impresoras_revisadas }} ({{ ciclo.porcentaje_avance_impresoras }}%)</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">Operativas</span>
+                        <span class="h5 fw-bold mb-0 text-success">{{ ciclo.total_impresoras_operativas }}</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 bg-light rounded border text-center">
+                        <span class="d-block text-muted small">No Operativas / Con Falla</span>
+                        <span class="h5 fw-bold mb-0 text-danger">{{ ciclo.total_impresoras_no_operativas }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Edificios -->
+    <div id="contenedor-edificios">
+        {% for ed in arbol_edificios %}
+        <div class="card shadow-sm border-0 mb-3 overflow-hidden">
+            
+            <!-- Cabecera Edificio -->
+            <div class="card-header bg-white p-0 border-0">
+                <button class="btn btn-custom-accordion w-100 p-3 d-flex justify-content-between align-items-center text-dark text-decoration-none shadow-none" 
+                        type="button" 
+                        data-accordion-target="collapse-ed-{{ ed.id }}"
+                        onclick="toggleCustomAccordion('collapse-ed-{{ ed.id }}', this)">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-building text-danger fa-lg me-1"></i>
+                        <span class="h5 mb-0 fw-bold">{{ ed.nombre }}</span>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-none d-sm-block text-end me-2" style="width: 150px;">
+                            <div class="small text-muted mb-1">{{ ed.revisadas }}/{{ ed.total }} equipos ({{ ed.porcentaje }}%)</div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-dark" style="width: {{ ed.porcentaje }}%;"></div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down text-muted transition-icon"></i>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Contenedor Pisos -->
+            <div id="collapse-ed-{{ ed.id }}" class="accordion-content-custom show">
+                <div class="card-body bg-light border-top p-3 p-md-4">
+                    
+                    {% for p in ed.pisos_lista %}
+                    <div class="card border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                        
+                        <!-- Cabecera Piso -->
+                        <div class="card-header bg-white p-0 border-0">
+                            <button class="btn btn-custom-accordion w-100 p-3 d-flex justify-content-between align-items-center text-dark text-decoration-none shadow-none" 
+                                    type="button" 
+                                    data-accordion-target="collapse-piso-{{ ed.id }}-{{ p.id }}"
+                                    onclick="toggleCustomAccordion('collapse-piso-{{ ed.id }}-{{ p.id }}', this)">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-layer-group text-secondary me-1"></i>
+                                    <span class="fw-bold">{{ p.nombre }}</span>
+                                    <span class="badge bg-light text-secondary border font-weight-normal ms-2">
+                                        {{ p.revisadas }}/{{ p.total }} revisadas
+                                    </span>
+                                </div>
+                                <i class="fas fa-chevron-down text-muted transition-icon"></i>
+                            </button>
+                        </div>
+
+                        <!-- Contenedor Equipos -->
+                        <div id="collapse-piso-{{ ed.id }}-{{ p.id }}" class="accordion-content-custom show">
+                            <div class="card-body p-3 bg-white border-top">
+                                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                                    {% for rev in p.impresoras %}
+                                    <div class="col">
+                                        <div id="card-imp-{{ rev.id }}" class="card h-100 shadow-sm transition-card {% if rev.estado_general == 'OPERATIVA' %}card-imp-operativa{% elif rev.estado_general == 'NO_OPERATIVA' %}card-imp-falla{% else %}card-imp-pendiente{% endif %}">
+                                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                                <div>
+                                                    <!-- Cabecera de la tarjeta: Ubicación y Estado -->
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <div>
+                                                            <h6 class="fw-bold mb-0 text-dark">
+                                                                <i class="fas fa-map-marker-alt text-danger me-1"></i> {{ rev.impresora.activo.ubicacion.nombre|default:"Sin Ubicación" }}
+                                                            </h6>
+                                                            <small class="text-muted d-block mt-1">
+                                                                {{ rev.impresora.activo.catalogo.marca.nombre }} {{ rev.impresora.activo.catalogo.modelo }}
+                                                            </small>
+                                                        </div>
+
+                                                        <div id="badge-estado-imp-{{ rev.id }}">
+                                                            {% if rev.estado_general == 'OPERATIVA' %}
+                                                                <span class="badge bg-success shadow-sm" style="font-size: 0.7rem;">
+                                                                    <i class="fas fa-check me-1"></i> Operativa
+                                                                </span>
+                                                            {% elif rev.estado_general == 'NO_OPERATIVA' %}
+                                                                <span class="badge bg-danger shadow-sm" style="font-size: 0.7rem;">
+                                                                    <i class="fas fa-times-circle me-1"></i> Con Falla
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
+                                                                    <i class="far fa-clock me-1"></i> Pendiente
+                                                                </span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Datos técnicos y de red -->
+                                                    <div class="small text-muted mb-2 pt-2 border-top">
+                                                        {% if rev.impresora.activo.es_externo %}
+                                                            <div class="mb-1">
+                                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.68rem;">
+                                                                    <i class="fas fa-handshake me-1"></i> SONDA: {{ rev.impresora.activo.codigo_externo|default:"N/A" }}
+                                                                </span>
+                                                            </div>
+                                                        {% endif %}
+
+                                                        <div class="text-truncate" title="Serie: {{ rev.impresora.activo.numero_serie }}">
+                                                            <i class="fas fa-barcode me-1 text-secondary"></i> S/N: <strong class="text-dark">{{ rev.impresora.activo.numero_serie|default:"No registrada" }}</strong>
+                                                        </div>
+
+                                                        <div class="text-truncate mt-1" title="IP: {{ rev.impresora.activo.ip }}">
+                                                            <i class="fas fa-network-wired me-1 text-primary"></i> 
+                                                            {% if rev.impresora.activo.ip %}
+                                                                <code>{{ rev.impresora.activo.ip }}</code>
+                                                            {% else %}
+                                                                <span class="text-muted">Sin IP asignada</span>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        <div class="mt-1 d-flex gap-1 flex-wrap">
+                                                            <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">
+                                                                {{ rev.impresora.get_tipo_impresion_display }}
+                                                            </span>
+                                                            {% if rev.impresora.es_multifuncional %}
+                                                                <span class="badge bg-light text-primary border" style="font-size: 0.65rem;">
+                                                                    Multifuncional
+                                                                </span>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        <!-- Observaciones vigentes -->
+                                                        <div id="obs-preview-{{ rev.id }}" class="mt-2 {% if not rev.observaciones %}d-none{% endif %}">
+                                                            <div class="p-2 bg-light rounded border text-muted small" style="font-size: 0.72rem;">
+                                                                <i class="fas fa-comment-alt text-warning me-1"></i>
+                                                                <span id="obs-text-{{ rev.id }}">{{ rev.observaciones|truncatechars:65 }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Datos de Auditoría -->
+                                                    <div id="auditoria-imp-{{ rev.id }}" class="small text-muted border-top pt-2 {% if not rev.operador %}d-none{% endif %}" style="font-size: 0.75rem;">
+                                                        <div class="d-flex align-items-center gap-1 text-dark fw-bold">
+                                                            <i class="fas fa-user-check text-success"></i> 
+                                                            <span id="operador-nombre-{{ rev.id }}">{{ rev.operador.username|default:"" }}</span>
+                                                        </div>
+                                                        <span class="d-block text-muted" id="fecha-revision-{{ rev.id }}">{{ rev.fecha_revision|date:"d/m H:i" }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Botón de acción -->
+                                                <div class="mt-3 pt-2 border-top">
+                                                    {% if ciclo.esta_cerrado %}
+                                                        <button type="button" class="btn btn-sm btn-light border text-dark w-100 shadow-sm"
+                                                                onclick="abrirModalRevision('{{ rev.id }}', '{{ rev.impresora.activo.catalogo.marca.nombre }} {{ rev.impresora.activo.catalogo.modelo }}', '{{ rev.impresora.activo.ubicacion.nombre }}', '{{ rev.esta_operativa|default:'' }}', '{{ rev.observaciones|escapejs }}', true)">
+                                                            <i class="fas fa-eye text-secondary me-1"></i> Ver Detalle
+                                                        </button>
+                                                    {% else %}
+                                                        <button type="button" class="btn btn-sm {% if rev.estado_general == 'PENDIENTE' %}btn-danger fw-bold{% else %}btn-light border text-dark{% endif %} w-100 shadow-sm"
+                                                                onclick="abrirModalRevision('{{ rev.id }}', '{{ rev.impresora.activo.catalogo.marca.nombre }} {{ rev.impresora.activo.catalogo.modelo }}', '{{ rev.impresora.activo.ubicacion.nombre }}', '{{ rev.esta_operativa|default:'' }}', '{{ rev.observaciones|escapejs }}', false)">
+                                                            <i class="fas {% if rev.estado_general == 'PENDIENTE' %}fa-clipboard-check{% else %}fa-edit text-primary{% endif %} me-1"></i> 
+                                                            {% if rev.estado_general == 'PENDIENTE' %}Revisar{% else %}Modificar{% endif %}
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+
+        </div>
+        {% empty %}
+        <div class="card shadow-sm border-0 py-5 text-center text-muted">
+            <div class="card-body">
+                <i class="fas fa-print fa-3x mb-3 opacity-50"></i>
+                <p class="h5">No hay impresoras registradas en este ciclo</p>
+                <p class="small">Verifica que existan equipos en el catálogo con detalle de impresora y activos vigentes.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- Modal Interactivo de Evaluación de Impresora -->
+<div class="modal fade" id="modalRevisionImpresora" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            
+            <div class="modal-header border-bottom py-3">
+                <div>
+                    <h5 class="modal-title h6 fw-bold mb-0" id="modal-imp-modelo">Modelo de Impresora</h5>
+                    <span class="small text-muted" id="modal-imp-ubicacion">Ubicación</span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <form id="formRevisionImpresora" onsubmit="guardarRevisionAjax(event)">
+                {% csrf_token %}
+                <input type="hidden" name="ajax" value="1">
+                <input type="hidden" id="modal-rev-id" value="">
+
+                <div class="modal-body p-4">
+                    
+                    <label class="form-label small fw-bold text-dark mb-2">Condición Operativa</label>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="esta_operativa" id="btn-op-si" value="1" autocomplete="off">
+                            <label class="btn btn-outline-success w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="btn-op-si">
+                                <i class="fas fa-check-circle fa-lg"></i>
+                                <span>Operativa</span>
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="esta_operativa" id="btn-op-no" value="0" autocomplete="off">
+                            <label class="btn btn-outline-danger w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="btn-op-no">
+                                <i class="fas fa-times-circle fa-lg"></i>
+                                <span>Con Falla</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="modal-observaciones" class="form-label small fw-bold text-muted">Observaciones / Incidencia</label>
+                        <textarea class="form-control shadow-none" id="modal-observaciones" name="observaciones" rows="3" 
+                                  placeholder="Ej: Faltante de tóner negro, atasco recurrente en bandeja 2, ticket SONDA #1234..."></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-light py-2 border-0">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btn-guardar-modal" class="btn btn-danger btn-sm px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i> Guardar Revisión
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<style>
+/* Acordeones independientes */
+.accordion-content-custom {
+    display: none;
+}
+.accordion-content-custom.show {
+    display: block !important;
+}
+
+.transition-icon {
+    transition: transform 0.2s ease-in-out;
+    transform: rotate(180deg);
+}
+.btn-custom-accordion.collapsed .transition-icon {
+    transform: rotate(0deg);
+}
+
+.transition-card {
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.transition-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.08) !important;
+}
+
+/* ===================================================
+   ESTILOS DE RETROALIMENTACIÓN VISUAL EN IMPRESORAS
+   =================================================== */
+.card-imp-pendiente {
+    border: 1px dashed #ced4da !important;
+    background-color: #ffffff;
+}
+
+.card-imp-operativa {
+    border: 1px solid #d1e7dd !important;
+    border-left: 5px solid #198754 !important;
+    background-color: #f8fdfa !important;
+}
+
+.card-imp-falla {
+    border: 1px solid #f8d7da !important;
+    border-left: 5px solid #dc3545 !important;
+    background-color: #fdf7f7 !important;
+}
+
+.bg-warning-subtle { background-color: #fff3cd !important; }
+.text-warning-emphasis { color: #664d03 !important; }
+</style>
+
+<script>
+// ==========================================
+// 1. MANEJO DE ACORDEONES Y PERSISTENCIA LOCAL
+// ==========================================
+const STORAGE_KEY_IMP = 'tablero_impresoras_v1_ciclo_{{ ciclo.id }}';
+
+function getStoredState() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY_IMP)) || {};
+    } catch(e) {
+        return {};
+    }
+}
+
+function toggleCustomAccordion(targetId, btn) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    
+    const isNowOpen = target.classList.toggle('show');
+    btn.classList.toggle('collapsed', !isNowOpen);
+    
+    const state = getStoredState();
+    state[targetId] = isNowOpen;
+    localStorage.setItem(STORAGE_KEY_IMP, JSON.stringify(state));
+}
+
+function setAllAccordions(open) {
+    const state = {};
+    document.querySelectorAll('.accordion-content-custom').forEach(target => {
+        if (open) {
+            target.classList.add('show');
+        } else {
+            target.classList.remove('show');
+        }
+        state[target.id] = open;
+    });
+
+    document.querySelectorAll('.btn-custom-accordion').forEach(btn => {
+        btn.classList.toggle('collapsed', !open);
+    });
+
+    localStorage.setItem(STORAGE_KEY_IMP, JSON.stringify(state));
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const state = getStoredState();
+
+    document.querySelectorAll('.accordion-content-custom').forEach(target => {
+        const isOpen = state[target.id] !== false;
+        
+        if (isOpen) {
+            target.classList.add('show');
+        } else {
+            target.classList.remove('show');
+        }
+
+        const btn = document.querySelector(`[data-accordion-target="${target.id}"]`);
+        if (btn) {
+            btn.classList.toggle('collapsed', !isOpen);
+        }
+    });
+});
+
+// ==========================================
+// 2. MODAL Y EVALUACIÓN REACTIVA AJAX
+// ==========================================
+let revisionActivaId = null;
+
+function abrirModalRevision(revId, modelo, ubicacion, estaOperativa, observaciones, esSoloLectura) {
+    revisionActivaId = revId;
+    document.getElementById('modal-rev-id').value = revId;
+    document.getElementById('modal-imp-modelo').innerText = modelo;
+    document.getElementById('modal-imp-ubicacion').innerText = ubicacion;
+    document.getElementById('modal-observaciones').value = observaciones || '';
+
+    const btnSi = document.getElementById('btn-op-si');
+    const btnNo = document.getElementById('btn-op-no');
+
+    if (estaOperativa === 'True' || estaOperativa === 'true' || estaOperativa === true) {
+        btnSi.checked = true;
+    } else if (estaOperativa === 'False' || estaOperativa === 'false' || estaOperativa === false) {
+        btnNo.checked = true;
+    } else {
+        btnSi.checked = false;
+        btnNo.checked = false;
+    }
+
+    // Modo solo lectura si el ciclo está cerrado
+    btnSi.disabled = esSoloLectura;
+    btnNo.disabled = esSoloLectura;
+    document.getElementById('modal-observaciones').readOnly = esSoloLectura;
+    document.getElementById('btn-guardar-modal').style.display = esSoloLectura ? 'none' : 'block';
+
+    const modalEl = document.getElementById('modalRevisionImpresora');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modalInstance.show();
+}
+
+async function guardarRevisionAjax(e) {
+    e.preventDefault();
+    if (!revisionActivaId) return;
+
+    const form = document.getElementById('formRevisionImpresora');
+    const formData = new FormData(form);
+    const revId = revisionActivaId;
+
+    try {
+        const response = await fetch(`/mantencion/impresoras/revision/${revId}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 1. Actualizar estilos y badges de la tarjeta en pantalla
+        const cardEl = document.getElementById(`card-imp-${revId}`);
+        const badgeEl = document.getElementById(`badge-estado-imp-${revId}`);
+
+        if (cardEl && badgeEl) {
+            cardEl.classList.remove('card-imp-pendiente', 'card-imp-operativa', 'card-imp-falla');
+
+            if (data.estado_general === 'OPERATIVA') {
+                cardEl.classList.add('card-imp-operativa');
+                badgeEl.innerHTML = `<span class="badge bg-success shadow-sm" style="font-size: 0.7rem;"><i class="fas fa-check me-1"></i> Operativa</span>`;
+            } else if (data.estado_general === 'NO_OPERATIVA') {
+                cardEl.classList.add('card-imp-falla');
+                badgeEl.innerHTML = `<span class="badge bg-danger shadow-sm" style="font-size: 0.7rem;"><i class="fas fa-times-circle me-1"></i> Con Falla</span>`;
+            } else {
+                cardEl.classList.add('card-imp-pendiente');
+                badgeEl.innerHTML = `<span class="badge bg-light text-secondary border" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i> Pendiente</span>`;
+            }
+        }
+
+        // 2. Actualizar observaciones en la tarjeta
+        const obsPreview = document.getElementById(`obs-preview-${revId}`);
+        const obsText = document.getElementById(`obs-text-${revId}`);
+        if (obsPreview && obsText) {
+            if (data.observaciones) {
+                obsText.innerText = data.observaciones.length > 65 ? data.observaciones.substring(0, 65) + '...' : data.observaciones;
+                obsPreview.classList.remove('d-none');
+            } else {
+                obsPreview.classList.add('d-none');
+            }
+        }
+
+        // 3. Actualizar auditoría (operador y fecha)
+        const auditoriaBox = document.getElementById(`auditoria-imp-${revId}`);
+        const operadorText = document.getElementById(`operador-nombre-${revId}`);
+        const fechaText = document.getElementById(`fecha-revision-${revId}`);
+        if (auditoriaBox && operadorText && fechaText) {
+            operadorText.innerText = data.operador;
+            fechaText.innerText = data.fecha_revision;
+            auditoriaBox.classList.remove('d-none');
+        }
+
+        // Cerrar modal
+        const modalEl = document.getElementById('modalRevisionImpresora');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+    } catch (err) {
+        alert("Ocurrió un error al guardar la revisión. Revisa tu conexión.");
+    }
+}
+</script>
+{% endblock %}

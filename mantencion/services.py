@@ -2,8 +2,8 @@ import calendar
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
-from inventario.models import Activo, Ubicacion
-from .models import CicloRevision, RevisionSala
+from inventario.models import Activo, ActivoImpresora, Ubicacion
+from .models import CicloRevision, RevisionSala, RevisionImpresora
 
 MESES_ES = [
     "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -128,3 +128,114 @@ def crear_ciclo_extraordinario_salas(usuario, nombre_personalizado=None):
         total_salas = _poblar_revisiones_salas(ciclo)
 
     return True, f"Ciclo extraordinario '{ciclo.nombre}' creado exitosamente con {total_salas} salas.", ciclo
+
+
+
+
+# ==============================================================================
+# SECCIÓN 2: REVISIONES DE IMPRESORAS
+# ==============================================================================
+
+def _poblar_revisiones_impresoras(ciclo):
+    """
+    Inserta masivamente los registros de RevisionImpresora para todas las
+    impresoras activas que no se encuentren dadas de baja en el inventario.
+    """
+    impresoras = ActivoImpresora.objects.filter(
+        activo__is_deleted=False
+    ).exclude(
+        activo__estado__nombre__icontains='BAJA'
+    ).select_related('activo', 'activo__ubicacion', 'activo__catalogo')
+
+    revisiones_a_crear = [
+        RevisionImpresora(
+            ciclo=ciclo,
+            impresora=impresora,
+            estado_general=RevisionImpresora.EstadoGeneral.PENDIENTE
+        )
+        for impresora in impresoras
+    ]
+
+    RevisionImpresora.objects.bulk_create(revisiones_a_crear)
+    return len(revisiones_a_crear)
+
+
+def crear_ciclo_mensual_impresoras(forzar=False):
+    """
+    Crea y abre de forma automática el ciclo mensual de impresoras del mes
+    en curso y puebla todas las impresoras activas.
+    """
+    hoy = timezone.localdate()
+    mes_nombre = MESES_ES[hoy.month]
+    nombre_ciclo = f"Revisión Impresoras - {mes_nombre} {hoy.year}"
+
+    ciclo_existente = CicloRevision.objects.filter(
+        tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+        fecha_inicio__year=hoy.year,
+        fecha_inicio__month=hoy.month
+    ).first()
+
+    if ciclo_existente and not forzar:
+        return False, f"El ciclo '{ciclo_existente.nombre}' ya existe y está {ciclo_existente.get_estado_display()}."
+
+    ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+    fecha_limite = hoy.replace(day=ultimo_dia)
+
+    with transaction.atomic():
+        ciclo = CicloRevision.objects.create(
+            nombre=nombre_ciclo,
+            tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+            estado=CicloRevision.EstadoCiclo.EN_CURSO,
+            fecha_inicio=hoy,
+            fecha_limite=fecha_limite,
+            creado_por=None
+        )
+        total_pobladas = _poblar_revisiones_impresoras(ciclo)
+
+    return True, f"Ciclo '{nombre_ciclo}' creado exitosamente con {total_pobladas} impresoras."
+
+
+def crear_ciclo_extraordinario_impresoras(usuario, nombre_personalizado=None):
+    """
+    Crea un ciclo extraordinario manual de impresoras para el mes actual.
+    Regla de negocio: No se puede crear si ya existe un ciclo de impresoras
+    vigente (EN_CURSO) en el mes actual.
+    """
+    hoy = timezone.localdate()
+    mes_nombre = MESES_ES[hoy.month]
+
+    ciclo_vigente = CicloRevision.objects.filter(
+        tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+        estado=CicloRevision.EstadoCiclo.EN_CURSO,
+        fecha_inicio__year=hoy.year,
+        fecha_inicio__month=hoy.month
+    ).first()
+
+    if ciclo_vigente:
+        return False, f"No es posible crear un ciclo extraordinario: el ciclo '{ciclo_vigente.nombre}' aún se encuentra en curso.", None
+
+    conteo_extraordinarios = CicloRevision.objects.filter(
+        tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+        fecha_inicio__year=hoy.year,
+        fecha_inicio__month=hoy.month,
+        nombre__icontains="Extraordinaria"
+    ).count()
+
+    sufijo = f" #{conteo_extraordinarios + 1}" if conteo_extraordinarios > 0 else ""
+    nombre = nombre_personalizado.strip() if nombre_personalizado else f"Revisión Extraordinaria Impresoras - {mes_nombre} {hoy.year}{sufijo}"
+
+    ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+    fecha_limite = hoy.replace(day=ultimo_dia)
+
+    with transaction.atomic():
+        ciclo = CicloRevision.objects.create(
+            nombre=nombre,
+            tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+            estado=CicloRevision.EstadoCiclo.EN_CURSO,
+            fecha_inicio=hoy,
+            fecha_limite=fecha_limite,
+            creado_por=usuario
+        )
+        total_impresoras = _poblar_revisiones_impresoras(ciclo)
+
+    return True, f"Ciclo extraordinario '{ciclo.nombre}' creado exitosamente con {total_impresoras} impresoras.", ciclo
