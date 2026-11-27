@@ -6,6 +6,7 @@ import cloudinary
 from django import forms
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Case, When, IntegerField, Value, Prefetch
@@ -19,16 +20,84 @@ from django.core.files.uploadedfile import UploadedFile
 from django.http import JsonResponse
 
 from django.core.exceptions import ValidationError
-from .models import CicloRevision, RevisionSala, RevisionImpresora
+from .models import CicloRevision, RevisionSala, RevisionImpresora, RegistroActividadMantencion
 from .forms import CerrarRevisionForm, RevisionSalaForm
 from inventario.models import Activo, Edificio, Piso, Ubicacion
 from .utils import procesar_miniatura_revision_sala
 from common.validators import validar_archivo_video
-from .services import crear_ciclo_extraordinario_salas, MESES_ES
+from .services import crear_ciclo_extraordinario_salas, MESES_ES, registrar_log_actividad
 from .mixins import CicloAbiertoRequiredMixin
 
-class DashboardInventario(TemplateView):
+User = get_user_model()
+
+
+class DashboardMantencion(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'mantencion/pages/dashboard.html'
+    permission_required = 'mantencion.view_ciclorevision'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        hoy = timezone.localdate()
+        mes_nombre = MESES_ES[hoy.month]
+
+        # 1. Ciclos del mes actual
+        ciclo_salas = CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.SALAS,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).order_by('-id').first()
+
+        ciclo_impresoras = CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).order_by('-id').first()
+
+        # 2. Métricas y KPIs
+        total_salas_criticas = ciclo_salas.total_criticas if ciclo_salas else 0
+        total_imp_fallas = ciclo_impresoras.total_impresoras_no_operativas if ciclo_impresoras else 0
+        alertas_operativas = total_salas_criticas + total_imp_fallas
+
+        # Total de revisiones/acciones registradas en el mes
+        total_actividades_mes = RegistroActividadMantencion.objects.filter(
+            fecha__year=hoy.year,
+            fecha__month=hoy.month
+        ).count()
+
+        # 3. Equipos y recintos que requieren atención prioritaria
+        incidencias_salas = []
+        if ciclo_salas:
+            incidencias_salas = ciclo_salas.revisiones_salas.filter(
+                estado_general__in=[
+                    RevisionSala.EstadoGeneralSala.CRITICA,
+                    RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES
+                ]
+            ).select_related('ubicacion', 'ubicacion__piso__edificio', 'proyector')[:6]
+
+        incidencias_impresoras = []
+        if ciclo_impresoras:
+            incidencias_impresoras = ciclo_impresoras.revisiones_impresoras.filter(
+                estado_general=RevisionImpresora.EstadoGeneral.NO_OPERATIVA
+            ).select_related('impresora__activo__ubicacion', 'impresora__activo__catalogo')[:6]
+
+        # 4. Actividad reciente para la línea de tiempo
+        ultimas_actividades = RegistroActividadMantencion.objects.select_related(
+            'usuario', 'ciclo'
+        ).order_by('-fecha')[:8]
+
+        context.update({
+            'titulo_pagina': f'Panel de Control · {mes_nombre} {hoy.year}',
+            'mes_nombre': mes_nombre,
+            'anio_actual': hoy.year,
+            'ciclo_salas': ciclo_salas,
+            'ciclo_impresoras': ciclo_impresoras,
+            'alertas_operativas': alertas_operativas,
+            'total_actividades_mes': total_actividades_mes,
+            'incidencias_salas': incidencias_salas,
+            'incidencias_impresoras': incidencias_impresoras,
+            'ultimas_actividades': ultimas_actividades,
+        })
+        return context
 
 
 
@@ -433,6 +502,20 @@ class SubirVideoLocalView(LoginRequiredMixin, CicloAbiertoRequiredMixin, View):
         else:
             revision.save(update_fields=['video_evidencia_url'])
 
+        # REGISTRO DE ACTIVIDAD: Subida de Video
+        ubicacion_str = f"{revision.ubicacion.piso.edificio.nombre} - {revision.ubicacion.piso.nombre}" if revision.ubicacion.piso else ""
+        registrar_log_actividad(
+            usuario=request.user,
+            ciclo=revision.ciclo,
+            tipo_revision=RegistroActividadMantencion.TipoRevision.SALA,
+            accion=RegistroActividadMantencion.TipoAccion.VIDEO_SALA,
+            item_nombre=revision.ubicacion.nombre,
+            estado_resultado=revision.estado_general,
+            ubicacion_texto=ubicacion_str,
+            observaciones=f"Video de evidencia cargado. Estado final: {revision.get_estado_general_display()}.",
+            revision_sala=revision
+        )
+
         return JsonResponse({
             'status': 'ok',
             'secure_url': revision.video_evidencia_url,
@@ -571,6 +654,22 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Ci
 
             rev.save() # Guarda y calcula el estado_general automáticamente
 
+            # REGISTRO DE ACTIVIDAD: Checklist completado
+            ubicacion_str = f"{rev.ubicacion.piso.edificio.nombre} - {rev.ubicacion.piso.nombre}" if rev.ubicacion.piso else ""
+            obs_log = rev.observaciones or ("Checklist respondido OK." if rev.tiene_video else "Checklist completado, a la espera de evidencia en video.")
+
+            registrar_log_actividad(
+                usuario=request.user,
+                ciclo=rev.ciclo,
+                tipo_revision=RegistroActividadMantencion.TipoRevision.SALA,
+                accion=RegistroActividadMantencion.TipoAccion.CHECKLIST_SALA,
+                item_nombre=rev.ubicacion.nombre,
+                estado_resultado=rev.estado_general,
+                ubicacion_texto=ubicacion_str,
+                observaciones=obs_log,
+                revision_sala=rev
+            )
+
             if rev.tiene_video:
                 messages.success(
                     request,
@@ -581,12 +680,6 @@ class FormularioRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, Ci
                     request,
                     f"Checklist de {revision.ubicacion.nombre} guardado. Falta subir el video de evidencia para completar la revisión."
                 )
-            return redirect('mantencion:tablero_salas', ciclo_id=revision.ciclo_id)
-
-            messages.success(
-                request,
-                f"Revisión de {revision.ubicacion.nombre} guardada exitosamente como '{rev.get_estado_general_display()}'."
-            )
             return redirect('mantencion:tablero_salas', ciclo_id=revision.ciclo_id)
 
         proyector_inventario = self.get_proyector_inventario(revision.ubicacion)
@@ -658,6 +751,19 @@ class RestablecerRevisionSalaView(LoginRequiredMixin, PermissionRequiredMixin, C
             imagen_thumb_medium=None,
             imagen_thumb_small=None,
             estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE
+        )
+
+        # Registrar actividad
+        registrar_log_actividad(
+            usuario=request.user,
+            ciclo=revision.ciclo,
+            tipo_revision=RegistroActividadMantencion.TipoRevision.SALA,
+            item_nombre=revision.ubicacion.nombre,
+            estado_resultado=RevisionSala.EstadoGeneralSala.PENDIENTE,
+            ubicacion_texto=f"{revision.ubicacion.piso.edificio.nombre} - {revision.ubicacion.piso.nombre}" if revision.ubicacion.piso else "",
+            observaciones="Revisión restablecida a estado inicial (evidencia borrada).",
+            accion=RegistroActividadMantencion.TipoAccion.RESTABLECIDA,
+            revision_sala=revision
         )
 
         messages.info(
@@ -801,6 +907,29 @@ class FormularioRevisionImpresoraView(LoginRequiredMixin, PermissionRequiredMixi
         revision.operador = request.user
         revision.fecha_revision = timezone.now() if revision.esta_operativa is not None else None
         revision.save()
+
+        # Registrar actividad
+        ubicacion_str = ""
+        if hasattr(revision.impresora.activo, 'ubicacion') and revision.impresora.activo.ubicacion:
+            ubicacion_str = str(revision.impresora.activo.ubicacion)
+
+        accion = (
+            RegistroActividadMantencion.TipoAccion.MODIFICADA
+            if revision.fecha_revision
+            else RegistroActividadMantencion.TipoAccion.REALIZADA
+        )
+
+        registrar_log_actividad(
+            usuario=request.user,
+            ciclo=revision.ciclo,
+            tipo_revision=RegistroActividadMantencion.TipoRevision.IMPRESORA,
+            item_nombre=f"{revision.impresora.activo.catalogo.marca.nombre} {revision.impresora.activo.catalogo.modelo} ({revision.impresora.activo.numero_serie or 'S/N'})",
+            estado_resultado=revision.estado_general,
+            ubicacion_texto=ubicacion_str,
+            observaciones=revision.observaciones,
+            accion=accion,
+            revision_impresora=revision
+        )
 
         # Respuesta JSON para actualización reactiva en el tablero
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('ajax') == '1':
@@ -1023,6 +1152,20 @@ class AsociarVideoSalaView(LoginRequiredMixin, View):
         else:
             revision.save(update_fields=['video_evidencia_url'])
 
+        # REGISTRO DE ACTIVIDAD: Video Cloudinary
+        ubicacion_str = f"{revision.ubicacion.piso.edificio.nombre} - {revision.ubicacion.piso.nombre}" if revision.ubicacion.piso else ""
+        registrar_log_actividad(
+            usuario=request.user,
+            ciclo=revision.ciclo,
+            tipo_revision=RegistroActividadMantencion.TipoRevision.SALA,
+            accion=RegistroActividadMantencion.TipoAccion.VIDEO_SALA,
+            item_nombre=revision.ubicacion.nombre,
+            estado_resultado=revision.estado_general,
+            ubicacion_texto=ubicacion_str,
+            observaciones=f"Video en Cloudinary vinculado. Estado: {revision.get_estado_general_display()}.",
+            revision_sala=revision
+        )
+
         return JsonResponse({
             'status': 'ok',
             'video_url': revision.video_evidencia_url,
@@ -1121,7 +1264,7 @@ class SalasMantenimientoListView(LoginRequiredMixin, PermissionRequiredMixin, Li
 
 
 
-
+# NO RECUERDO SI ESTO SE ESTÁ USANDO
 class VideoValidationFormMixin:
     """
     Mixin para formularios que valida de forma automática cualquier
@@ -1139,3 +1282,81 @@ class VideoValidationFormMixin:
                         mensaje = e.messages[0] if hasattr(e, 'messages') else str(e)
                         self.add_error(field_name, mensaje)
         return cleaned_data
+
+
+
+
+class ListaActividadMantencionView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """
+    Muestra la bitácora completa de actividad de revisiones con filtros
+    por fecha, tipo de inspección, operador, ciclo y búsqueda libre.
+    """
+    model = RegistroActividadMantencion
+    template_name = 'mantencion/pages/registro_actividad.html'
+    context_object_name = 'actividades'
+    paginate_by = 25
+    permission_required = 'mantencion.view_ciclorevision'
+
+    def get_queryset(self):
+        queryset = RegistroActividadMantencion.objects.select_related(
+            'usuario', 'ciclo', 'revision_sala', 'revision_impresora'
+        )
+
+        search = self.request.GET.get('search', '').strip()
+        tipo = self.request.GET.get('tipo', '').strip()
+        usuario_id = self.request.GET.get('usuario', '').strip()
+        ciclo_id = self.request.GET.get('ciclo', '').strip()
+        fecha_desde = self.request.GET.get('fecha_desde', '').strip()
+        fecha_hasta = self.request.GET.get('fecha_hasta', '').strip()
+
+        if search:
+            queryset = queryset.filter(
+                Q(item_nombre__icontains=search) |
+                Q(ubicacion_texto__icontains=search) |
+                Q(observaciones__icontains=search) |
+                Q(usuario__username__icontains=search) |
+                Q(usuario__first_name__icontains=search) |
+                Q(usuario__last_name__icontains=search)
+            )
+
+        if tipo in [RegistroActividadMantencion.TipoRevision.SALA, RegistroActividadMantencion.TipoRevision.IMPRESORA]:
+            queryset = queryset.filter(tipo_revision=tipo)
+
+        if usuario_id:
+            queryset = queryset.filter(usuario_id=usuario_id)
+
+        if ciclo_id:
+            queryset = queryset.filter(ciclo_id=ciclo_id)
+
+        if fecha_desde:
+            queryset = queryset.filter(fecha__date__gte=fecha_desde)
+
+        if fecha_hasta:
+            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+
+        return queryset.order_by('-fecha')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_lista'] = 'Registro de Actividad de Mantención'
+
+        # Datos para los filtros
+        context['tipos'] = RegistroActividadMantencion.TipoRevision.choices
+        context['usuarios'] = User.objects.filter(is_active=True).order_by('first_name', 'username')
+        context['ciclos'] = CicloRevision.objects.all().order_by('-fecha_inicio')[:12]
+
+        # Mantener estados de búsqueda en el form
+        context['search'] = self.request.GET.get('search', '').strip()
+        context['tipo_seleccionado'] = self.request.GET.get('tipo', '').strip()
+        context['usuario_seleccionado'] = self.request.GET.get('usuario', '').strip()
+        context['ciclo_seleccionado'] = self.request.GET.get('ciclo', '').strip()
+        context['fecha_desde'] = self.request.GET.get('fecha_desde', '').strip()
+        context['fecha_hasta'] = self.request.GET.get('fecha_hasta', '').strip()
+
+        # Query string para paginación
+        params = self.request.GET.copy()
+        if 'page' in params:
+            params.pop('page')
+        context['query_string'] = f"&{params.urlencode()}" if params else ""
+
+        return context

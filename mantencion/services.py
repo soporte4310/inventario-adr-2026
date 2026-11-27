@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
 from inventario.models import Activo, ActivoImpresora, Ubicacion
-from .models import CicloRevision, RevisionSala, RevisionImpresora
+from .models import CicloRevision, RevisionSala, RevisionImpresora, RegistroActividadMantencion
 
 MESES_ES = [
     "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -239,3 +239,34 @@ def crear_ciclo_extraordinario_impresoras(usuario, nombre_personalizado=None):
         total_impresoras = _poblar_revisiones_impresoras(ciclo)
 
     return True, f"Ciclo extraordinario '{ciclo.nombre}' creado exitosamente con {total_impresoras} impresoras.", ciclo
+
+
+
+
+def registrar_log_actividad(
+    usuario,
+    ciclo,
+    tipo_revision,
+    item_nombre,
+    estado_resultado,
+    accion,
+    ubicacion_texto="",
+    observaciones="",
+    revision_sala=None,
+    revision_impresora=None
+):
+    """
+    Crea una entrada en la bitácora de actividad de mantención.
+    """
+    return RegistroActividadMantencion.objects.create(
+        usuario=usuario,
+        ciclo=ciclo,
+        tipo_revision=tipo_revision,
+        accion=accion,
+        item_nombre=item_nombre,
+        ubicacion_texto=ubicacion_texto,
+        estado_resultado=estado_resultado,
+        observaciones=observaciones,
+        revision_sala=revision_sala,
+        revision_impresora=revision_impresora
+    )

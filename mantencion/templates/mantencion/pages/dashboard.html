@@ -1,7 +1,354 @@
 {% extends 'mantencion/layouts/base.html' %}
 {% load static %}
-{% load humanize %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
 
 {% block content %}
-Dashboard
-{% endblock content %}
+<div class="bg-slate-50 min-h-screen pb-12 font-sans -m-4 -mt-16 md:-mt-6 p-4 pt-16 md:pt-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        
+        <!-- Encabezado Principal -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-black tracking-wide uppercase">
+                        Mantención y Revisiones
+                    </span>
+                    <span class="text-slate-400 text-xs font-semibold">• Inacap Sede Iquique</span>
+                </div>
+                <h1 class="text-3xl font-extrabold text-slate-800">Panel de Control</h1>
+                <p class="text-slate-500 font-medium">Estado técnico y revisiones del período {{ mes_nombre }} {{ anio_actual }}</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'mantencion:revision_actual' %}" 
+                   class="inline-flex items-center px-5 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-red-200 transition-all transform hover:-translate-y-0.5">
+                    <i class="fas fa-tasks mr-2"></i> Revisión Actual
+                </a>
+                <a href="{% url 'mantencion:lista_revisiones' %}" 
+                   class="inline-flex items-center px-5 py-3 bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-700 text-sm font-bold rounded-2xl shadow-sm transition-all hover:bg-slate-50">
+                    <i class="fas fa-history mr-2 text-slate-400"></i> Historial
+                </a>
+            </div>
+        </div>
+
+        <!-- FILA 1: KPIs CON GRADIENTES VIBRANTES -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <!-- KPI 1: Salas -->
+            <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-3xl shadow-lg shadow-blue-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-blue-100 text-xs font-bold uppercase tracking-widest">Salas Revisadas</p>
+                        <h3 class="text-4xl font-black mt-1">{{ ciclo_salas.porcentaje_avance|default:"0" }}%</h3>
+                        <p class="text-blue-200 text-xs font-medium mt-2">
+                            {{ ciclo_salas.total_revisadas|default:"0" }} de {{ ciclo_salas.total_salas|default:"0" }} recintos
+                        </p>
+                    </div>
+                    <div class="bg-white/20 p-2.5 rounded-xl">
+                        <i class="fas fa-chalkboard-teacher text-xl text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI 2: Impresoras -->
+            <div class="bg-gradient-to-br from-indigo-600 to-violet-800 p-6 rounded-3xl shadow-lg shadow-indigo-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-indigo-100 text-xs font-bold uppercase tracking-widest">Flota Impresión</p>
+                        <h3 class="text-4xl font-black mt-1">{{ ciclo_impresoras.porcentaje_avance_impresoras|default:"0" }}%</h3>
+                        <p class="text-indigo-200 text-xs font-medium mt-2">
+                            {{ ciclo_impresoras.total_impresoras_revisadas|default:"0" }} de {{ ciclo_impresoras.total_impresoras|default:"0" }} equipos
+                        </p>
+                    </div>
+                    <div class="bg-white/20 p-2.5 rounded-xl">
+                        <i class="fas fa-print text-xl text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI 3: Equipos con Falla -->
+            <div class="bg-gradient-to-br from-red-500 to-red-700 p-6 rounded-3xl shadow-lg shadow-red-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-red-100 text-xs font-bold uppercase tracking-widest">Focos Críticos</p>
+                        <h3 class="text-4xl font-black mt-1">{{ alertas_operativas }}</h3>
+                        <p class="text-red-200 text-xs font-medium mt-2">
+                            Equipos fuera de servicio
+                        </p>
+                    </div>
+                    <div class="bg-white/20 p-2.5 rounded-xl">
+                        <i class="fas fa-exclamation-triangle text-xl text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI 4: Total de Revisiones -->
+            <div class="bg-gradient-to-br from-emerald-500 to-teal-700 p-6 rounded-3xl shadow-lg shadow-emerald-200 text-white transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-emerald-100 text-xs font-bold uppercase tracking-widest">Inspecciones del Mes</p>
+                        <h3 class="text-4xl font-black mt-1">{{ total_actividades_mes }}</h3>
+                        <p class="text-emerald-200 text-xs font-medium mt-2">
+                            Revisiones efectuadas
+                        </p>
+                    </div>
+                    <div class="bg-white/20 p-2.5 rounded-xl">
+                        <i class="fas fa-clipboard-check text-xl text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILA 2: ACCESO A CICLOS DEL MES -->
+        <div class="mb-12">
+            <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center">
+                <span class="w-2 h-8 bg-red-600 rounded-full mr-3"></span> Ciclos Vigentes de Inspección
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Tarjeta Ciclo Salas -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-xl transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black">
+                                <i class="fas fa-chalkboard-teacher fa-lg"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-slate-800">Revisión de salas</h3>
+                                <p class="text-xs text-slate-400 font-medium">{{ ciclo_salas.nombre|default:"Sin ciclo programado" }}</p>
+                            </div>
+                        </div>
+                        {% if ciclo_salas %}
+                            <span class="px-3 py-1 text-xs font-black rounded-full {% if ciclo_salas.esta_cerrado %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {% if ciclo_salas.esta_cerrado %}FINALIZADO{% else %}EN CURSO{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if ciclo_salas %}
+                    <div class="grid grid-cols-4 gap-2 mb-6">
+                        <div class="p-3 bg-emerald-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-emerald-600 block">Operativas</span>
+                            <span class="text-lg font-black text-emerald-700">{{ ciclo_salas.total_operativas }}</span>
+                        </div>
+                        <div class="p-3 bg-amber-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-amber-600 block">Con Obs.</span>
+                            <span class="text-lg font-black text-amber-700">{{ ciclo_salas.total_con_observaciones }}</span>
+                        </div>
+                        <div class="p-3 bg-rose-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-rose-600 block">Críticas</span>
+                            <span class="text-lg font-black text-rose-700">{{ ciclo_salas.total_criticas }}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-slate-500 block">Pendientes</span>
+                            <span class="text-lg font-black text-slate-700">{{ ciclo_salas.total_pendientes }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'mantencion:tablero_salas' ciclo_salas.id %}" 
+                       class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-100 transition-all">
+                        <span>Abrir Tablero de Salas</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                    {% else %}
+                    <div class="py-8 text-center text-slate-400 font-medium text-sm">
+                        No hay ciclo activo de salas para este mes.
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Tarjeta Ciclo Impresoras -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-xl transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                                <i class="fas fa-print fa-lg"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-slate-800">Revisión de Impresoras</h3>
+                                <p class="text-xs text-slate-400 font-medium">{{ ciclo_impresoras.nombre|default:"Sin ciclo programado" }}</p>
+                            </div>
+                        </div>
+                        {% if ciclo_impresoras %}
+                            <span class="px-3 py-1 text-xs font-black rounded-full {% if ciclo_impresoras.esta_cerrado %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {% if ciclo_impresoras.esta_cerrado %}FINALIZADO{% else %}EN CURSO{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if ciclo_impresoras %}
+                    <div class="grid grid-cols-3 gap-2 mb-6">
+                        <div class="p-3 bg-emerald-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-emerald-600 block">Operativas</span>
+                            <span class="text-lg font-black text-emerald-700">{{ ciclo_impresoras.total_impresoras_operativas }}</span>
+                        </div>
+                        <div class="p-3 bg-rose-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-rose-600 block">Con Falla</span>
+                            <span class="text-lg font-black text-rose-700">{{ ciclo_impresoras.total_impresoras_no_operativas }}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl text-center">
+                            <span class="text-[10px] font-black uppercase text-slate-500 block">Pendientes</span>
+                            <span class="text-lg font-black text-slate-700">{{ ciclo_impresoras.total_impresoras_pendientes }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'mantencion:tablero_impresoras' ciclo_impresoras.id %}" 
+                       class="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-slate-200 transition-all">
+                        <span>Abrir Tablero de Impresoras</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                    {% else %}
+                    <div class="py-8 text-center text-slate-400 font-medium text-sm">
+                        No hay ciclo activo de impresoras para este mes.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- FILA 3: ATENCIÓN INMEDIATA Y TIMELINE DE ACTIVIDAD -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            
+            <!-- Columna Izquierda (2 cols): Focos Críticos / Requieren Atención -->
+            <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-black text-slate-800">Equipos y Salas que Requieren Atención</h2>
+                        <p class="text-xs text-slate-400 font-medium">Fallas o alertas registradas durante las revisiones</p>
+                    </div>
+                    <span class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-black">
+                        {{ alertas_operativas }} Incidencias
+                    </span>
+                </div>
+
+                <div class="divide-y divide-slate-100">
+                    <!-- Salas con Problemas -->
+                    {% for s in incidencias_salas %}
+                    <div class="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-black 
+                                {% if s.estado_general == 'CRITICA' %}bg-rose-100 text-rose-600{% else %}bg-amber-100 text-amber-600{% endif %}">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 leading-tight">{{ s.ubicacion.nombre }}</h4>
+                                <p class="text-xs text-slate-400 font-medium mt-0.5">
+                                    {{ s.ubicacion.piso.edificio.nombre }} · {{ s.ubicacion.piso.nombre }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 rounded-xl text-xs font-black
+                                {% if s.estado_general == 'CRITICA' %}bg-rose-50 text-rose-600 border border-rose-100{% else %}bg-amber-50 text-amber-600 border border-amber-100{% endif %}">
+                                {{ s.get_estado_general_display }}
+                            </span>
+                            <a href="{% url 'mantencion:revisar_sala' s.id %}" 
+                               class="text-xs font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-2 rounded-xl transition-colors">
+                                Revisar
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Impresoras con Problemas -->
+                    {% for imp in incidencias_impresoras %}
+                    <div class="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center font-black">
+                                <i class="fas fa-print"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 leading-tight">
+                                    {{ imp.impresora.activo.catalogo.marca.nombre }} {{ imp.impresora.activo.catalogo.modelo }}
+                                </h4>
+                                <p class="text-xs text-slate-400 font-medium mt-0.5">
+                                    {{ imp.impresora.activo.ubicacion.nombre|default:"Sin ubicación" }} · S/N: {{ imp.impresora.activo.numero_serie|default:"N/A" }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-black">
+                                Fuera de Servicio
+                            </span>
+                            <a href="{% url 'mantencion:tablero_impresoras' ciclo_impresoras.id %}" 
+                               class="text-xs font-black text-slate-700 hover:text-slate-900 bg-slate-100 px-3 py-2 rounded-xl transition-colors">
+                                Ver
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if not incidencias_salas and not incidencias_impresoras %}
+                    <div class="py-12 text-center text-slate-400 font-medium">
+                        <i class="fas fa-check-circle text-3xl text-emerald-400 mb-2 block"></i>
+                        No hay salas críticas ni equipos con falla en este período.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Columna Derecha (1 col): Timeline de Actividad Reciente -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="font-black text-slate-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                        </svg>
+                        Actividad Reciente
+                    </h2>
+                    <a href="{% url 'mantencion:registro_actividad' %}" class="text-xs font-bold text-red-600 hover:text-red-700">
+                        Ver todo
+                    </a>
+                </div>
+
+                <div class="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                    {% for item in ultimas_actividades %}
+                    <div class="relative pl-8">
+                        <!-- Marcador Circular -->
+                        <div class="absolute left-0 top-1.5 h-6 w-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center
+                            {% if item.tipo_revision == 'SALA' %} bg-blue-500 {% else %} bg-indigo-500 {% endif %}">
+                        </div>
+
+                        <!-- Encabezado de la acción -->
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1 flex justify-between">
+                            <span>{% if item.tipo_revision == 'SALA' %}SALA{% else %}IMPRESORA{% endif %}</span>
+                            <span>{{ item.fecha|timesince }} atrás</span>
+                        </p>
+
+                        <!-- Mensaje Amigable Personalizado -->
+                        <p class="text-sm font-bold text-slate-800 leading-tight mb-1">
+                            {{ item.mensaje_amigable }}
+                        </p>
+
+                        {% if item.ubicacion_texto %}
+                        <p class="text-xs text-slate-400 font-medium mb-2">
+                            <i class="fas fa-map-marker-alt text-red-400 mr-1"></i>{{ item.ubicacion_texto }}
+                        </p>
+                        {% endif %}
+
+                        <!-- Detalle u observación si existe -->
+                        {% if item.observaciones %}
+                        <div class="p-2.5 bg-slate-50 rounded-xl text-[11px] border border-slate-100 text-slate-600 font-medium">
+                            {{ item.observaciones|truncatechars:65 }}
+                        </div>
+                        {% endif %}
+
+                        <!-- Operador -->
+                        <div class="flex items-center mt-2.5">
+                            <div class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600 mr-2 uppercase">
+                                {{ item.usuario.username|slice:":1"|default:"S" }}
+                            </div>
+                            <span class="text-[10px] font-black text-slate-500">
+                                {{ item.usuario.get_full_name|default:item.usuario.username }}
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-center py-8 text-slate-400 text-sm font-medium">
+                        No hay actividad registrada este mes.
+                    </p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

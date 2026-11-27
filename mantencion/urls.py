@@ -1,7 +1,7 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 from .views import (
-    DashboardInventario,
+    DashboardMantencion,
     ListaRevisionesView,
     CrearRevisionView,
     DetalleRevisionView,
@@ -18,14 +18,15 @@ from .views import (
     AsociarVideoSalaView,
     RestablecerRevisionSalaView,
     SalasMantenimientoListView,
-    RevisionActualView
+    RevisionActualView,
+    ListaActividadMantencionView
 )
 
 app_name = "mantencion"
 
 urlpatterns = [
     # Inicio
-    path('', DashboardInventario.as_view(), name="dashboard_mantenimiento"),
+    path('', DashboardMantencion.as_view(), name="dashboard_mantenimiento"),
 
     # Historial y gestión de ciclos
     path("ciclos/", ListaRevisionesView.as_view(), name="lista_revisiones"),
@@ -64,5 +65,8 @@ urlpatterns = [
     path("api/firmar-cloudinary/", FirmarSubidaCloudinaryView.as_view(), name="firmar_cloudinary"),
     path("api/subir-video-local/<int:pk>/", SubirVideoLocalView.as_view(), name="subir_video_local"),
     path("api/asociar-video/<int:pk>/", AsociarVideoSalaView.as_view(), name="asociar_video"),
+
+    # Registro de actividad
+    path('actividad/', ListaActividadMantencionView.as_view(), name='registro_actividad'),
 
 ]

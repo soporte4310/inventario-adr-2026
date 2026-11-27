@@ -577,3 +577,128 @@ class RevisionImpresora(models.Model):
                 self.fecha_revision = timezone.now()
 
         super().save(*args, **kwargs)
+
+
+
+
+class RegistroActividadMantencion(models.Model):
+    """
+    Bitácora cronológica de eventos de mantención en salas e impresoras.
+    """
+
+    class TipoRevision(models.TextChoices):
+        SALA = 'SALA', 'Sala de Clases'
+        IMPRESORA = 'IMPRESORA', 'Impresora'
+
+    class TipoAccion(models.TextChoices):
+        CHECKLIST_SALA = 'CHECKLIST_SALA', 'Checklist de Sala Respondido'
+        VIDEO_SALA = 'VIDEO_SALA', 'Video de Evidencia Subido'
+        REVISION_IMPRESORA = 'REVISION_IMPRESORA', 'Revisión de Impresora'
+        RESTABLECIDA = 'RESTABLECIDA', 'Revisión Restablecida'
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades_mantencion',
+        verbose_name="Operador / Técnico"
+    )
+    ciclo = models.ForeignKey(
+        CicloRevision,
+        on_delete=models.CASCADE,
+        related_name='registros_actividad',
+        verbose_name="Ciclo de Mantención"
+    )
+    tipo_revision = models.CharField(
+        max_length=15,
+        choices=TipoRevision.choices,
+        verbose_name="Tipo de Inspección"
+    )
+    accion = models.CharField(
+        max_length=25,
+        choices=TipoAccion.choices,
+        verbose_name="Acción Realizada"
+    )
+
+    item_nombre = models.CharField(
+        max_length=150,
+        verbose_name="Recinto o Equipo",
+        help_text="Ej: Sala 303C o HP LaserJet M404n (S/N: VNB3R...)"
+    )
+    ubicacion_texto = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="Ubicación Física"
+    )
+    estado_resultado = models.CharField(
+        max_length=30,
+        verbose_name="Estado Resultante",
+        help_text="OPERATIVA, OBSERVACION, CRITICA, NO_OPERATIVA, PENDIENTE"
+    )
+    observaciones = models.TextField(
+        blank=True,
+        verbose_name="Detalle u Observaciones"
+    )
+
+    revision_sala = models.ForeignKey(
+        'RevisionSala',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logs_actividad'
+    )
+    revision_impresora = models.ForeignKey(
+        'RevisionImpresora',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logs_actividad'
+    )
+
+    fecha = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="Fecha y Hora"
+    )
+
+    class Meta:
+        verbose_name = "Registro de Actividad"
+        verbose_name_plural = "Registros de Actividades"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.usuario} - {self.item_nombre} [{self.accion}]"
+
+    @property
+    def mensaje_amigable(self):
+        """
+        Retorna una descripción legible y en lenguaje natural para el timeline del Dashboard.
+        Ejemplos:
+          - 'Soporte Iquique revisó la impresora HP E42540 (CNBRR9T31F)'
+          - 'Luis revisó la sala 303C'
+          - 'Luis subió el video de evidencia de la sala 303C'
+        """
+        nombre_user = self.usuario.get_full_name() or self.usuario.username if self.usuario else "Sistema"
+        nombre = (self.item_nombre or "").strip()
+
+        # 1. Impresoras
+        if self.tipo_revision == self.TipoRevision.IMPRESORA or self.accion == self.TipoAccion.REVISION_IMPRESORA:
+            if not nombre.lower().startswith("impresora"):
+                return f"{nombre_user} revisó la impresora {nombre}"
+            return f"{nombre_user} revisó la {nombre}"
+
+        # 2. Salas de clases y laboratorios
+        if self.tipo_revision == self.TipoRevision.SALA or self.accion in [self.TipoAccion.CHECKLIST_SALA, self.TipoAccion.VIDEO_SALA]:
+            prefijos = ['sala', 'laboratorio', 'lab', 'taller', 'auditorio', 'bodega']
+            item_label = nombre if any(nombre.lower().startswith(p) for p in prefijos) else f"sala {nombre}"
+
+            if self.accion == self.TipoAccion.VIDEO_SALA:
+                return f"{nombre_user} subió el video de evidencia de la {item_label}"
+            elif self.accion == self.TipoAccion.RESTABLECIDA:
+                return f"{nombre_user} restableció a pendiente la {item_label}"
+            else:
+                return f"{nombre_user} revisó la {item_label}"
+
+        # Fallback limpio
+        return f"{nombre_user} revisó {nombre}"

@@ -114,6 +114,12 @@
         <i class="fas fa-chalkboard-teacher w-5"></i> Salas de clases
       </a>
 
+      <!-- 6. Registro de Actividad -->
+      {% url 'mantencion:registro_actividad' as url_actividad %}
+      <a href="{{ url_actividad|default:'#' }}" class="mnt-nav-link {% if request.path == url_actividad %}mnt-nav-link-active{% endif %}">
+        <i class="fas fa-history w-5"></i> Actividad
+      </a>
+
       <div class="my-2 border-t border-white/10"></div>
 
       <!-- Enlace para Volver al portal -->

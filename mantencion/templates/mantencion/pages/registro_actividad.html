@@ -1,0 +1,246 @@
+{% extends 'mantencion/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_lista }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3 mb-5">
+    
+    <!-- Encabezado -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 small text-muted">
+                            <li class="breadcrumb-item"><a href="{% url 'mantencion:dashboard_mantenimiento' %}" class="text-decoration-none text-muted">Inicio</a></li>
+                            <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">Registro de Actividad</li>
+                        </ol>
+                    </nav>
+                    <h2 class="h3 font-weight-bold text-dark mb-1">
+                        <i class="fas fa-history text-danger me-2"></i> {{ titulo_lista }}
+                    </h2>
+                    <p class="text-muted small mb-0">Trazabilidad y auditoría de todas las inspecciones realizadas</p>
+                </div>
+
+                <div class="d-flex gap-2 mt-3 mt-md-0">
+                    <a href="{% url 'mantencion:registro_actividad' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                        <i class="fas fa-sync-alt me-1"></i> Limpiar Filtros
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body p-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Buscar</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0" 
+                               placeholder="Sala, serie, técnico..." value="{{ search }}">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Tipo</label>
+                    <select name="tipo" class="form-select form-select-sm shadow-none">
+                        <option value="">Todos los tipos</option>
+                        {% for val, label in tipos %}
+                            <option value="{{ val }}" {% if val == tipo_seleccionado %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Técnico</label>
+                    <select name="usuario" class="form-select form-select-sm shadow-none">
+                        <option value="">Todos los técnicos</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if u.id|stringformat:"s" == usuario_seleccionado %}selected{% endif %}>
+                                {{ u.get_full_name|default:u.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Ciclo</label>
+                    <select name="ciclo" class="form-select form-select-sm shadow-none">
+                        <option value="">Todos los ciclos</option>
+                        {% for c in ciclos %}
+                            <option value="{{ c.id }}" {% if c.id|stringformat:"s" == ciclo_seleccionado %}selected{% endif %}>
+                                {{ c.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Fecha Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                </div>
+
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Registros -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                    <thead class="bg-light text-secondary text-uppercase small border-bottom">
+                        <tr>
+                            <th style="width: 140px;" class="ps-4">Fecha y Hora</th>
+                            <th>Técnico / Operador</th>
+                            <th>Tipo</th>
+                            <th>Recinto / Equipo</th>
+                            <th>Ubicación</th>
+                            <th>Estado Resultante</th>
+                            <th>Observaciones</th>
+                            <th class="text-center" style="width: 80px;">Ver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for act in actividades %}
+                        <tr>
+                            <td class="ps-4 text-nowrap">
+                                <span class="fw-bold text-dark d-block">{{ act.fecha|date:"d/m/Y" }}</span>
+                                <small class="text-muted"><i class="far fa-clock me-1"></i>{{ act.fecha|date:"H:i" }} hrs</small>
+                            </td>
+
+                            <td>
+                                {% if act.usuario %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center shadow-sm small fw-bold"
+                                             style="width: 28px; height: 28px; font-size: 0.75rem;">
+                                            {{ act.usuario.username|slice:":1"|upper }}
+                                        </div>
+                                        <span class="fw-bold text-dark">{{ act.usuario.get_full_name|default:act.usuario.username }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted italic"><i class="fas fa-robot me-1"></i> Sistema</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if act.tipo_revision == 'SALA' %}
+                                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">
+                                        <i class="fas fa-chalkboard-teacher me-1"></i> Sala
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border" style="font-size: 0.72rem;">
+                                        <i class="fas fa-print me-1"></i> Impresora
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <span class="fw-bold text-dark d-block">{{ act.item_nombre }}</span>
+                                <small class="text-muted">{{ act.ciclo.nombre }}</small>
+                            </td>
+
+                            <td>
+                                <span class="text-muted small">
+                                    <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                    {{ act.ubicacion_texto|default:"Sin especificar" }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {% with est=act.estado_resultado %}
+                                    {% if est == 'OPERATIVA' %}
+                                        <span class="badge bg-success shadow-sm" style="font-size: 0.72rem;">
+                                            <i class="fas fa-check-circle me-1"></i> Operativa
+                                        </span>
+                                    {% elif est == 'OBSERVACION' or est == 'CON_OBSERVACIONES' %}
+                                        <span class="badge bg-warning text-dark shadow-sm" style="font-size: 0.72rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> Con Obs.
+                                        </span>
+                                    {% elif est == 'CRITICA' or est == 'NO_OPERATIVA' %}
+                                        <span class="badge bg-danger shadow-sm" style="font-size: 0.72rem;">
+                                            <i class="fas fa-times-circle me-1"></i> {% if est == 'CRITICA' %}Crítica{% else %}Con Falla{% endif %}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary shadow-sm" style="font-size: 0.72rem;">
+                                            <i class="far fa-clock me-1"></i> Pendiente
+                                        </span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+
+                            <td>
+                                {% if act.observaciones %}
+                                    <span class="small text-muted" title="{{ act.observaciones }}">
+                                        {{ act.observaciones|truncatechars:70 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small italic">Sin notas</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                {% if act.revision_sala %}
+                                    <a href="{% url 'mantencion:revisar_sala' act.revision_sala.id %}" class="btn btn-sm btn-light border text-primary" title="Ver detalle de sala">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                {% elif act.revision_impresora %}
+                                    <a href="{% url 'mantencion:tablero_impresoras' act.ciclo.id %}" class="btn btn-sm btn-light border text-dark" title="Ir al tablero de impresoras">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <div class="py-4">
+                                    <i class="fas fa-history fa-3x mb-3 opacity-50"></i>
+                                    <p class="h5">No se encontraron actividades registradas</p>
+                                    <p class="small">A medida que los operadores efectúen revisiones, aparecerán registradas aquí.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            {% if is_paginated %}
+            <div class="card-footer bg-white py-3 border-top">
+                <nav>
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link text-dark" href="?page=1{{ query_string }}">« Inicio</a></li>
+                            <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}{{ query_string }}">Anterior</a></li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link bg-dark border-dark">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}{{ query_string }}">Siguiente</a></li>
+                            <li class="page-item"><a class="page-link text-dark" href="?page={{ paginator.num_pages }}{{ query_string }}">Fin »</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
