@@ -17,7 +17,8 @@ from .views import (
     SubirVideoLocalView,
     AsociarVideoSalaView,
     RestablecerRevisionSalaView,
-    SalasMantenimientoListView
+    SalasMantenimientoListView,
+    RevisionActualView
 )
 
 app_name = "mantencion"
@@ -51,6 +52,9 @@ urlpatterns = [
     # --- FLUJO 2: REVISIÓN DE IMPRESORAS ---
     path('impresoras/ciclo/<int:ciclo_id>/', TableroImpresorasView.as_view(), name='tablero_impresoras'),
     path('impresoras/revision/<int:pk>/', FormularioRevisionImpresoraView.as_view(), name='revisar_impresora'),
+
+    # Revisiones vigentes
+    path('revision-actual/', RevisionActualView.as_view(), name='revision_actual'),
     
     # Reportes y exportación
     path("ciclos/<int:pk>/reporte-pdf/", GenerarReportePdfView.as_view(), name="reporte_pdf"),

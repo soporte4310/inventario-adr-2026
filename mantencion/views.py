@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Case, When, IntegerField, Value
+from django.db.models import Count, Q, Case, When, IntegerField, Value, Prefetch
 from django.views.generic import ListView, DetailView, View, TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -818,6 +818,85 @@ class FormularioRevisionImpresoraView(LoginRequiredMixin, PermissionRequiredMixi
 
         messages.success(request, f"Revisión de {revision.impresora} guardada correctamente.")
         return redirect('mantencion:tablero_impresoras', ciclo_id=revision.ciclo_id)
+
+
+
+
+class RevisionActualView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    """
+    Muestra los ciclos preventivos del mes en curso correspondientes a
+    Salas de Clases e Impresoras, detallando su avance y acceso directo a tableros.
+    """
+    template_name = 'mantencion/pages/revision_actual.html'
+    permission_required = 'mantencion.view_ciclorevision'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        hoy = timezone.localdate()
+        mes_nombre = MESES_ES[hoy.month]
+
+        # 1. Obtener los ciclos correspondientes al mes y año actual
+        ciclo_salas = CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.SALAS,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).order_by('-id').first()
+
+        ciclo_impresoras = CicloRevision.objects.filter(
+            tipo=CicloRevision.TipoCiclo.IMPRESORAS,
+            fecha_inicio__year=hoy.year,
+            fecha_inicio__month=hoy.month
+        ).order_by('-id').first()
+
+        # 2. Estructuración modular de los ciclos del mes
+        tarjetas_ciclos = [
+            {
+                'id_tipo': 'SALAS',
+                'titulo': 'Revisión de Salas de Clases',
+                'subtitulo': 'Inspección de equipamiento audiovisual, conectividad docente y proyector',
+                'icono': 'fas fa-chalkboard-teacher',
+                'color': 'primary',
+                'color_hex': '#0d6efd',
+                'ciclo': ciclo_salas,
+                'url_tablero': 'mantencion:tablero_salas' if ciclo_salas else None,
+                'total': ciclo_salas.total_salas if ciclo_salas else 0,
+                'revisadas': ciclo_salas.total_revisadas if ciclo_salas else 0,
+                'pendientes': ciclo_salas.total_pendientes if ciclo_salas else 0,
+                'porcentaje': ciclo_salas.porcentaje_avance if ciclo_salas else 0,
+                'metricas': [
+                    {'label': 'Operativas', 'valor': ciclo_salas.total_operativas if ciclo_salas else 0, 'badge': 'bg-success text-white'},
+                    {'label': 'Con Obs.', 'valor': ciclo_salas.total_con_observaciones if ciclo_salas else 0, 'badge': 'bg-warning text-dark'},
+                    {'label': 'Críticas', 'valor': ciclo_salas.total_criticas if ciclo_salas else 0, 'badge': 'bg-danger text-white'},
+                ]
+            },
+            {
+                'id_tipo': 'IMPRESORAS',
+                'titulo': 'Revisión de Impresoras',
+                'subtitulo': 'Inspección técnica de flota y multifuncionales externos (SONDA / Contrato)',
+                'icono': 'fas fa-print',
+                'color': 'dark',
+                'color_hex': '#212529',
+                'ciclo': ciclo_impresoras,
+                'url_tablero': 'mantencion:tablero_impresoras' if ciclo_impresoras else None,
+                'total': ciclo_impresoras.total_impresoras if ciclo_impresoras else 0,
+                'revisadas': ciclo_impresoras.total_impresoras_revisadas if ciclo_impresoras else 0,
+                'pendientes': ciclo_impresoras.total_impresoras_pendientes if ciclo_impresoras else 0,
+                'porcentaje': ciclo_impresoras.porcentaje_avance_impresoras if ciclo_impresoras else 0,
+                'metricas': [
+                    {'label': 'Operativas', 'valor': ciclo_impresoras.total_impresoras_operativas if ciclo_impresoras else 0, 'badge': 'bg-success text-white'},
+                    {'label': 'Con Falla', 'valor': ciclo_impresoras.total_impresoras_no_operativas if ciclo_impresoras else 0, 'badge': 'bg-danger text-white'},
+                ]
+            }
+        ]
+
+        context.update({
+            'titulo_pagina': f'Revisión Actual · {mes_nombre} {hoy.year}',
+            'mes_nombre': mes_nombre,
+            'anio_actual': hoy.year,
+            'fecha_hoy': hoy,
+            'tarjetas_ciclos': tarjetas_ciclos,
+        })
+        return context
 
 
 

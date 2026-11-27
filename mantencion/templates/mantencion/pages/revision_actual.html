@@ -1,0 +1,206 @@
+{% extends 'mantencion/layouts/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3 mb-5">
+    
+    <!-- Encabezado del Período -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-md-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 small text-muted">
+                            <li class="breadcrumb-item"><a href="{% url 'mantencion:dashboard_mantenimiento' %}" class="text-decoration-none text-muted">Inicio</a></li>
+                            <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">Revisión Actual</li>
+                        </ol>
+                    </nav>
+                    <div class="d-flex align-items-center gap-2">
+                        <h2 class="h3 font-weight-bold text-dark mb-0">Revisión del Mes: {{ mes_nombre }} {{ anio_actual }}</h2>
+                        <span class="badge bg-danger text-white px-2 py-1 shadow-sm font-weight-normal" style="font-size: 0.75rem;">
+                            <i class="far fa-calendar-check me-1"></i> Período Activo
+                        </span>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">
+                        Control de rondas preventivas vigentes programadas para la sede durante este mes
+                    </p>
+                </div>
+
+                <div class="d-flex gap-2 mt-3 mt-md-0">
+                    <a href="{% url 'mantencion:lista_revisiones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                        <i class="fas fa-history me-1"></i> Ver Historial de Ciclos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cuadrícula de Ciclos Vigentes -->
+    <div class="row row-cols-1 row-cols-lg-2 g-4">
+        {% for item in tarjetas_ciclos %}
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 rounded-3 overflow-hidden position-relative">
+                
+                <!-- Borde superior distintivo según categoría -->
+                <div style="height: 5px; background-color: {{ item.color_hex }};"></div>
+
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <div>
+                        <!-- Encabezado de la Tarjeta: Ícono, Título y Estado -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                                     style="width: 50px; height: 50px; background-color: rgba(0,0,0,0.04);">
+                                    <i class="{{ item.icono }} fa-lg text-{{ item.color }}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="h5 fw-bold text-dark mb-0">{{ item.titulo }}</h4>
+                                    <small class="text-muted">{{ item.subtitulo }}</small>
+                                </div>
+                            </div>
+
+                            <!-- Pastilla de Estado -->
+                            <div>
+                                {% if item.ciclo %}
+                                    {% if item.ciclo.estado == 'EN_CURSO' %}
+                                        <span class="badge bg-warning text-dark border font-weight-bold shadow-sm" style="font-size: 0.75rem;">
+                                            <i class="fas fa-spinner fa-spin me-1"></i> EN CURSO
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success text-white shadow-sm font-weight-bold" style="font-size: 0.75rem;">
+                                            <i class="fas fa-lock me-1"></i> FINALIZADO
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary text-white shadow-sm" style="font-size: 0.75rem;">
+                                        <i class="fas fa-pause me-1"></i> NO INICIADO
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if item.ciclo %}
+                            <!-- Datos del ciclo generado -->
+                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-dark small">{{ item.ciclo.nombre }}</span>
+                                    <span class="text-muted small">#{{ item.ciclo.id }}</span>
+                                </div>
+                                <div class="small text-muted d-flex align-items-center gap-3">
+                                    <span>
+                                        <i class="far fa-calendar-alt me-1"></i> Inicio: {{ item.ciclo.fecha_inicio|date:"d/m/Y" }}
+                                    </span>
+                                    {% if item.ciclo.fecha_cierre %}
+                                        <span>
+                                            <i class="fas fa-check-circle text-success me-1"></i> Cierre: {{ item.ciclo.fecha_cierre|date:"d/m/Y H:i" }}
+                                        </span>
+                                    {% elif item.ciclo.fecha_limite %}
+                                        <span>
+                                            <i class="far fa-clock me-1 text-danger"></i> Límite: {{ item.ciclo.fecha_limite|date:"d/m/Y" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Barra de Avance y Progreso -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1 small">
+                                    <span class="fw-bold text-dark">
+                                        Avance: {{ item.revisadas }}/{{ item.total }} {% if item.id_tipo == 'SALAS' %}recintos{% else %}impresoras{% endif %}
+                                    </span>
+                                    <span class="fw-bold text-{{ item.color }}">{{ item.porcentaje }}%</span>
+                                </div>
+                                <div class="progress shadow-none" style="height: 9px;">
+                                    <div class="progress-bar bg-{{ item.color }}" 
+                                         role="progressbar" 
+                                         style="width: {{ item.porcentaje }}%;" 
+                                         aria-valuenow="{{ item.porcentaje }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Desglose de Métricas y Estados -->
+                            <div class="row g-2 mb-3">
+                                <div class="col">
+                                    <div class="p-2 border rounded text-center bg-white shadow-sm">
+                                        <span class="d-block text-muted" style="font-size: 0.72rem;">Pendientes</span>
+                                        <span class="h6 fw-bold text-dark mb-0">{{ item.pendientes }}</span>
+                                    </div>
+                                </div>
+                                {% for m in item.metricas %}
+                                <div class="col">
+                                    <div class="p-2 border rounded text-center bg-white shadow-sm">
+                                        <span class="d-block text-muted" style="font-size: 0.72rem;">{{ m.label }}</span>
+                                        <span class="badge {{ m.badge }} px-2 py-1 font-weight-bold" style="font-size: 0.8rem;">
+                                            {{ m.valor }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Auditoría básica -->
+                            <div class="small text-muted d-flex justify-content-between align-items-center border-top pt-2">
+                                <div>
+                                    {% if item.ciclo.cerrado_por %}
+                                        <span>Cerrado por: <strong>{{ item.ciclo.cerrado_por.username }}</strong></span>
+                                    {% elif item.ciclo.creado_por %}
+                                        <span>Iniciado por: <strong>{{ item.ciclo.creado_por.username }}</strong></span>
+                                    {% else %}
+                                        <span>Iniciado por: <em>Automatización mensual</em></span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if item.ciclo.esta_cerrado %}
+                                        <span class="text-success"><i class="fas fa-check-circle me-1"></i> Auditoría completa</span>
+                                    {% else %}
+                                        <span class="text-primary"><i class="fas fa-tasks me-1"></i> Rondas en curso</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        {% else %}
+                            <!-- Estado sin ciclo iniciado -->
+                            <div class="p-4 bg-light rounded-3 text-center my-3 border border-dashed">
+                                <i class="fas fa-calendar-times fa-2x text-muted mb-2 opacity-50"></i>
+                                <h6 class="fw-bold text-dark mb-1">No hay ciclo de {{ item.titulo|lower }} para este mes</h6>
+                                <p class="small text-muted mb-0">
+                                    Este ciclo se genera automáticamente el primer día de cada mes a las 08:00 AM mediante GitHub Actions.
+                                </p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Botón de Acción Principal -->
+                    <div class="mt-4 pt-2 border-top">
+                        {% if item.ciclo %}
+                            <a href="{% url item.url_tablero item.ciclo.id %}" class="btn btn-{{ item.color }} w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                                <i class="fas fa-columns"></i>
+                                <span>{% if item.ciclo.esta_cerrado %}Ver Tablero (Solo Lectura){% else %}Ingresar al Tablero{% endif %}</span>
+                                <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        {% else %}
+                            {% if request.user.is_superuser %}
+                                <a href="{% url 'mantencion:crear_revision' %}?tipo={{ item.id_tipo }}" class="btn btn-outline-danger w-100 py-2 fw-bold shadow-sm">
+                                    <i class="fas fa-plus me-1"></i> Iniciar Ciclo Extraordinario
+                                </a>
+                            {% else %}
+                                <button type="button" class="btn btn-light border text-muted w-100 py-2" disabled>
+                                    <i class="fas fa-clock me-1"></i> En espera de inicio mensual
+                                </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
