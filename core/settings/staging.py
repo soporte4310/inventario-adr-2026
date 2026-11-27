@@ -97,8 +97,11 @@ LOGGING = {
     },
 }
 
-# Parche de rendimiento 
-# Quita apps y middleware de desarrollo: en Render abren conexiones eternas
-# y consumen el único worker.
-INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in ('django_browser_reload', 'debug_toolbar')]
-MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m and 'django_browser_reload' not in m]
+# Parche de rendimiento
+# django_browser_reload abre una conexión SSE por cada pestaña abierta y, con un
+# solo worker, deja al servidor sin capacidad de responder en Render.
+# debug_toolbar se queda instalado: core/urls.py incluye sus rutas siempre, y
+# sin la app ese import revienta al cargar el proyecto. La barra ya está apagada
+# por DEBUG_TOOLBAR_CONFIG.
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'django_browser_reload']
+MIDDLEWARE = [m for m in MIDDLEWARE if 'django_browser_reload' not in m]
