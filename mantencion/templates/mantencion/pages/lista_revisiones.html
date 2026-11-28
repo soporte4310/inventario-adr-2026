@@ -4,7 +4,7 @@
 {% block title %}{{ titulo_lista }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-3">
+<div class="container-fluid mt-3 mb-5">
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
             <!-- Encabezado de la página -->
@@ -14,14 +14,14 @@
                     <p class="text-muted small mb-0">Control de rondas mensuales preventivas de infraestructura audiovisual y flota de impresión</p>
                 </div>
                 <div class="d-flex gap-2 mt-3 mt-md-0">
-                    <a href="{% url 'mantencion:lista_revisiones' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
-                        <i class="fas fa-sync-alt"></i> Limpiar
+                    <a href="{% url 'mantencion:lista_revisiones' %}{% if tipo_ciclo %}?tipo={{ tipo_ciclo }}{% endif %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                        <i class="fas fa-sync-alt me-1"></i> Limpiar Filtros
                     </a>
 
                     {% if request.user.is_superuser %}
                     <div class="dropdown">
                         <button class="btn btn-danger btn-sm px-3 shadow-sm dropdown-toggle font-weight-bold" type="button" id="dropdownNuevoCiclo" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-plus mr-1"></i> Iniciar Ciclo Extraordinario
+                            <i class="fas fa-plus me-1"></i> Iniciar Ciclo Extraordinario
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="dropdownNuevoCiclo">
                             <li>
@@ -44,7 +44,7 @@
             <ul class="nav nav-pills mb-4 border-bottom pb-3">
                 <li class="nav-item">
                     <a class="nav-link {% if not tipo_ciclo %}active bg-dark text-white font-weight-bold{% else %}text-muted{% endif %} rounded-pill px-3 py-1 mr-2" 
-                       href="{% url 'mantencion:lista_revisiones' %}{% if estado_ciclo %}?estado={{ estado_ciclo }}{% endif %}">
+                       href="{% url 'mantencion:lista_revisiones' %}?{% if anio_seleccionado %}anio={{ anio_seleccionado }}&{% endif %}{% if mes_seleccionado %}mes={{ mes_seleccionado }}&{% endif %}{% if estado_ciclo %}estado={{ estado_ciclo }}{% endif %}">
                         <i class="fas fa-layer-group me-1"></i> Todas
                         <span class="badge {% if not tipo_ciclo %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill ms-1">
                             {{ conteo_todos }}
@@ -53,7 +53,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if tipo_ciclo == 'SALAS' %}active bg-primary text-white font-weight-bold{% else %}text-muted{% endif %} rounded-pill px-3 py-1 mr-2" 
-                       href="{% url 'mantencion:lista_revisiones' %}?tipo=SALAS{% if estado_ciclo %}&estado={{ estado_ciclo }}{% endif %}">
+                       href="{% url 'mantencion:lista_revisiones' %}?tipo=SALAS{% if anio_seleccionado %}&anio={{ anio_seleccionado }}{% endif %}{% if mes_seleccionado %}&mes={{ mes_seleccionado }}{% endif %}{% if estado_ciclo %}&estado={{ estado_ciclo }}{% endif %}">
                         <i class="fas fa-chalkboard-teacher me-1"></i> Salas de Clases
                         <span class="badge {% if tipo_ciclo == 'SALAS' %}bg-white text-primary{% else %}bg-light text-muted border{% endif %} rounded-pill ms-1">
                             {{ conteo_salas }}
@@ -62,7 +62,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if tipo_ciclo == 'IMPRESORAS' %}active bg-dark text-white font-weight-bold{% else %}text-muted{% endif %} rounded-pill px-3 py-1" 
-                       href="{% url 'mantencion:lista_revisiones' %}?tipo=IMPRESORAS{% if estado_ciclo %}&estado={{ estado_ciclo }}{% endif %}">
+                       href="{% url 'mantencion:lista_revisiones' %}?tipo=IMPRESORAS{% if anio_seleccionado %}&anio={{ anio_seleccionado }}{% endif %}{% if mes_seleccionado %}&mes={{ mes_seleccionado }}{% endif %}{% if estado_ciclo %}&estado={{ estado_ciclo }}{% endif %}">
                         <i class="fas fa-print me-1"></i> Impresoras
                         <span class="badge {% if tipo_ciclo == 'IMPRESORAS' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill ms-1">
                             {{ conteo_impresoras }}
@@ -71,24 +71,48 @@
                 </li>
             </ul>
 
-            <!-- Filtros de búsqueda y estado -->
+            <!-- Filtros estructurados con Selects para Año y Mes -->
             <form method="GET" class="mb-4 bg-light p-3 rounded border shadow-sm">
                 {% if tipo_ciclo %}
                     <input type="hidden" name="tipo" value="{{ tipo_ciclo }}">
                 {% endif %}
 
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-7">
-                        <label class="form-label small fw-bold text-muted">Buscar por Nombre o Período</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text" name="search" class="form-control border-start-0" 
-                                   placeholder="Ej: Noviembre 2026, Preventivo..." value="{{ search_query }}">
-                        </div>
+                    <!-- Selector de Año -->
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">
+                            <i class="far fa-calendar me-1"></i> Año
+                        </label>
+                        <select name="anio" class="form-select form-select-sm shadow-none">
+                            <option value="">Todos los años</option>
+                            {% for a in anios %}
+                                <option value="{{ a }}" {% if a|stringformat:"s" == anio_seleccionado %}selected{% endif %}>
+                                    {{ a }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted">Estado del Ciclo</label>
+                    <!-- Selector de Mes -->
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">
+                            <i class="far fa-calendar-alt me-1"></i> Mes
+                        </label>
+                        <select name="mes" class="form-select form-select-sm shadow-none">
+                            <option value="">Todos los meses</option>
+                            {% for m in meses %}
+                                <option value="{{ m.numero }}" {% if m.numero == mes_seleccionado %}selected{% endif %}>
+                                    {{ m.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Selector de Estado del Ciclo -->
+                    <div class="col-sm-8 col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">
+                            <i class="fas fa-tasks me-1"></i> Estado del Ciclo
+                        </label>
                         <select name="estado" class="form-select form-select-sm shadow-none">
                             <option value="">Todos los estados</option>
                             {% for valor, etiqueta in estados %}
@@ -99,9 +123,10 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <!-- Botón de Filtrado -->
+                    <div class="col-sm-4 col-md-2">
                         <button type="submit" class="btn btn-dark btn-sm w-100 font-weight-bold shadow-sm">
-                            <i class="fas fa-filter mr-1"></i> Filtrar
+                            <i class="fas fa-filter me-1"></i> Filtrar
                         </button>
                     </div>
                 </div>
@@ -109,7 +134,7 @@
 
             <!-- Tabla de datos -->
             <div class="table-responsive">
-                <table class="table table-hover align-middle border-bottom" style="font-size: 0.9rem;">
+                <table class="table table-hover align-middle border-bottom mb-0" style="font-size: 0.9rem;">
                     <thead class="bg-light text-secondary text-uppercase small">
                         <tr>
                             <th style="width: 70px;" class="text-center">ID</th>
@@ -118,8 +143,8 @@
                             <th>Fechas (Inicio / Fin)</th>
                             <th class="text-center" style="width: 120px;">Estado</th>
                             <th style="width: 180px;">Progreso</th>
-                            <th class="text-center" style="width: 140px;">Auditoría</th>
-                            <th class="text-center" style="width: 140px;">Acciones</th>
+                            <th class="text-center" style="width: 130px;">Auditoría</th>
+                            <th class="text-center" style="width: 175px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -190,24 +215,37 @@
                                     <span class="badge bg-light text-muted border">Automático</span>
                                 {% endif %}
                             </td>
+
+                            <!-- Botones de Acción Ampliados -->
                             <td class="text-center">
-                                <div class="btn-group shadow-sm">
+                                <div class="d-inline-flex align-items-center gap-1.5">
+                                    <!-- 1. Botón Tablero de Trabajo -->
                                     {% if ciclo.tipo == 'SALAS' %}
-                                        <a href="{% url 'mantencion:tablero_salas' ciclo.id %}" class="btn btn-sm btn-light border text-primary" title="Abrir Tablero de Salas">
-                                            <i class="fas fa-door-open"></i>
+                                        <a href="{% url 'mantencion:tablero_salas' ciclo.id %}" 
+                                           class="btn btn-outline-primary btn-sm px-2.5 py-2 shadow-sm rounded-2" 
+                                           title="Abrir Tablero de Salas">
+                                            <i class="fas fa-door-open fa-fw"></i>
                                         </a>
                                     {% else %}
-                                        <a href="{% url 'mantencion:tablero_impresoras' ciclo.id %}" class="btn btn-sm btn-light border text-primary" title="Abrir Tablero de Impresoras">
-                                            <i class="fas fa-print"></i>
+                                        <a href="{% url 'mantencion:tablero_impresoras' ciclo.id %}" 
+                                           class="btn btn-outline-dark btn-sm px-2.5 py-2 shadow-sm rounded-2" 
+                                           title="Abrir Tablero de Impresoras">
+                                            <i class="fas fa-print fa-fw"></i>
                                         </a>
                                     {% endif %}
 
-                                    <a href="{% url 'mantencion:ver_revision' ciclo.id %}" class="btn btn-sm btn-light border" title="Ver Resumen">
-                                        <i class="fas fa-eye text-dark"></i>
+                                    <!-- 2. Botón Ver Resumen / Detalle -->
+                                    <a href="{% url 'mantencion:ver_revision' ciclo.id %}" 
+                                       class="btn btn-outline-secondary btn-sm px-2.5 py-2 shadow-sm rounded-2" 
+                                       title="Ver Resumen del Ciclo">
+                                        <i class="fas fa-eye fa-fw"></i>
                                     </a>
 
-                                    <a href="{% url 'mantencion:exportar_excel' ciclo.id %}" class="btn btn-sm btn-light border text-success" title="Exportar a Excel">
-                                        <i class="fas fa-file-excel"></i>
+                                    <!-- 3. Botón Exportar a Excel -->
+                                    <a href="{% url 'mantencion:exportar_excel' ciclo.id %}" 
+                                       class="btn btn-outline-success btn-sm px-2.5 py-2 shadow-sm rounded-2" 
+                                       title="Descargar Planilla Excel">
+                                        <i class="fas fa-file-excel fa-fw"></i>
                                     </a>
                                 </div>
                             </td>
@@ -218,7 +256,7 @@
                                 <div class="py-4">
                                     <i class="fas fa-clipboard-list fa-3x mb-3 opacity-50"></i>
                                     <p class="h5">No se encontraron ciclos de mantenimiento</p>
-                                    <p class="small">Prueba cambiando los criterios de filtrado o inicia un ciclo nuevo.</p>
+                                    <p class="small">Prueba cambiando el año o mes en el filtro superior.</p>
                                 </div>
                             </td>
                         </tr>
@@ -251,3 +289,4 @@
     </div>
 </div>
 {% endblock %}
+```[cite: 22]

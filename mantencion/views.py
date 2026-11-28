@@ -3,7 +3,11 @@ import re
 import json
 import time
 import cloudinary
+import pandas as pd
+import openpyxl
+from openpyxl.styles import PatternFill, Font, Alignment
 from django import forms
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -110,103 +114,90 @@ class ListaRevisionesView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     permission_required = 'mantencion.view_ciclorevision'
 
     def get_queryset(self):
-        # Base con optimización de relaciones
-        queryset = CicloRevision.objects.select_related('creado_por', 'cerrado_por')
+        queryset = CicloRevision.objects.select_related('creado_por', 'cerrado_por').annotate(
+            total_items=Count('revisiones_salas', distinct=True),
+            completadas=Count(
+                'revisiones_salas',
+                filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE),
+                distinct=True
+            ),
+            con_observaciones=Count(
+                'revisiones_salas',
+                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES),
+                distinct=True
+            ),
+            criticas=Count(
+                'revisiones_salas',
+                filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CRITICA),
+                distinct=True
+            ),
+        )
 
-        # Anotación condicional: según sea ciclo de salas o impresoras
-        # (se anticipa la relación 'revisiones_impresoras' para cuando se cree el modelo)
-        tiene_rev_impresoras = hasattr(CicloRevision, 'revisiones_impresoras')
+        # 1. Obtener parámetros GET de Año, Mes, Tipo y Estado
+        self.anio = self.request.GET.get('anio', '').strip()
+        self.mes = self.request.GET.get('mes', '').strip()
+        self.tipo_ciclo = self.request.GET.get('tipo', '').strip()
+        self.estado_ciclo = self.request.GET.get('estado', '').strip()
 
-        if tiene_rev_impresoras:
-            queryset = queryset.annotate(
-                total_items=Case(
-                    When(tipo=CicloRevision.TipoCiclo.SALAS, then=Count('revisiones_salas', distinct=True)),
-                    When(tipo=CicloRevision.TipoCiclo.IMPRESORAS, then=Count('revisiones_impresoras', distinct=True)),
-                    default=Value(0),
-                    output_field=IntegerField()
-                ),
-                completadas=Case(
-                    When(
-                        tipo=CicloRevision.TipoCiclo.SALAS,
-                        then=Count('revisiones_salas', filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE), distinct=True)
-                    ),
-                    When(
-                        tipo=CicloRevision.TipoCiclo.IMPRESORAS,
-                        then=Count('revisiones_impresoras', filter=~Q(revisiones_impresoras__estado_general='PENDIENTE'), distinct=True)
-                    ),
-                    default=Value(0),
-                    output_field=IntegerField()
-                )
-            )
-        else:
-            # Fallback seguro mientras se implementa el modelo RevisionImpresora
-            queryset = queryset.annotate(
-                total_items=Count('revisiones_salas', distinct=True),
-                completadas=Count(
-                    'revisiones_salas',
-                    filter=~Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.PENDIENTE),
-                    distinct=True
-                ),
-                con_observaciones=Count(
-                    'revisiones_salas',
-                    filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CON_OBSERVACIONES),
-                    distinct=True
-                ),
-                criticas=Count(
-                    'revisiones_salas',
-                    filter=Q(revisiones_salas__estado_general=RevisionSala.EstadoGeneralSala.CRITICA),
-                    distinct=True
-                ),
-            )
+        # 2. Aplicar filtros dinámicos
+        if self.anio:
+            queryset = queryset.filter(fecha_inicio__year=self.anio)
 
-        # Filtros de búsqueda
-        search_query = self.request.GET.get('search', '').strip()
-        tipo_ciclo = self.request.GET.get('tipo', '').strip()
-        estado_ciclo = self.request.GET.get('estado', '').strip()
+        if self.mes:
+            queryset = queryset.filter(fecha_inicio__month=self.mes)
 
-        if search_query:
-            queryset = queryset.filter(nombre__icontains=search_query)
+        if self.tipo_ciclo in [CicloRevision.TipoCiclo.SALAS, CicloRevision.TipoCiclo.IMPRESORAS]:
+            queryset = queryset.filter(tipo=self.tipo_ciclo)
 
-        if tipo_ciclo in [CicloRevision.TipoCiclo.SALAS, CicloRevision.TipoCiclo.IMPRESORAS]:
-            queryset = queryset.filter(tipo=tipo_ciclo)
-
-        if estado_ciclo:
-            queryset = queryset.filter(estado=estado_ciclo)
+        if self.estado_ciclo:
+            queryset = queryset.filter(estado=self.estado_ciclo)
 
         return queryset.order_by('-fecha_inicio', '-id')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tipo_actual = self.request.GET.get('tipo', '').strip()
 
         # Título dinámico según la pestaña activa
-        if tipo_actual == CicloRevision.TipoCiclo.SALAS:
+        if self.tipo_ciclo == CicloRevision.TipoCiclo.SALAS:
             context['titulo_lista'] = 'Revisiones de Salas de Clases'
-        elif tipo_actual == CicloRevision.TipoCiclo.IMPRESORAS:
+        elif self.tipo_ciclo == CicloRevision.TipoCiclo.IMPRESORAS:
             context['titulo_lista'] = 'Revisiones de Impresoras'
         else:
             context['titulo_lista'] = 'Historial General de Revisiones'
 
-        # Conteos globales rápidos para las pestañas superiores
+        # Conteos globales para las pestañas superiores
         base_qs = CicloRevision.objects.all()
         context['conteo_todos'] = base_qs.count()
         context['conteo_salas'] = base_qs.filter(tipo=CicloRevision.TipoCiclo.SALAS).count()
         context['conteo_impresoras'] = base_qs.filter(tipo=CicloRevision.TipoCiclo.IMPRESORAS).count()
 
-        # Variables de estado y filtros
-        context['search_query'] = self.request.GET.get('search', '').strip()
-        context['tipo_ciclo'] = tipo_actual
-        context['estado_ciclo'] = self.request.GET.get('estado', '').strip()
+        # Obtención de años disponibles en base de datos
+        anios = list(CicloRevision.objects.values_list('fecha_inicio__year', flat=True).distinct().order_by('-fecha_inicio__year'))
+        hoy_anio = timezone.localdate().year
+        if hoy_anio not in anios:
+            anios.insert(0, hoy_anio)
+
+        # Lista estructurada de meses (1 a 12 con nombres en español)
+        meses = [{'numero': str(i), 'nombre': MESES_ES[i]} for i in range(1, 13)]
+
+        context['anios'] = anios
+        context['meses'] = meses
+        context['anio_seleccionado'] = self.anio
+        context['mes_seleccionado'] = self.mes
+        context['tipo_ciclo'] = self.tipo_ciclo
+        context['estado_ciclo'] = self.estado_ciclo
         context['estados'] = self.model.EstadoCiclo.choices
 
-        # Construcción limpia de query string para paginación
+        # Construcción de query_string para preservar filtros en la paginación
         params = []
-        if context['search_query']:
-            params.append(f"search={context['search_query']}")
-        if tipo_actual:
-            params.append(f"tipo={tipo_actual}")
-        if context['estado_ciclo']:
-            params.append(f"estado={context['estado_ciclo']}")
+        if self.tipo_ciclo:
+            params.append(f"tipo={self.tipo_ciclo}")
+        if self.anio:
+            params.append(f"anio={self.anio}")
+        if self.mes:
+            params.append(f"mes={self.mes}")
+        if self.estado_ciclo:
+            params.append(f"estado={self.estado_ciclo}")
 
         context['query_string'] = f"&{'&'.join(params)}" if params else ""
         return context
@@ -1360,3 +1351,157 @@ class ListaActividadMantencionView(LoginRequiredMixin, PermissionRequiredMixin, 
         context['query_string'] = f"&{params.urlencode()}" if params else ""
 
         return context
+
+
+
+
+class ExportarExcelRevisionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Genera y descarga un archivo Excel (.xlsx) con el detalle completo de las
+    revisiones del ciclo seleccionado (Salas de Clases o Flota de Impresoras).
+    """
+    permission_required = 'mantencion.view_ciclorevision'
+
+    def get(self, request, *args, **kwargs):
+        ciclo_id = kwargs.get('pk') or kwargs.get('ciclo_id')
+        ciclo = get_object_or_404(CicloRevision, pk=ciclo_id)
+
+        data = []
+
+        if ciclo.tipo == CicloRevision.TipoCiclo.SALAS:
+            # 1. Extracción de Revisiones de Salas
+            revisiones = ciclo.revisiones_salas.select_related(
+                'ubicacion__piso__edificio',
+                'proyector__catalogo__marca',
+                'operador'
+            ).order_by(
+                'ubicacion__piso__edificio__nombre',
+                'ubicacion__piso__nombre',
+                'ubicacion__nombre'
+            )
+
+            for rev in revisiones:
+                ub = rev.ubicacion
+                piso = ub.piso if ub else None
+                edificio = piso.edificio if piso else None
+
+                proyector_str = "No requiere"
+                if rev.proyector and rev.proyector.catalogo:
+                    marca_nombre = rev.proyector.catalogo.marca.nombre if rev.proyector.catalogo.marca else ''
+                    proyector_str = f"{marca_nombre} {rev.proyector.catalogo.modelo or ''}".strip()
+                elif ub and ub.requiere_proyeccion:
+                    proyector_str = "Sin proyector asignado"
+
+                fecha_str = timezone.localtime(rev.fecha_revision).strftime("%d/%m/%Y %H:%M") if rev.fecha_revision else "Pendiente"
+                operador_str = (rev.operador.get_full_name() or rev.operador.username) if rev.operador else "Sin asignar"
+
+                data.append({
+                    'EDIFICIO': edificio.nombre if edificio else 'Sin Edificio',
+                    'PISO': piso.nombre if piso else 'Sin Piso',
+                    'SALA / RECINTO': ub.nombre if ub else '',
+                    'TIPO RECINTO': ub.get_tipo_display() if ub else '',
+                    'ESTADO REVISIÓN': rev.get_estado_general_display(),
+                    'CHECKLIST COMPLETO': 'SÍ' if rev.checklist_completado else 'NO',
+                    'VIDEO ADJUNTO': 'SÍ' if rev.tiene_video else 'NO',
+                    'ENLACE VIDEO EVIDENCIA': rev.video_evidencia_url or '',
+                    'PROYECTOR': proyector_str,
+                    'N° SERIE PROYECTOR': rev.proyector.numero_serie if (rev.proyector and rev.proyector.numero_serie) else '',
+                    'ENCENDIDO PROYECTOR': rev.get_proyector_encendido_display() or 'N/A',
+                    'HORAS LÁMPARA': rev.horas_lampara if rev.horas_lampara is not None else '',
+                    'RED PROYECTOR': rev.get_red_proyector_conectada_display() or 'N/A',
+                    'PROYECCIÓN INALÁMBRICA': rev.get_proyeccion_inalambrica_display() or 'N/A',
+                    'CANDADO PROYECTOR': rev.get_candado_proyector_display() or 'N/A',
+                    'COPLA HDMI': rev.get_copla_hdmi_display() or 'N/A',
+                    'PANEL CONTROL': rev.get_panel_control_display() or 'N/A',
+                    'PUERTO RED PARED': rev.get_puerto_red_pared_display() or 'N/A',
+                    'AUDIO SALA': rev.get_audio_sala_display() or 'N/A',
+                    'TÉCNICO / OPERADOR': operador_str,
+                    'FECHA REVISIÓN': fecha_str,
+                    'OBSERVACIONES': rev.observaciones or '',
+                })
+
+            sheet_name = 'Revision_Salas'
+            header_color = "0D6EFD"  # Azul institucional para salas
+
+        else:
+            # 2. Extracción de Revisiones de Impresoras
+            revisiones = ciclo.revisiones_impresoras.select_related(
+                'impresora__activo__catalogo__marca',
+                'impresora__activo__ubicacion__piso__edificio',
+                'operador'
+            ).order_by(
+                'impresora__activo__ubicacion__piso__edificio__nombre',
+                'impresora__activo__ubicacion__piso__nombre',
+                'impresora__activo__ubicacion__nombre'
+            )
+
+            for rev in revisiones:
+                activo = getattr(rev.impresora, 'activo', None)
+                ub = activo.ubicacion if activo else None
+                piso = ub.piso if ub else None
+                edificio = piso.edificio if piso else None
+
+                marca_nombre = activo.catalogo.marca.nombre if (activo and activo.catalogo and activo.catalogo.marca) else ''
+                modelo_nombre = activo.catalogo.modelo if (activo and activo.catalogo) else ''
+
+                condicion_str = 'PENDIENTE'
+                if rev.esta_operativa is True:
+                    condicion_str = 'OPERATIVA'
+                elif rev.esta_operativa is False:
+                    condicion_str = 'CON FALLA'
+
+                fecha_str = timezone.localtime(rev.fecha_revision).strftime("%d/%m/%Y %H:%M") if rev.fecha_revision else "Pendiente"
+                operador_str = (rev.operador.get_full_name() or rev.operador.username) if rev.operador else "Sin asignar"
+
+                data.append({
+                    'EDIFICIO': edificio.nombre if edificio else 'Sin Edificio',
+                    'PISO': piso.nombre if piso else 'Sin Piso',
+                    'UBICACIÓN': ub.nombre if ub else 'Sin ubicación',
+                    'MARCA': marca_nombre,
+                    'MODELO': modelo_nombre,
+                    'N° SERIE': activo.numero_serie if (activo and activo.numero_serie) else '',
+                    'DIRECCIÓN IP': activo.ip if (activo and activo.ip) else '',
+                    'DIRECCIÓN MAC': activo.mac if (activo and activo.mac) else '',
+                    'CÓDIGO EXTERNO / SONDA': activo.codigo_externo if (activo and activo.codigo_externo) else '',
+                    'TIPO IMPRESIÓN': rev.impresora.get_tipo_impresion_display() if hasattr(rev.impresora, 'get_tipo_impresion_display') else '',
+                    'RANGO CONTRATADO': rev.impresora.rango_impresiones or '',
+                    'MULTIFUNCIONAL': 'SÍ' if rev.impresora.es_multifuncional else 'NO',
+                    'ESTADO REVISIÓN': rev.get_estado_general_display(),
+                    'CONDICIÓN OPERATIVA': condicion_str,
+                    'TÉCNICO / OPERADOR': operador_str,
+                    'FECHA REVISIÓN': fecha_str,
+                    'OBSERVACIONES': rev.observaciones or '',
+                })
+
+            sheet_name = 'Revision_Impresoras'
+            header_color = "1E293B"  # Pizarra oscuro para impresoras
+
+        # 3. Construcción del DataFrame y generación con Openpyxl
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        nombre_limpio = slugify(ciclo.nombre).replace('-', '_')
+        response['Content-Disposition'] = f'attachment; filename="Reporte_{sheet_name}_{nombre_limpio}.xlsx"'
+
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            worksheet = writer.sheets[sheet_name]
+
+            # Estilo para la fila de cabeceras
+            header_fill = PatternFill(start_color=header_color, end_color=header_color, fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF", size=10)
+
+            for cell in worksheet[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+            worksheet.row_dimensions[1].height = 28
+
+            # Autoajuste dinámico de ancho de columnas
+            for col_idx, col in enumerate(df.columns, 1):
+                col_letter = openpyxl.utils.get_column_letter(col_idx)
+                longitud_max = max(df[col].astype(str).map(len).max() if not df.empty else 0, len(col))
+                worksheet.column_dimensions[col_letter].width = max(min(longitud_max + 4, 45), 12)
+
+        return response
