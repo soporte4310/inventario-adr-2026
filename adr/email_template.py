@@ -37,7 +37,7 @@ def _base_html(contenido_body: str) -> str:
                 <tr>
                   <td style="text-align:center;">
                     <span style="color:#ffffff; font-size:10px; letter-spacing:3px; text-transform:uppercase; font-weight:600;">
-                      &#9632; Plataforma de Inventario ADR
+                      &#9632; Sistema ADR
                     </span>
                   </td>
                 </tr>
@@ -66,7 +66,7 @@ def _base_html(contenido_body: str) -> str:
                 <strong>Atte,</strong>
               </p>
               <p style="margin:0 0 2px 0; font-size:13px; color:#374151; font-weight:600;">
-                Plataforma de Inventario ADR
+                Sistema ADR
               </p>
               <p style="margin:0 0 2px 0; font-size:12px; color:#6b7280;">
                 Inacap Iquique

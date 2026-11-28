@@ -2,46 +2,72 @@ name: Reporte Diario ADR
 
 on:
   schedule:
-    # HORARIO DE INVIERNO (Mayo a Agosto -> UTC-4): 
-    # Apunta a las 03:52 UTC (23:52 PM en Chile).
+    # Horario de Invierno en Chile (Mayo a Agosto -> UTC-4): 03:52 UTC = 23:52 Chile
     - cron: '52 3 * 5-8 *'
-  
-  # Permite ejecutarlo manualmente desde la pestaña "Actions" para probar
+    # Horario de Verano en Chile (Septiembre a Abril -> UTC-3): 02:52 UTC = 23:52 Chile
+    - cron: '52 2 * 1-4,9-12 *'
+
+  # Permite ejecución manual con parámetros desde la pestaña "Actions"
   workflow_dispatch:
+    inputs:
+      fecha:
+        description: 'Fecha a auditar (formato YYYY-MM-DD, dejar vacío para hoy)'
+        required: false
+        type: string
+        default: ''
+      email:
+        description: 'Enviar únicamente a este correo para pruebas (dejar vacío para envío masivo)'
+        required: false
+        type: string
+        default: ''
+      force:
+        description: 'Forzar envío aunque no existan movimientos en el día'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   enviar_reporte:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout del código
-      uses: actions/checkout@v4
+      - name: Checkout del código
+        uses: actions/checkout@v4
 
-    - name: Configurar Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip'
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
 
-    - name: Instalar dependencias
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Ejecutar comando de reporte
-      env:
-        # Mapeamos los Secretos de GitHub a Variables de Entorno
-        SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        DEBUG: 'False'
-        DB_NAME: ${{ secrets.DB_NAME }}
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        DB_HOST: ${{ secrets.DB_HOST }}
-        DB_PORT: ${{ secrets.DB_PORT }}
-        EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
-        EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
-        CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-        CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-        CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-      run: |
-        python manage.py enviar_reporte_diario
+      - name: Ejecutar comando de reporte diario unificado
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DEBUG: 'False'
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          CMD="python manage.py enviar_reporte_diario"
+          if [ -n "${{ github.event.inputs.fecha }}" ]; then
+            CMD="$CMD --fecha ${{ github.event.inputs.fecha }}"
+          fi
+          if [ -n "${{ github.event.inputs.email }}" ]; then
+            CMD="$CMD --email ${{ github.event.inputs.email }}"
+          fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            CMD="$CMD --force"
+          fi
+          $CMD

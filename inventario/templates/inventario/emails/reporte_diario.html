@@ -1,19 +1,242 @@
 {% extends "inventario/emails/base_email.html" %}
 
 {% block content %}
-    <div style="margin-bottom: 20px;">
-        <h2 style="color: #2c3e50; margin-bottom: 5px;">Reporte Diario de Inventario ({{ fecha }})</h2>
-        <p style="color: #718096; font-size: 14px; margin-top: 0;">Resumen detallado de cambios en las últimas 24 horas.</p>
+    <!-- Encabezado del Reporte -->
+    <div style="margin-bottom: 24px;">
+        <span style="background-color: #dc2626; color: #ffffff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+            Resumen Operativo Diario
+        </span>
+        <h2 style="color: #0f172a; margin: 10px 0 4px 0; font-size: 22px; font-weight: 800;">
+            Reporte Diario ({{ fecha }})
+        </h2>
     </div>
 
-    <div style="background-color: #f8f9fa; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 6px; margin-bottom: 25px; display: inline-block;">
-        <span style="font-size: 13px; color: #4a5568;">Activos Totales: <strong>{{ total_activos }}</strong></span>
+    <!-- TARJETAS DE INDICADORES CLAVE (4 COLUMNAS) -->
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+        <tr>
+            <!-- KPI 1: Inventario -->
+            <td width="23%" style="background-color: #eff6ff; border: 1px solid #dbeafe; border-radius: 10px; padding: 12px; text-align: center;">
+                <span style="font-size: 10px; font-weight: 800; color: #1e40af; text-transform: uppercase; display: block;">Inventario</span>
+                <span style="font-size: 22px; font-weight: 900; color: #1e3a8a; display: block; margin: 2px 0;">{{ total_movimientos_inv }}</span>
+                <span style="font-size: 10px; color: #64748b;">movimientos</span>
+            </td>
+            <td width="2%"> </td>
+            <!-- KPI 2: Salas -->
+            <td width="23%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; text-align: center;">
+                <span style="font-size: 10px; font-weight: 800; color: #334155; text-transform: uppercase; display: block;">Salas</span>
+                <span style="font-size: 22px; font-weight: 900; color: #0f172a; display: block; margin: 2px 0;">{{ total_salas }}</span>
+                <span style="font-size: 10px; color: #16a34a; font-weight: 700;">{{ salas_operativas }} operativas</span>
+            </td>
+            <td width="2%"> </td>
+            <!-- KPI 3: Impresoras -->
+            <td width="23%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; text-align: center;">
+                <span style="font-size: 10px; font-weight: 800; color: #334155; text-transform: uppercase; display: block;">Impresoras</span>
+                <span style="font-size: 22px; font-weight: 900; color: #0f172a; display: block; margin: 2px 0;">{{ total_impresoras }}</span>
+                <span style="font-size: 10px; color: #16a34a; font-weight: 700;">{{ impresoras_operativas }} operativas</span>
+            </td>
+            <td width="2%"> </td>
+            <!-- KPI 4: Alertas -->
+            <td width="25%" style="background-color: {% if total_alertas_mantencion > 0 %}#fef2f2{% else %}#f0fdf4{% endif %}; border: 1px solid {% if total_alertas_mantencion > 0 %}#fecaca{% else %}#bbf7d0{% endif %}; border-radius: 10px; padding: 12px; text-align: center;">
+                <span style="font-size: 10px; font-weight: 800; color: {% if total_alertas_mantencion > 0 %}#b91c1c{% else %}#15803d{% endif %}; text-transform: uppercase; display: block;">Focos Críticos</span>
+                <span style="font-size: 22px; font-weight: 900; color: {% if total_alertas_mantencion > 0 %}#991b1b{% else %}#166534{% endif %}; display: block; margin: 2px 0;">{{ total_alertas_mantencion }}</span>
+                <span style="font-size: 10px; color: {% if total_alertas_mantencion > 0 %}#dc2626{% else %}#16a34a{% endif %}; font-weight: 700;">
+                    {% if total_alertas_mantencion > 0 %}Requieren atención{% else %}Sin alertas{% endif %}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <!-- TOTAL GENERAL DE ACTIVOS -->
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; margin-bottom: 24px; display: inline-block;">
+        <span style="font-size: 12px; color: #475569;">
+            Total de Activos Vigentes en Sede: <strong style="color: #0f172a;">{{ total_activos }}</strong>
+        </span>
     </div>
 
-    {% include 'inventario/emails/partials/_ranking_actividad.html' with titulo_ranking="Ranking de Actividad Diaria" %}
-    {% include 'inventario/emails/partials/_tabla_logs.html' %}
+    <!-- SECCIÓN: RANKING DE ACTIVIDAD UNIFICADO -->
+    {% if ranking_unificado %}
+    <div style="margin-bottom: 30px;">
+        <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #0f172a; font-size: 15px; margin-top: 0; text-transform: uppercase; letter-spacing: 0.5px;">
+            🏆 Ranking de Actividad Diaria
+        </h3>
+        <table width="100%" style="border-collapse: collapse; font-size: 12px; margin-top: 10px;">
+            <thead>
+                <tr style="background-color: #f8fafc; color: #475569; text-transform: uppercase; font-size: 10px;">
+                    <th align="left" style="padding: 8px; border-bottom: 1px solid #e2e8f0;">Colaborador</th>
+                    <th align="center" style="padding: 8px; border-bottom: 1px solid #e2e8f0;">Inventario</th>
+                    <th align="center" style="padding: 8px; border-bottom: 1px solid #e2e8f0;">Mantención</th>
+                    <th align="right" style="padding: 8px; border-bottom: 1px solid #e2e8f0;">Total Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in ranking_unificado %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px;">
+                        <strong style="color: #0f172a;">{{ r.nombre }}</strong>
+                    </td>
+                    <td align="center" style="padding: 8px; color: #1d4ed8; font-weight: 700;">
+                        {{ r.inventario }}
+                    </td>
+                    <td align="center" style="padding: 8px; color: #4338ca; font-weight: 700;">
+                        {{ r.mantencion }}
+                    </td>
+                    <td align="right" style="padding: 8px; font-weight: 800; color: #0f172a;">
+                        <span style="background-color: #f1f5f9; padding: 2px 8px; border-radius: 9999px; border: 1px solid #e2e8f0;">
+                            {{ r.total }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 
-    <div style="margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 15px; font-size: 12px; color: #a0aec0;">
-        Este es un reporte automático de seguridad. Si detecta movimientos no autorizados, contacte al administrador.
+    <!-- SECCIÓN: MANTENCIÓN PREVENTIVA -->
+    <div style="margin-bottom: 30px;">
+        <h3 style="border-left: 4px solid #dc2626; padding-left: 10px; color: #0f172a; font-size: 16px; margin: 0 0 4px 0;">
+            Mantención Preventiva Realizada
+        </h3>
+        <p style="color: #64748b; font-size: 12px; margin: 0 0 14px 0;">
+            Salas de clases e impresoras inspeccionadas durante la jornada
+        </p>
+
+        <!-- Bloque de Advertencia si hay incidentes críticos -->
+        {% if total_alertas_mantencion > 0 %}
+        <div style="background-color: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc2626; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px;">
+            <strong style="color: #991b1b; font-size: 12px; display: block; margin-bottom: 4px;">
+                ⚠️ ATENCIÓN: Se detectaron equipos fuera de servicio
+            </strong>
+            <span style="color: #7f1d1d; font-size: 11px;">
+                Hay {{ salas_criticas }} sala(s) con fallas críticas en proyector/audio y {{ impresoras_falla }} impresora(s) no operativa(s). Revise los detalles abajo.
+            </span>
+        </div>
+        {% endif %}
+
+        <!-- Sub-tabla: Salas -->
+        <table width="100%" style="border-collapse: collapse; font-size: 12px; margin-bottom: 18px;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1;">
+                    <th align="left" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Sala / Recinto</th>
+                    <th align="left" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Técnico</th>
+                    <th align="center" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Hora</th>
+                    <th align="center" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Condición</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in salas %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px; vertical-align: top;">
+                        <strong style="color: #0f172a;">{{ s.ubicacion.nombre }}</strong>
+                        <div style="color: #64748b; font-size: 10px;">{{ s.ubicacion.piso.edificio.nombre }}</div>
+                        {% if s.observaciones %}
+                        <div style="color: #b91c1c; font-size: 10px; margin-top: 2px;">
+                            <em>Nota: {{ s.observaciones|truncatechars:70 }}</em>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 8px; vertical-align: top; color: #334155;">
+                        {{ s.operador.get_full_name|default:s.operador.username|default:"Sistema" }}
+                    </td>
+                    <td align="center" style="padding: 8px; vertical-align: top; color: #64748b; font-family: monospace; font-size: 11px;">
+                        {{ s.fecha_revision|date:"H:i" }}
+                    </td>
+                    <td align="center" style="padding: 8px; vertical-align: top;">
+                        {% if s.estado_general == 'OPERATIVA' %}
+                            <span style="background-color: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800;">Operativa</span>
+                        {% elif s.estado_general == 'OBSERVACION' %}
+                            <span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800;">Con Obs.</span>
+                        {% elif s.estado_general == 'CRITICA' %}
+                            <span style="background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800;">Crítica</span>
+                        {% else %}
+                            <span style="background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 9999px; font-size: 10px;">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 12px; text-align: center; color: #94a3b8; font-size: 11px;">
+                        Sin revisiones de salas registradas en esta jornada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Sub-tabla: Impresoras -->
+        <table width="100%" style="border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1;">
+                    <th align="left" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Impresora</th>
+                    <th align="left" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Técnico</th>
+                    <th align="center" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Hora</th>
+                    <th align="center" style="padding: 8px; color: #475569; font-weight: 800; font-size: 11px;">Condición</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for imp in impresoras %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px; vertical-align: top;">
+                        <strong style="color: #0f172a;">{{ imp.impresora.activo.catalogo.marca.nombre }} {{ imp.impresora.activo.catalogo.modelo }}</strong>
+                        <div style="color: #64748b; font-size: 10px;">{{ imp.impresora.activo.ubicacion.nombre|default:"Sin ubicación" }}</div>
+                        {% if imp.observaciones %}
+                        <div style="color: #b91c1c; font-size: 10px; margin-top: 2px;">
+                            <em>Falla: {{ imp.observaciones|truncatechars:70 }}</em>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 8px; vertical-align: top; color: #334155;">
+                        {{ imp.operador.get_full_name|default:imp.operador.username|default:"Sistema" }}
+                    </td>
+                    <td align="center" style="padding: 8px; vertical-align: top; color: #64748b; font-family: monospace; font-size: 11px;">
+                        {{ imp.fecha_revision|date:"H:i" }}
+                    </td>
+                    <td align="center" style="padding: 8px; vertical-align: top;">
+                        {% if imp.estado_general == 'OPERATIVA' %}
+                            <span style="background-color: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800;">Operativa</span>
+                        {% elif imp.estado_general == 'NO_OPERATIVA' %}
+                            <span style="background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800;">Con Falla</span>
+                        {% else %}
+                            <span style="background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 9999px; font-size: 10px;">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 12px; text-align: center; color: #94a3b8; font-size: 11px;">
+                        Sin revisiones de impresoras registradas en esta jornada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- SECCIÓN: MOVIMIENTOS DE INVENTARIO (TABLA HISTÓRICA REUTILIZADA) -->
+    <div style="margin-bottom: 24px;">
+        <h3 style="border-left: 4px solid #1e40af; padding-left: 10px; color: #0f172a; font-size: 16px; margin: 0 0 14px 0;">
+            Auditoría de Movimientos de Inventario ({{ total_movimientos_inv }})
+        </h3>
+        
+        {% if logs %}
+            {% include 'inventario/emails/partials/_tabla_logs.html' %}
+        {% else %}
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+                No se registraron altas, bajas o modificaciones de activos en el inventario durante las últimas 24 horas.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- BOTÓN DE ACCESO DIRECTO -->
+    <div style="text-align: center; margin: 30px 0 10px 0;">
+        <a href="{{ portal_url }}" target="_blank" 
+           style="background-color: #dc2626; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 13px; font-weight: 800; display: inline-block;">
+            Ingresar al Portal ADR →
+        </a>
+    </div>
+
+    <!-- Pie de Seguridad -->
+    <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8; text-align: center;">
+        Reporte consolidado automatizado de auditoría y operaciones. Sede Iquique.
     </div>
 {% endblock %}

@@ -86,7 +86,7 @@ class DashboardMantencion(LoginRequiredMixin, PermissionRequiredMixin, TemplateV
         ).order_by('-fecha')[:8]
 
         context.update({
-            'titulo_pagina': f'Panel de Control · {mes_nombre} {hoy.year}',
+            'titulo_pagina': f'Mantención · {mes_nombre} {hoy.year}',
             'mes_nombre': mes_nombre,
             'anio_actual': hoy.year,
             'ciclo_salas': ciclo_salas,
